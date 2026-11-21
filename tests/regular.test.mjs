@@ -4,6 +4,9 @@ import {database,memoryBucket} from '../scripts/local-adapter.mjs';import app fr
 import {panelHTML} from '../worker/panel.js';import {customerHTML} from '../worker/customer.js';
 import {CUSTOMER_IMAGE_PRICE,CUSTOMER_PACKS,REFERRAL_IMAGES} from '../worker/customerprices.js';
 import {PLANS} from '../worker/prices.js';
+// Price tests expect the round list price on a first order; production always offsets (worker/paysms.js).
+import {amountMode} from '../worker/paysms.js';
+amountMode.roundFirst=true;
 
 const origin='https://test.example';
 const migrations=readdirSync(new URL('../drizzle/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort();

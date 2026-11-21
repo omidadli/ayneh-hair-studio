@@ -8,6 +8,9 @@ const origin='https://test.example';
 const migrations=readdirSync(new URL('../drizzle/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort();
 function fixture(){const DB=database();for(const f of migrations)DB.sql.exec(readFileSync(new URL('../drizzle/'+f,import.meta.url),'utf8'));return {DB,BUCKET:memoryBucket(),OWNER_EMAIL:'owner@test',JOB_TOKEN:'job-test',TRUST_PLATFORM_IDENTITY:'true'};}
 const OWNER={user:'owner-a',email:'owner@test'};
+// Older price tests expect the round list price on a first order; production always offsets (worker/paysms.js).
+import {amountMode} from '../worker/paysms.js';
+amountMode.roundFirst=true;
 async function call(env,path,body,{cookie='',user='',email='',headers:extra={}}={}){const headers={origin,'oai-authenticated-user-id':user,'oai-authenticated-user-email':email,cookie,...extra};let payload;if(body!==undefined){if(body instanceof Uint8Array){payload=body}else{headers['content-type']='application/json';payload=JSON.stringify(body)}}const res=await app.fetch(new Request(origin+path,{method:body===undefined?'GET':'POST',headers,body:payload}),env);let d;try{d=await res.json()}catch{d=null}return {status:res.status,data:d,cookie:res.headers.get('set-cookie')?.split(';')[0]};}
 async function salon(env,slug='salon-a'){const r=await call(env,'/api/salons',{slug,name:'سالن '+slug},OWNER);assert.equal(r.status,200,JSON.stringify(r));return {id:r.data.id,slug};}
 async function guest(env,s){const r=await call(env,'/api/s/'+s.slug+'/session',{});assert.equal(r.status,200);return {cookie:r.cookie};}
@@ -3039,10 +3042,11 @@ test('pay sms: a forwarded Blu deposit SMS confirms the one order with that exac
   assert.equal(parseDeposit('سلام'), null);
   const e = fixture();
   const restore = priced('pro', 1100000);
+  amountMode.roundFirst = false;
   try {
     const a = await call(e, '/api/order', orderBody());
     const b = await call(e, '/api/order', orderBody('pro', {phone: '۰۹۱۲۷۶۵۴۳۲۱', salon: 'سالن دوم'}));
-    assert.equal(a.data.amount, 1100000, 'the first order keeps the plan price');
+    assert.ok(a.data.amount < 1100000 && a.data.amount >= 1100000 - 999, 'never the round price: a friend\'s round transfer cannot open it');
     assert.notEqual(b.data.amount, a.data.amount, 'a second open order never shares an amount');
     assert.ok(b.data.amount < 1100000 && b.data.amount >= 1100000 - 999, 'only a few toman off, never more');
     const key = (await call(e, '/api/owner/payment', undefined, OWNER)).data.webhook.key;
@@ -3067,7 +3071,7 @@ test('pay sms: a forwarded Blu deposit SMS confirms the one order with that exac
     const broken = '{"from":"+989999987641","text":"' + blu(c.data.amount * 10) + '"}';
     const k = await app.fetch(new Request(origin + '/api/pay/sms', {method: 'POST', headers: {'content-type': 'application/json; charset=utf-8', authorization: 'Bearer ' + key}, body: broken}), e);
     assert.equal((await k.json()).status, 'paid');
-  } finally { restore() }
+  } finally { restore(); amountMode.roundFirst = true }
 });
 
 test('pay sms: a transfer after the 10 minutes still opens the expired order with the exact amount', async () => {
@@ -3194,4 +3198,18 @@ test('test order: the owner opens any amount, the bank SMS confirms it, and noth
   assert.equal(r.label, 'آزمایشی');
   assert.equal((await call(e, '/api/order/' + t.data.id)).data.status, 'paid');
   assert.equal(e.DB.sql.prepare('SELECT COUNT(*) AS n FROM salons').get().n, salonsBefore, 'no salon is made');
+});
+
+test('pay notification: a Blu app notification (title + text + post time, rials or toman) reads like the SMS; two same-amount notifications stay apart', async () => {
+  const {parseDeposit} = await import('../worker/paysms.js');
+  assert.equal(parseDeposit('واریز پول\nامید عزیز،50,000,000 ریال به حساب شما نشست.\n⏱1795290000000'), 50000000);
+  assert.equal(parseDeposit('واریز\n۱۲٬۵۰۰ تومان به حساب شما نشست\n⏱1795290000000'), 125000);
+  const e = fixture();
+  const t = await call(e, '/api/owner/test-order', {amount: 20000}, OWNER);
+  const key = (await call(e, '/api/owner/payment', undefined, OWNER)).data.webhook.key;
+  const send = text => app.fetch(new Request(origin + '/api/pay/sms', {method: 'POST', headers: {'content-type': 'application/json', authorization: 'Bearer ' + key}, body: JSON.stringify({text})}), e).then(r => r.json());
+  const n = 'واریز پول\nامید عزیز،' + (t.data.amount * 10).toLocaleString('en-US') + ' ریال به حساب شما نشست.';
+  assert.equal((await send(n + '\n⏱1')).status, 'paid');
+  assert.equal((await send(n + '\n⏱1')).duplicate, true, 'a re-posted notification counts once');
+  assert.equal((await send(n + '\n⏱2')).matched, false, 'a second deposit of the same amount is its own event, not a duplicate');
 });

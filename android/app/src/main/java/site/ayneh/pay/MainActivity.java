@@ -72,6 +72,7 @@ public class MainActivity extends Activity {
                 if (r.code == 401) Store.setAuthFailed(getApplicationContext(), true);
                 else if (r.ok()) {
                     Store.setSenders(getApplicationContext(), r.body.optJSONArray("senders"));
+                    Store.setApps(getApplicationContext(), r.body.optJSONArray("apps"));
                     if (Store.authFailed(this)) Store.setAuthFailed(getApplicationContext(), false);
                 }
             } catch (Exception ignored) { }
@@ -97,11 +98,12 @@ public class MainActivity extends Activity {
         header();
         if (!Store.paired(this)) { pairScreen(); return; }
         if (Store.authFailed(this)) authCard();
+        boolean listen = listenerOn();
         boolean sms = has(Manifest.permission.RECEIVE_SMS);
         boolean notes = Build.VERSION.SDK_INT < 33 || has("android.permission.POST_NOTIFICATIONS");
         boolean battery = batteryFree();
-        if (!sms || !notes || !battery) permissionsCard(sms, notes, battery);
-        statusCard(sms && battery);
+        if (!listen || !notes || !battery) permissionsCard(listen, sms, notes, battery);
+        statusCard((listen || sms) && battery);
         listCard();
         footer();
     }
@@ -156,11 +158,13 @@ public class MainActivity extends Activity {
         root.addView(c, matchWrap(0, 0, 0, dp(14)));
     }
 
-    private void permissionsCard(boolean sms, boolean notes, boolean battery) {
+    private void permissionsCard(boolean listen, boolean sms, boolean notes, boolean battery) {
         LinearLayout c = card();
-        c.addView(text("سه اجازه، فقط یک بار", 18, INK, true));
-        c.addView(spaced(text("روی هر «اجازه بده» بزنید و در پنجرهٔ اندروید «Allow / اجازه» را انتخاب کنید.", 13, MUTED, false), 4));
-        c.addView(permRow("خواندن پیامک‌های واریز", "فقط پیامک‌های واریز بانک کارت‌های شما به سایت آینه فرستاده می‌شوند.", sms,
+        c.addView(text("چند اجازه، فقط یک بار", 18, INK, true));
+        c.addView(spaced(text("روی هر «اجازه بده» بزنید و در صفحهٔ اندروید آن را روشن کنید.", 13, MUTED, false), 4));
+        c.addView(permRow("خواندن اعلان‌های واریز بلو", "در صفحه‌ای که باز می‌شود «آینه‌پی» را روشن کنید. فقط اعلان‌های واریز اپ بلو خوانده می‌شود.", listen,
+                v -> openListenerSettings()));
+        c.addView(permRow("پیامک واریز (اختیاری)", "برای بانک‌هایی که واریز را با پیامک خبر می‌دهند.", sms,
                 v -> ask(Manifest.permission.RECEIVE_SMS)));
         if (Build.VERSION.SDK_INT >= 33)
             c.addView(permRow("اعلان‌ها", "با هر واریز تأییدشده خبرتان می‌کند.", notes,
@@ -384,6 +388,24 @@ public class MainActivity extends Activity {
         } catch (Exception e) {
             try { startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)); } catch (Exception ignored) { }
         }
+    }
+
+    /** Is «آینه‌پی» on in Android's «Notification access» list? */
+    private boolean listenerOn() {
+        String on = Settings.Secure.getString(getContentResolver(), "enabled_notification_listeners");
+        return on != null && on.contains(getPackageName() + "/");
+    }
+
+    private void openListenerSettings() {
+        try {
+            if (Build.VERSION.SDK_INT >= 30) {
+                Intent i = new Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS);
+                i.putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME, new android.content.ComponentName(this, BankNotifications.class).flattenToString());
+                startActivity(i);
+                return;
+            }
+        } catch (Exception ignored) { }
+        try { startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)); } catch (Exception ignored) { }
     }
 
     private boolean batteryFree() {

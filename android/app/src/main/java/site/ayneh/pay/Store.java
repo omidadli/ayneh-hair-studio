@@ -61,6 +61,24 @@ final class Store {
         return false;
     }
 
+    /** Bank apps whose deposit notifications are read (Blu posts deposits as app notifications). */
+    static boolean isBankApp(Context c, String pkg) {
+        if (pkg == null) return false;
+        for (String s : prefs(c).getString("apps", BankNotifications.BLU_PACKAGE).split(","))
+            if (pkg.equals(s.trim())) return true;
+        return false;
+    }
+
+    static void setApps(Context c, org.json.JSONArray a) {
+        if (a == null || a.length() == 0) return;
+        StringBuilder b = new StringBuilder();
+        for (int i = 0; i < a.length(); i++) {
+            String s = a.optString(i, "").trim();
+            if (s.matches("[A-Za-z0-9_.]{3,100}")) { if (b.length() > 0) b.append(','); b.append(s); }
+        }
+        if (b.length() > 0) prefs(c).edit().putString("apps", b.toString()).apply();
+    }
+
     /** The bank SMS numbers of the owner's cards (from /admin); Blu until the site says otherwise. */
     static String[] senders(Context c) {
         String v = prefs(c).getString("senders", BLU_NUMBER);
@@ -87,9 +105,9 @@ final class Store {
         String t = toLatin(body).replace('٬', ',');
         int cut = t.indexOf("موجودی");
         if (cut > 0) t = t.substring(0, cut);
-        Matcher m = Pattern.compile("(\\d{1,3}(?:,\\d{3})+|\\d{4,})\\s*ریال").matcher(t);
+        Matcher m = Pattern.compile("(\\d{1,3}(?:,\\d{3})+|\\d{4,})\\s*(ریال|تومان)").matcher(t);
         if (!m.find()) return 0;
-        try { return Long.parseLong(m.group(1).replace(",", "")); } catch (NumberFormatException e) { return 0; }
+        try { return Long.parseLong(m.group(1).replace(",", "")) * ("تومان".equals(m.group(2)) ? 10 : 1); } catch (NumberFormatException e) { return 0; }
     }
 
     static String toLatin(String s) {

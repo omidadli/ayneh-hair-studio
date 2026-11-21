@@ -23,13 +23,18 @@ export const AMOUNT_HOLD_MS = 48 * 3600000;
 /* The most an order's amount is lowered to make it unique (toman). */
 export const MAX_OFFSET_TOMAN = 999;
 
-/* An amount (rials) no unpaid order of the last AMOUNT_HOLD_MS uses. The price itself when it is
-   free; otherwise a few toman less (the buyer pays slightly less, never more). */
+/* An amount (rials) no unpaid order of the last AMOUNT_HOLD_MS uses: always a random 1–999 toman
+   below the price (the buyer pays slightly less, never more). Never the round price itself, so an
+   unrelated round transfer (a friend's 2,900,000) can never open an order. */
+/* Test seam only: the older tests check exact list prices, so they let the first order keep the
+   round price (roundFirst). Production never sets it. */
+export const amountMode = {roundFirst: false};
 export async function uniqueAmount(db, rial, notId = '') {
   const since = Date.now() - AMOUNT_HOLD_MS;
   const taken = new Set((await all(db,
     "SELECT amount FROM orders WHERE status<>'paid' AND created_at>? AND id<>? AND amount BETWEEN ? AND ?",
     since, notId, rial - MAX_OFFSET_TOMAN * 10, rial)).map(r => Number(r.amount)));
+  if (!amountMode.roundFirst) taken.add(rial);
   if (!taken.has(rial)) return rial;
   const room = Math.min(MAX_OFFSET_TOMAN, Math.floor(rial / 10) - 1);
   for (let i = 0; i < 40; i++) {
@@ -48,9 +53,10 @@ export function parseDeposit(raw) {
   if (!/واریز|نشست|\+\s*[\d,]+/.test(t)) return null;
   if (/برداشت|خرید|کسر شد/.test(t) && !/واریز|نشست/.test(t)) return null;
   const body = t.split(/موجودی|مانده/)[0];
-  const m = body.match(/\+?\s*(\d{1,3}(?:,\d{3})+|\d{4,})\s*ریال/) || body.match(/\+\s*(\d{1,3}(?:,\d{3})+|\d{4,})/);
+  /* Rials as the bank writes them; an amount in toman (some app notifications) is turned into rials. */
+  const m = body.match(/\+?\s*(\d{1,3}(?:,\d{3})+|\d{4,})\s*(ریال|تومان)/) || body.match(/\+\s*(\d{1,3}(?:,\d{3})+|\d{4,})/);
   if (!m) return null;
-  const n = Number(m[1].replace(/,/g, ''));
+  const n = Number(m[1].replace(/,/g, '')) * (m[2] === 'تومان' ? 10 : 1);
   return Number.isSafeInteger(n) && n > 0 ? n : null;
 }
 

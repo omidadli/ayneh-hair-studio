@@ -147,7 +147,7 @@ export function orderTotal(plan, users = 0) {
   if (!p) return 0;
   return planAmount(plan) + Math.max(0, Number(users || 0) - Number(p.seats || 0)) * Number(p.seat_amount || 0);
 }
-const planName = row => row.kind === 'topup' ? 'اعتبار ' + Number(row.credits || 0).toLocaleString('fa-IR') + ' عکس' : (PLANS[row.plan]?.name || row.plan);
+const planName = row => row.kind === 'test' ? 'سفارش آزمایشی' : row.kind === 'topup' ? 'اعتبار ' + Number(row.credits || 0).toLocaleString('fa-IR') + ' عکس' : (PLANS[row.plan]?.name || row.plan);
 
 /* Coupons: {CODE:{percent|amount, max, used}} in app_settings, editable without a deploy. */
 export async function couponTable(db) {
@@ -177,7 +177,7 @@ const toman = rial => Math.round(Number(rial || 0) / 10);
    comes from the generated plan table: a salon plan's own title, else the order's service. An
    order without a known service (an old one) falls back to the plan name. */
 export function orderSummary(row) {
-  if (row.kind === 'topup') return {title: planName(row), months: 0, users: 0};
+  if (row.kind === 'topup' || row.kind === 'test') return {title: planName(row), months: 0, users: 0};
   const p = PLANS[row.plan] || {};
   return {title: String(p.title || SERVICE_TITLES[row.service] || p.name || row.plan), months: Number(p.months || 0), users: Number(row.users || p.users || 0)};
 }
@@ -363,6 +363,23 @@ export async function createTopup(db, env, {order: panelOrder, salon}, packs, or
   return publicOrder(db, env, row, {origin});
 }
 
+/* The owner's test order: any amount, a 30-minute window, confirmed by the same SMS/webhook path,
+   and it grants nothing (confirmOrder returns before any salon or credit is touched). */
+export const TEST_MINUTES = 30;
+export async function createTestOrder(db, env, amountToman, origin = '') {
+  const t = Number(digits(String(amountToman ?? '')).replace(/[^\d]/g, ''));
+  must(Number.isInteger(t) && t >= 1000 && t <= 100000000, 'مبلغ آزمایشی باید بین ۱٬۰۰۰ و ۱۰۰٬۰۰۰٬۰۰۰ تومان باشد.');
+  const now = Date.now();
+  await closeExpired(db);
+  const row = {
+    id: uid(), ref: ref(), plan: 'test', kind: 'test', service: '', credits: 0, amount: t * 10,
+    salon_name: 'سفارش آزمایشی', contact_name: 'مدیر', phone: '', city: '', note: 'test', status: 'open',
+    expires_at: now + TEST_MINUTES * 60000, access_key_hash: '', coupon: '', discount: 0, created_at: now, updated_at: now,
+  };
+  await insert(db, row);
+  return publicOrder(db, env, row, {origin});
+}
+
 /* A renewal or an upgrade from the salon's own panel: the salon, contact and mobile come from
    the panel session, the panel key stays the same (no new key is minted), and confirmation
    applies the new plan to this same salon (provisionSalon honours salon_id). */
@@ -497,10 +514,15 @@ export async function confirmOrder(db, env, id, {by = 'owner', origin = '', amou
     /* Already paid. Only a plan whose grant never landed (a crash mid-way) is repaired; a
        renewal carries its salon_id from the start, so the ledger is what says it was applied. */
     const applied = await one(db, 'SELECT 1 FROM credit_ledger WHERE order_id=? LIMIT 1', id);
-    if (applied || row.kind === 'topup' || (row.salon_id && row.note !== 'renewal'))
+    if (applied || row.kind === 'topup' || row.kind === 'test' || (row.salon_id && row.note !== 'renewal'))
       return {order: await publicOrder(db, env, row, {origin}), claimed: false};
   }
   /* A regular customer's image pack: her own account, never a salon (worker/customers.js). */
+  /* The owner's test transfer (/admin «سفارش آزمایشی»): proves the card → SMS → app → site path; opens nothing. */
+  if (row.kind === 'test') {
+    try { const {notifyOwner} = await import('./alerts.js'); await notifyOwner(env, {kind: 'order', level: 'good', text: 'سفارش آزمایشی ' + row.ref + ' با واریز ' + toman(row.amount).toLocaleString('fa-IR') + ' تومان خودکار تأیید شد'}); } catch {}
+    return {claimed: true, order: await publicOrder(db, env, await orderById(db, id), {origin})};
+  }
   if (row.kind === 'customer_pack') return {claimed: await confirmCustomerPack(db, env, row), order: await publicOrder(db, env, await orderById(db, id), {origin})};
   let salon;
   if (row.kind === 'topup') {

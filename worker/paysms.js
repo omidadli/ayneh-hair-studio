@@ -90,7 +90,7 @@ export async function smsConfirm(db, env, rawText, origin = '') {
   /* What the owner's payment app shows next to the deposit: the buyer as the owner already
      sees it in /admin (salon or buyer name and what was bought), never a mobile. */
   const name = who?.salon_name || who?.contact_name || (who?.kind === 'customer_pack' ? 'مشتری آینه' : '');
-  const label = who?.kind === 'topup' ? 'اعتبار عکس' : String(who?.plan || '');
+  const label = who?.kind === 'topup' ? 'اعتبار عکس' : who?.kind === 'test' ? 'آزمایشی' : String(who?.plan || '');
   try {
     const r = await confirmOrder(db, env, hits[0].id, {by: 'sms', origin, amount: toman});
     await done('paid', hits[0].id);

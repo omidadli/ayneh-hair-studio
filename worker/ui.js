@@ -410,6 +410,23 @@ function payCard(){
    out.hidden=true;
    var row=el('div',{class:'pay-admin__row'},[el('label',{class:'field'},[h('span','شمارهٔ کارت','lbl'),cardEl]),el('label',{class:'field'},[h('span','صاحب کارت','lbl'),ownerEl]),saveBtn]);
    var appCode=el('div',{class:'pay-admin__card',hidden:true,style:'text-align:center'});
+   var testAmt=el('input',{dir:'ltr',inputmode:'numeric',placeholder:'مبلغ به تومان، مثلاً 10000',style:'max-width:220px'});
+   var testBox=el('div',{class:'pay-admin__card',hidden:true,style:'direction:rtl;font-family:inherit;letter-spacing:normal;display:grid;gap:6px'});
+   function showTest(o){
+    if(window.__testPoll)clearInterval(window.__testPoll);
+    var st=el('b',{text:'⏳ منتظر واریز… (این صفحه خودش به‌روز می‌شود)'});
+    testBox.hidden=false;
+    testBox.replaceChildren(
+     el('div',{text:'دقیقاً این مبلغ را واریز کنید:'}),
+     el('b',{style:'font-size:22px',text:fa(o.amount)+' تومان'}),
+     el('div',{text:'به کارت:'}),
+     el('b',{dir:'ltr',style:'font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em;text-align:right;font-size:18px',text:(o.card||'کارتی ذخیره نشده').replace(/(\d{4})(?=\d)/g,'$1 ')+(o.card_owner?'  ('+o.card_owner+')':'')}),
+     el('small',{text:'کد سفارش '+o.ref+' · ۳۰ دقیقه مهلت'}),st);
+    window.__testPoll=setInterval(function(){fetch('/api/order/'+o.id).then(function(r){return r.json()}).then(function(d){
+     if(d.status==='paid'){st.textContent='✅ واریز رسید و سفارش آزمایشی خودکار تأیید شد. همه‌چیز درست کار می‌کند.';clearInterval(window.__testPoll)}
+     else if(d.status==='expired'||d.status==='cancelled'){st.textContent='⌛ مهلت تمام شد و واریزی نرسید.';clearInterval(window.__testPoll)}
+    }).catch(function(){})},4000);
+   }
    body.replaceChildren(
     h('p','هر سفارش تازه یکی از این کارت‌ها را تصادفی به مشتری نشان می‌دهد. «پیامک از» شمارهٔ پیامک واریز بانک همان کارت است (بلو: 9999987641)؛ اپ‌های آینه‌پی پیامک همین شماره‌ها را می‌فرستند.','lead'),
     cards.length?el('div',{class:'stack',style:'display:grid;gap:8px'},cards):el('div',{class:'pay-admin__card is-empty',text:'شمارهٔ کارت هنوز ذخیره نشده'}),
@@ -427,6 +444,9 @@ function payCard(){
       el('button',{class:'btn btn--primary btn--sm',type:'button',text:'ساخت کد اتصال اپ',onclick:act(function(){return api('/api/owner/app-code',{}).then(function(d){appCode.hidden=false;appCode.replaceChildren(el('b',{dir:'ltr',style:'letter-spacing:.18em;font-size:26px;font-family:ui-monospace,Menlo,monospace',text:d.code}),el('div',{style:'font-size:13px;margin-top:6px;letter-spacing:normal;font-family:var(--font,system-ui),system-ui,sans-serif;direction:rtl',text:'این کد را در اپ آینه‌پی بنویسید · '+Number(d.minutes).toLocaleString('fa-IR')+' دقیقه اعتبار دارد و یک بار کار می‌کند'}))})})})
      ]),
      appCode,
+     h('small','سفارش آزمایشی (هر مبلغ؛ فقط برای امتحان مسیر کارت ← پیامک ← اپ ← سایت؛ چیزی باز نمی‌کند)'),
+     el('div',{class:'row'},[testAmt,el('button',{class:'btn btn--primary btn--sm',type:'button',text:'ساخت سفارش آزمایشی',onclick:act(function(){return api('/api/owner/test-order',{amount:testAmt.value}).then(showTest)})})]),
+     testBox,
      el('div',{class:'row'},[el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'ساخت توکن تازه',onclick:act(function(){if(!confirm('توکن قبلی از کار می‌افتد؛ سرویس سایت پرداخت را هم به‌روز کنید. ادامه؟'))return;return api('/api/owner/payment',{rotate:true}).then(load)})})])
     ]),
     h('h3','سفارش‌ها','sub'),

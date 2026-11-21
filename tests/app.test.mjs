@@ -3075,7 +3075,8 @@ test('pay sms: a transfer after the 10 minutes still opens the expired order wit
   const restore = priced('pro', 1100000);
   try {
     const a = await call(e, '/api/order', orderBody());
-    e.DB.sql.exec('UPDATE orders SET expires_at=1 WHERE id=?', a.data.id);
+    e.DB.sql.prepare("UPDATE orders SET expires_at=1,status='expired' WHERE id=?").run(a.data.id);
+    assert.equal((await call(e, '/api/order/' + a.data.id)).data.status, 'expired');
     const key = (await call(e, '/api/owner/payment', undefined, OWNER)).data.webhook.key;
     const r = await app.fetch(new Request(origin + '/api/pay/sms', {method: 'POST', headers: {authorization: 'Bearer ' + key}, body: 'بلو\nواریز پول\nامید عزیز،' + (a.data.amount * 10).toLocaleString('en-US') + ' ریال به حساب شما نشست.\nموجودی: 1 ریال'}), e);
     assert.equal((await r.json()).status, 'paid');
@@ -3175,4 +3176,22 @@ test('iPhone page: pairing sets a Strict cookie (no key in the page); the cookie
     const hist = await app.fetch(new Request(origin + '/api/pay/history', {method: 'POST', headers: {cookie, origin}}), e);
     assert.equal((await hist.json()).items[0].result, 'paid');
   } finally { restore() }
+});
+
+test('test order: the owner opens any amount, the bank SMS confirms it, and nothing is provisioned', async () => {
+  const e = fixture();
+  assert.equal((await call(e, '/api/owner/test-order', {amount: 10000})).status, 401, 'owner only');
+  assert.equal((await call(e, '/api/owner/test-order', {amount: 50}, OWNER)).status, 400);
+  const t = await call(e, '/api/owner/test-order', {amount: '۱۲٬۵۰۰'}, OWNER);
+  assert.equal(t.status, 200, JSON.stringify(t.data));
+  assert.equal(t.data.amount, 12500);
+  assert.equal(t.data.plan_name, 'سفارش آزمایشی');
+  assert.equal(t.data.expires_at - t.data.created_at, 30 * 60000);
+  const key = (await call(e, '/api/owner/payment', undefined, OWNER)).data.webhook.key;
+  const salonsBefore = e.DB.sql.prepare('SELECT COUNT(*) AS n FROM salons').get().n;
+  const r = await (await app.fetch(new Request(origin + '/api/pay/sms', {method: 'POST', headers: {authorization: 'Bearer ' + key}, body: 'بلو\nواریز پول\nامید عزیز،125,000 ریال به حساب شما نشست.\nموجودی: 9 ریال'}), e)).json();
+  assert.equal(r.matched, true);
+  assert.equal(r.label, 'آزمایشی');
+  assert.equal((await call(e, '/api/order/' + t.data.id)).data.status, 'paid');
+  assert.equal(e.DB.sql.prepare('SELECT COUNT(*) AS n FROM salons').get().n, salonsBefore, 'no salon is made');
 });

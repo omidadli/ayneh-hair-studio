@@ -12,6 +12,7 @@ import {smsReady,inviteReady,sendOtp} from './sms.js';
 import {createTrial,trialOf,trialLive,trialPublic,spendTrialImage} from './trial.js';
 import {PLANS as PLANS_TABLE} from './prices.js';
 import {smsConfirm,newPairCode,redeemPairCode} from './paysms.js';
+import {createTestOrder} from './orders.js';
 import {createOrder,createTopup,createRenewal,customerOrder,setCoupon,confirmOrder,webhookConfirm,reopenOrder,rekeyOrder,closeExpired,cardSetting,saveCard,
  webhookKey,rotateWebhookKey,cardList,removeCard,smsSenders,panelLogin,panelSalon,panelLogout,panelDashboard,tickChecklist,ORDER_MINUTES,SERVICE_LABEL} from './orders.js';
 import {spendCredit,planOf} from './credits.js';
@@ -253,9 +254,10 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   const given=payToken(req,u);
   must(expected&&same(String(given),expected),'اتصال باطل شده؛ دوباره با کد تازه وصل شوید',401);
   const rows=await all(db,"SELECT p.amount,p.result,p.created_at,o.ref,o.salon_name,o.contact_name,o.plan,o.kind FROM pay_sms p LEFT JOIN orders o ON o.id=p.order_id ORDER BY p.created_at DESC LIMIT 60");
-  return J({items:rows.map(r=>({amount:Math.round(Number(r.amount||0)/10),result:r.result,at:r.created_at,ref:r.ref||'',name:r.salon_name||r.contact_name||(r.kind==='customer_pack'?'مشتری آینه':''),label:r.kind==='topup'?'اعتبار عکس':(r.plan||'')}))});
+  return J({items:rows.map(r=>({amount:Math.round(Number(r.amount||0)/10),result:r.result,at:r.created_at,ref:r.ref||'',name:r.salon_name||r.contact_name||(r.kind==='customer_pack'?'مشتری آینه':''),label:r.kind==='topup'?'اعتبار عکس':r.kind==='test'?'آزمایشی':(r.plan||'')}))});
  }
  if(path==='/api/owner/app-code'&&req.method==='POST'){await owner(req,env);return J(await newPairCode(db));}
+ if(path==='/api/owner/test-order'&&req.method==='POST'){await owner(req,env);const b=await req.json().catch(()=>({}));return J(await createTestOrder(db,env,b.amount,u.origin));}
 
  /* ---------- salon panel (the door the plan opens) ---------- */
  // Requests, bot link, bookings, report, archive and support (worker/panelapi.js).

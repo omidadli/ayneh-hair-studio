@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- «آینه‌پی» logo: a hand mirror (Ayneh) whose glass shows a check (confirmed). Source: android/logo/icon.svg -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+<group android:rotation="-14" android:pivotX="54" android:pivotY="54">
+  <path android:fillColor="#FFFFFFFF" android:fillType="evenOdd" android:pathData="M34.5,44 a19.5,23 0 1,0 39.0,0 a19.5,23 0 1,0 -39.0,0 Z M39.4,44 a14.6,18.1 0 1,0 29.2,0 a14.6,18.1 0 1,0 -29.2,0 Z"/>
+  <path android:strokeColor="#FFFFFFFF" android:strokeWidth="4.4" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M46.4,45 L51.8,50.4 L62.4,39.4"/>
+  <path android:fillColor="#FFFFFFFF" android:pathData="M49.2,66.2 C51,67.6 57,67.6 58.8,66.2 L57.6,71.4 L50.4,71.4 Z"/>
+  <path android:fillColor="#FFFFFFFF" android:pathData="M51,71 L57,71 L56.2,87.6 C56.1,89.2 55.2,90.2 54,90.2 C52.8,90.2 51.9,89.2 51.8,87.6 Z"/>
+</group>
+</vector>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- «آینه‌پی» logo: a hand mirror (Ayneh) whose glass shows a check (confirmed). Source: android/logo/icon.svg -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt" android:width="108dp" android:height="108dp" android:viewportWidth="108" android:viewportHeight="108">
+<path android:pathData="M28,0 L80,0 Q108,0 108,28 L108,80 Q108,108 80,108 L28,108 Q0,108 0,80 L0,28 Q0,0 28,0 Z"><aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="0" android:startY="0" android:endX="108" android:endY="108"><item android:offset="0" android:color="#FF17B48B"/><item android:offset="1" android:color="#FF045A46"/></gradient></aapt:attr></path>
+<group android:rotation="-14" android:pivotX="54" android:pivotY="54">
+  <path android:fillColor="#FFFFFFFF" android:pathData="M34.5,44 a19.5,23 0 1,0 39.0,0 a19.5,23 0 1,0 -39.0,0 Z"/>
+  <path android:pathData="M39.4,44 a14.6,18.1 0 1,0 29.2,0 a14.6,18.1 0 1,0 -29.2,0 Z"><aapt:attr name="android:fillColor"><gradient android:type="linear" android:startX="39.4" android:startY="25.9" android:endX="68.6" android:endY="62.1"><item android:offset="0" android:color="#FF1FC59A"/><item android:offset="1" android:color="#FF077257"/></gradient></aapt:attr></path>
+  <path android:strokeColor="#400A7A5E" android:strokeWidth="0.9" android:pathData="M36.9,44 a17.1,20.6 0 1,0 34.2,0 a17.1,20.6 0 1,0 -34.2,0 Z"/>
+  <path android:strokeColor="#8CFFFFFF" android:strokeWidth="2.2" android:strokeLineCap="round" android:pathData="M43.4,37.5 C44.6,32.4 48.4,28.8 53,28"/>
+  <path android:strokeColor="#FFFFFFFF" android:strokeWidth="4.4" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M46.4,45 L51.8,50.4 L62.4,39.4"/>
+  <path android:fillColor="#FFFFFFFF" android:pathData="M49.2,66.2 C51,67.6 57,67.6 58.8,66.2 L57.6,71.4 L50.4,71.4 Z"/>
+  <path android:fillColor="#FFFFFFFF" android:pathData="M51,71 L57,71 L56.2,87.6 C56.1,89.2 55.2,90.2 54,90.2 C52.8,90.2 51.9,89.2 51.8,87.6 Z"/>
+</group>
+<path android:fillColor="#FFFFE3A3" android:pathData="M79,24 L80.5,28.3 L84.8,29.8 L80.5,31.3 L79,35.6 L77.5,31.3 L73.2,29.8 L77.5,28.3 Z"/>
+<path android:fillColor="#B3FFFFFF" android:pathData="M30.5,62 L31.3,64.2 L33.5,65 L31.3,65.8 L30.5,68 L29.7,65.8 L27.5,65 L29.7,64.2 Z"/>
+</vector>

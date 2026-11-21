@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="432" height="432" viewBox="0 0 108 108">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#17B48B"/><stop offset="1" stop-color="#045A46"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1FC59A"/><stop offset="1" stop-color="#077257"/>
+    </linearGradient>
+  </defs>
+  <rect width="108" height="108" fill="url(#bg)"/>
+  <g transform="rotate(-14 54 54)">
+    <!-- frame -->
+    <ellipse cx="54" cy="44" rx="19.5" ry="23" fill="#FFFFFF"/>
+    <!-- glass -->
+    <ellipse cx="54" cy="44" rx="14.6" ry="18.1" fill="url(#glass)"/>
+    <!-- inner bead ring -->
+    <ellipse cx="54" cy="44" rx="17.1" ry="20.6" fill="none" stroke="#0A7A5E" stroke-opacity="0.25" stroke-width="0.9"/>
+    <!-- sheen -->
+    <path d="M43.4,37.5 C44.6,32.4 48.4,28.8 53,28" fill="none" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="round"/>
+    <!-- check -->
+    <path d="M46.4,45 L51.8,50.4 L62.4,39.4" fill="none" stroke="#FFFFFF" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- collar -->
+    <path d="M49.2,66.2 C51,67.6 57,67.6 58.8,66.2 L57.6,71.4 L50.4,71.4 Z" fill="#FFFFFF"/>
+    <!-- handle -->
+    <path d="M51,71 L57,71 L56.2,87.6 C56.1,89.2 55.2,90.2 54,90.2 C52.8,90.2 51.9,89.2 51.8,87.6 Z" fill="#FFFFFF"/>
+    <circle cx="54" cy="77.2" r="1.3" fill="#0A7A5E" fill-opacity="0.35"/>
+  </g>
+  <!-- sparkles -->
+  <path d="M79,24 L80.5,28.3 L84.8,29.8 L80.5,31.3 L79,35.6 L77.5,31.3 L73.2,29.8 L77.5,28.3 Z" fill="#FFE3A3"/>
+  <path d="M30.5,62 L31.3,64.2 L33.5,65 L31.3,65.8 L30.5,68 L29.7,65.8 L27.5,65 L29.7,64.2 Z" fill="#FFFFFF" fill-opacity="0.7"/>
+</svg>

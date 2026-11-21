@@ -43,6 +43,10 @@ PLANS = [
      'features': ['همهٔ امکانات پلن پایه', '۷۵ عکس هدیه', 'نوبت‌دهی و پیگیری', 'گزارش عملکرد ساده']},
     {'key': 'signature', 'name': 'کامل', 'months': 6, 'amount': 10000000, 'was': 17400000, 'credits': 180, 'badge': 'پیشنهاد آینه',
      'features': ['همهٔ امکانات پلن حرفه‌ای', '۱۸۰ عکس هدیه', 'گزارش عملکرد کامل', 'آرشیو مشتریان', 'پشتیبانی ویژه']},
+    # «پکیج تست» (owner's request): an exact copy of «پایه» — same length, gift images, features
+    # and the same public checkout path — at 10,000 toman, so the owner can buy as a customer.
+    {'key': 'test', 'name': 'پکیج تست', 'months': 1, 'amount': 10000, 'was': 0, 'credits': 20, 'badge': '', 'tier': 'essential',
+     'features': ['صفحهٔ اختصاصی شما', 'گالری نمونه‌کار', 'امتحان مدل با عکس دلخواه مشتری', 'دریافت درخواست مشتری', 'اتصال پیام‌رسان', '۲۰ عکس هدیه']},
 ]
 # «پنل آرایشگاه» (owner's decision): every service (hairstyle, hair colour, nails, lashes) for the
 # whole salon, for up to SALON_SEATS users (the manager is one of them). Each user beyond that
@@ -62,7 +66,7 @@ SALON_PLANS = [
     {'key': 'salon6', 'name': 'پنل آرایشگاه ۶ ماهه', 'months': 6, 'amount': 15000000, 'seat_amount': 1000000, 'tier': 'signature'},
 ]
 for _p in PLANS:
-    _p.update(tier=_p['key'], seats=0, seat_amount=0)
+    _p.update(tier=_p.get('tier', _p['key']), seats=0, seat_amount=0)
 for _p in SALON_PLANS:
     _p.update(was=0, seats=SALON_SEATS, credits=next(x['credits'] for x in PLANS if x['months'] == _p['months']) * SALON_CREDIT_FACTOR)
 # After the gift credit runs out: every TOPUP images cost TOPUP_AMOUNT toman.
@@ -134,7 +138,7 @@ def plan_card(p, service):
         + '<h3 lang="en" dir="ltr">' + p['name'] + '</h3>'
         + '<p class="plan__months">' + CAL + fa_int(p['months']) + ' ماهه</p>'
         + '<div class="plan__price" data-price-box="' + p['key'] + '">' + was
-        + '<p class="plan__amount" data-price="' + p['key'] + '"><b>' + millions(p['amount']) + '</b> میلیون تومان</p>' + meta + '</div>'
+        + '<p class="plan__amount" data-price="' + p['key'] + '"><b>' + (millions(p['amount']) + '</b> میلیون تومان' if p['amount'] >= 1000000 else fa_int(p['amount'] // 1000) + '</b> هزار تومان') + '</p>' + meta + '</div>'
         + '<ul>' + feats + '</ul>'
         + '<a class="btn plan__buy" href="#pay" data-buy="' + p['key'] + '" data-service="' + service + '" data-title="' + SERVICE_TITLES[service]
         + '" data-months="' + str(p['months']) + '" data-state="open" data-amount="' + str(p['amount']) + '">خرید</a>'

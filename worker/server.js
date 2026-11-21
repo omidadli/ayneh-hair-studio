@@ -11,7 +11,7 @@ import {stats} from './stats.js';
 import {smsReady,inviteReady,sendOtp} from './sms.js';
 import {createTrial,trialOf,trialLive,trialPublic,spendTrialImage} from './trial.js';
 import {PLANS as PLANS_TABLE} from './prices.js';
-import {smsConfirm,newPairCode,redeemPairCode} from './paysms.js';
+import {smsConfirm,newPairCode,redeemPairCode,orderDetails} from './paysms.js';
 import {createTestOrder} from './orders.js';
 import {createOrder,createTopup,createRenewal,customerOrder,setCoupon,confirmOrder,webhookConfirm,reopenOrder,rekeyOrder,closeExpired,cardSetting,saveCard,
  webhookKey,rotateWebhookKey,cardList,removeCard,smsSenders,panelLogin,panelSalon,panelLogout,panelDashboard,tickChecklist,ORDER_MINUTES,SERVICE_LABEL} from './orders.js';
@@ -253,8 +253,9 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   const expected=await webhookKey(db);
   const given=payToken(req,u);
   must(expected&&same(String(given),expected),'اتصال باطل شده؛ دوباره با کد تازه وصل شوید',401);
-  const rows=await all(db,"SELECT p.amount,p.result,p.created_at,o.ref,o.salon_name,o.contact_name,o.plan,o.kind FROM pay_sms p LEFT JOIN orders o ON o.id=p.order_id ORDER BY p.created_at DESC LIMIT 60");
-  return J({items:rows.map(r=>({amount:Math.round(Number(r.amount||0)/10),result:r.result,at:r.created_at,ref:r.ref||'',name:r.salon_name||r.contact_name||(r.kind==='customer_pack'?'مشتری آینه':''),label:r.kind==='topup'?'اعتبار عکس':r.kind==='test'?'آزمایشی':(r.plan||'')}))});
+  const rows=await all(db,"SELECT p.amount AS sms_amount,p.result,p.created_at AS sms_at,p.sample,o.* FROM pay_sms p LEFT JOIN orders o ON o.id=p.order_id ORDER BY p.created_at DESC LIMIT 60");
+  const items=[];for(const r of rows){const d=r.ref?await orderDetails(r):{};items.push({amount:Math.round(Number(r.sms_amount||0)/10),result:r.result,at:r.sms_at,sample:r.sample||'',name:d.salon||d.buyer||'',label:d.service||'',...d});}
+  return J({items});
  }
  if(path==='/api/owner/app-code'&&req.method==='POST'){await owner(req,env);return J(await newPairCode(db));}
  if(path==='/api/owner/test-order'&&req.method==='POST'){await owner(req,env);const b=await req.json().catch(()=>({}));return J(await createTestOrder(db,env,b.amount,u.origin));}

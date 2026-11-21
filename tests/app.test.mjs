@@ -3195,7 +3195,7 @@ test('test order: the owner opens any amount, the bank SMS confirms it, and noth
   const salonsBefore = e.DB.sql.prepare('SELECT COUNT(*) AS n FROM salons').get().n;
   const r = await (await app.fetch(new Request(origin + '/api/pay/sms', {method: 'POST', headers: {authorization: 'Bearer ' + key}, body: 'بلو\nواریز پول\nامید عزیز،125,000 ریال به حساب شما نشست.\nموجودی: 9 ریال'}), e)).json();
   assert.equal(r.matched, true);
-  assert.equal(r.label, 'آزمایشی');
+  assert.equal(r.label, 'سفارش آزمایشی');
   assert.equal((await call(e, '/api/order/' + t.data.id)).data.status, 'paid');
   assert.equal(e.DB.sql.prepare('SELECT COUNT(*) AS n FROM salons').get().n, salonsBefore, 'no salon is made');
 });
@@ -3212,4 +3212,27 @@ test('pay notification: a Blu app notification (title + text + post time, rials 
   assert.equal((await send(n + '\n⏱1')).status, 'paid');
   assert.equal((await send(n + '\n⏱1')).duplicate, true, 'a re-posted notification counts once');
   assert.equal((await send(n + '\n⏱2')).matched, false, 'a second deposit of the same amount is its own event, not a duplicate');
+});
+
+test('payment apps see the buyer: name, salon, mobile, service and the exact amount; an unreadable bank message is kept with digits masked', async () => {
+  const e = fixture();
+  const restore = priced('pro', 1100000);
+  try {
+    const o = await call(e, '/api/order', orderBody());
+    const key = (await call(e, '/api/owner/payment', undefined, OWNER)).data.webhook.key;
+    const send = text => app.fetch(new Request(origin + '/api/pay/sms', {method: 'POST', headers: {'content-type': 'application/json', authorization: 'Bearer ' + key}, body: JSON.stringify({text})}), e).then(r => r.json());
+    const r = await send('واریز پول\nامید عزیز،' + (o.data.amount * 10).toLocaleString('en-US') + ' ریال به حساب شما نشست.\n⏱5');
+    assert.equal(r.status, 'paid');
+    assert.equal(r.paid, o.data.amount);
+    assert.ok(r.buyer && r.salon && r.phone, JSON.stringify(r));
+    assert.match(r.service, /پلن/);
+    const odd = await send('بلو\nپیام تازه: ۱۲۳ امتیاز گرفتید');
+    assert.equal(odd.ignored, true);
+    assert.equal(odd.sample, 'بلو\nپیام تازه: ### امتیاز گرفتید');
+    const h = await (await app.fetch(new Request(origin + '/api/pay/history', {method: 'POST', headers: {authorization: 'Bearer ' + key}}), e)).json();
+    const paid = h.items.find(i => i.result === 'paid');
+    assert.equal(paid.phone, r.phone);
+    assert.equal(paid.paid, o.data.amount);
+    assert.ok(h.items.some(i => i.result === 'ignored' && i.sample.includes('###')));
+  } finally { restore() }
 });

@@ -57,12 +57,16 @@ final class Sender {
                     } else if (b.optBoolean("duplicate")) {
                         f.put("status", "duplicate");
                     } else if (b.optBoolean("matched")) {
-                        f.put("status", "paid").put("ref", b.optString("ref")).put("name", b.optString("name")).put("label", b.optString("label"));
-                        notifyPaid(c, e.optLong("amount") / 10, b.optString("name"));
+                        f.put("status", "paid").put("ref", b.optString("ref")).put("name", b.optString("name")).put("label", b.optString("label"))
+                                .put("buyer", b.optString("buyer")).put("salon", b.optString("salon")).put("phone", b.optString("phone"))
+                                .put("service", b.optString("service")).put("paid", b.optLong("paid"));
+                        notifyPaid(c, e.optLong("amount") / 10, b.optString("buyer").isEmpty() ? b.optString("name") : b.optString("buyer") + " · " + b.optString("salon"));
                     } else if (b.optBoolean("many")) {
                         f.put("status", "many");
                     } else if (b.has("error")) {
-                        f.put("status", "closed").put("msg", b.optString("error")).put("ref", b.optString("ref")).put("name", b.optString("name"));
+                        f.put("status", "closed").put("msg", b.optString("error")).put("ref", b.optString("ref")).put("name", b.optString("name"))
+                                .put("buyer", b.optString("buyer")).put("salon", b.optString("salon")).put("phone", b.optString("phone"))
+                                .put("service", b.optString("service")).put("paid", b.optLong("paid"));
                     } else {
                         f.put("status", "none");
                     }

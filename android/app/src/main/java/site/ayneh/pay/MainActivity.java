@@ -62,6 +62,9 @@ public class MainActivity extends Activity {
         Store.setListener(this::render);
         render();
         if (Store.paired(this)) { Sender.schedule(this); refreshConfig(); }
+        if (listenerOn()) {
+            try { android.service.notification.NotificationListenerService.requestRebind(new android.content.ComponentName(this, BankNotifications.class)); } catch (Exception ignored) { }
+        }
     }
 
     /** Picks up cards added in /admin (their bank SMS numbers) and notices a rotated token. */
@@ -263,26 +266,44 @@ public class MainActivity extends Activity {
         top.addView(chip(s));
         c.addView(top);
         c.addView(spaced(text(Fa.when(e.optLong("at")), 12, MUTED, false), 4));
+        if (("paid".equals(s) || "closed".equals(s)) && !e.optString("ref").isEmpty()) {
+            LinearLayout box = vbox();
+            box.setBackground(round(CREAM, 14, 0));
+            box.setPadding(dp(12), dp(10), dp(12), dp(10));
+            row(box, "خریدار", e.optString("buyer"));
+            row(box, "سالن / مزون", e.optString("salon"));
+            row(box, "موبایل", Fa.digits(e.optString("phone")));
+            row(box, "سرویس", e.optString("service").isEmpty() ? e.optString("label") : e.optString("service"));
+            if (e.optLong("paid") > 0) row(box, "مبلغ پرداختی", Fa.money(e.optLong("paid")) + " تومان");
+            row(box, "کد سفارش", e.optString("ref"));
+            LinearLayout.LayoutParams lp = matchWrap(0, dp(10), 0, 0);
+            c.addView(box, lp);
+        }
         String detail;
         switch (s) {
-            case "paid": {
-                List<String> parts = new ArrayList<>();
-                if (!e.optString("name").isEmpty()) parts.add(e.optString("name"));
-                if (!e.optString("label").isEmpty()) parts.add(e.optString("label"));
-                if (!e.optString("ref").isEmpty()) parts.add("کد " + e.optString("ref"));
-                detail = parts.isEmpty() ? "سفارش خودکار باز شد." : String.join(" · ", parts);
-                break;
-            }
-            case "none": detail = "سفارش بازی با این مبلغ نبود. اگر پول مشتری است، در پنل مدیر بررسی کنید."; break;
+            case "paid": detail = "سفارش خودکار تأیید و پنل خریدار باز شد."; break;
+            case "none": detail = "سفارش بازی با این مبلغ نبود. اگر پول مشتری است، در پنل مدیر بررسی کنید.\nمتن پیام بلو:\n" + e.optString("text").replaceAll("\n⏱\\d+$", ""); break;
             case "many": detail = "این مبلغ با چند سفارش یکی بود؛ در پنل مدیر تأیید کنید."; break;
             case "closed": detail = e.optString("msg") + (e.optString("ref").isEmpty() ? "" : " · کد " + e.optString("ref")); break;
             case "duplicate": detail = "این پیامک قبلاً ثبت شده بود."; break;
-            case "ignored": detail = "پیامک واریز نبود."; break;
+            case "ignored": detail = "این پیام واریز شناخته نشد. متن پیام بلو:\n" + e.optString("text").replaceAll("\n⏱\\d+$", ""); break;
             case "error": detail = e.optString("msg"); break;
             default: detail = "منتظر اینترنت؛ خودش فرستاده می‌شود.";
         }
         c.addView(spaced(text(detail, 13, SOFT, false), 6));
         return c;
+    }
+
+    private void row(LinearLayout box, String k, String v) {
+        if (v == null || v.isEmpty()) return;
+        LinearLayout r = hbox();
+        r.setPadding(0, dp(3), 0, dp(3));
+        TextView a = text(k, 13, MUTED, false);
+        r.addView(a, new LinearLayout.LayoutParams(dp(110), ViewGroup.LayoutParams.WRAP_CONTENT));
+        TextView b = text(v, 14, INK, true);
+        b.setTextIsSelectable(true);
+        r.addView(b, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        box.addView(r);
     }
 
     private View chip(String s) {

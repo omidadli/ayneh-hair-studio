@@ -170,6 +170,7 @@
     $('payPlan').textContent = (order.kind !== 'topup' && sum.months ? headOf(sum.title, sum.months) : '') || order.plan_name || '';
     $('paySummary').textContent = summaryOf(order);
     $('payAmount').textContent = fa(order.amount);
+    if ($('payRial')) $('payRial').textContent = fa(order.amount * 10);
     $('payDiscount').hidden = !order.discount;
     if (order.discount) $('payDiscount').textContent = 'با تخفیف ' + money(order.discount);
     $('payRef').textContent = order.ref;
@@ -345,7 +346,16 @@
     try {
       await navigator.clipboard.writeText(String(state.order.amount));
       $('payAmountCopy').textContent = 'کپی شد';
-      setTimeout(() => ($('payAmountCopy').textContent = 'کپی مبلغ'), 1800);
+      setTimeout(() => ($('payAmountCopy').textContent = 'کپی به تومان'), 1800);
+    } catch {}
+  });
+  /* Most bank apps take the amount in rials; the rial figure is the same exact amount × 10. */
+  $('payRialCopy')?.addEventListener('click', async () => {
+    if (!state.order?.amount) return;
+    try {
+      await navigator.clipboard.writeText(String(state.order.amount * 10));
+      $('payRialCopy').textContent = 'کپی شد';
+      setTimeout(() => ($('payRialCopy').textContent = 'کپی به ریال'), 1800);
     } catch {}
   });
   $('payCouponToggle')?.addEventListener('click', () => {

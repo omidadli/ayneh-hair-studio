@@ -13,6 +13,7 @@
 //  * No match, or more than one, opens nothing and alerts the owner. Alerts carry the amount
 //    and order code only — never the SMS text, the balance or a customer mobile.
 import {digits, hash} from './domain.js';
+import {PLANS} from './prices.js';
 
 const run = (db, sql, ...a) => db.prepare(sql).bind(...a).run();
 const all = async (db, sql, ...a) => (await db.prepare(sql).bind(...a).all()).results;
@@ -73,7 +74,15 @@ const fa = n => Number(n).toLocaleString('fa-IR');
 export async function smsConfirm(db, env, rawText, origin = '') {
   const text = String(rawText || '').slice(0, 2000);
   const rial = parseDeposit(text);
-  if (!rial) return {ignored: true, reason: 'not_deposit'};
+  if (!rial) {
+    /* Unreadable: keep the wording with digits masked (no amounts, balances or numbers), once. */
+    const sample = digits(text).replace(/\d/g, '#').replace(/⏱#+/g, '').trim().slice(0, 400);
+    if (sample) {
+      const sid = await hash('pay-sample:' + sample);
+      await run(db, 'INSERT OR IGNORE INTO pay_sms(id,amount,result,created_at,sample) VALUES(?,?,?,?,?)', sid, 0, 'ignored', Date.now(), sample);
+    }
+    return {ignored: true, reason: 'not_deposit', sample};
+  }
   const id = await hash('pay-sms:' + digits(text).replace(/\s+/g, ' ').trim());
   const fresh = await run(db, 'INSERT OR IGNORE INTO pay_sms(id,amount,result,created_at) VALUES(?,?,?,?)', id, rial, 'error', Date.now());
   if (!fresh.meta.changes) return {duplicate: true};
@@ -92,19 +101,31 @@ export async function smsConfirm(db, env, rawText, origin = '') {
     return {matched: false, amount: toman, many: true};
   }
   const {confirmOrder} = await import('./orders.js');
-  const who = await db.prepare('SELECT salon_name,contact_name,plan,kind FROM orders WHERE id=?').bind(hits[0].id).first();
-  /* What the owner's payment app shows next to the deposit: the buyer as the owner already
-     sees it in /admin (salon or buyer name and what was bought), never a mobile. */
-  const name = who?.salon_name || who?.contact_name || (who?.kind === 'customer_pack' ? 'مشتری آینه' : '');
-  const label = who?.kind === 'topup' ? 'اعتبار عکس' : who?.kind === 'test' ? 'آزمایشی' : String(who?.plan || '');
+  const who = await db.prepare('SELECT * FROM orders WHERE id=?').bind(hits[0].id).first();
+  /* What the owner's payment app shows next to the deposit — the same buyer details the owner
+     sees in /admin (the app is the owner's, behind the payment token). */
+  const det = await orderDetails(who);
+  const name = det.salon || det.buyer;
+  const label = det.service;
   try {
     const r = await confirmOrder(db, env, hits[0].id, {by: 'sms', origin, amount: toman});
     await done('paid', hits[0].id);
-    return {matched: true, amount: toman, ref: r.order.ref, status: r.order.status, page: r.order.page_url, name, label};
+    return {matched: true, amount: toman, ref: r.order.ref, status: r.order.status, page: r.order.page_url, name, label, ...det};
   } catch (e) {
     await done('closed', hits[0].id);
-    return {matched: false, amount: toman, ref: hits[0].ref, error: e.message, name, label};
+    return {matched: false, amount: toman, ref: hits[0].ref, error: e.message, name, label, ...det};
   }
+}
+
+/* The buyer and purchase as the payment apps list them (owner only). */
+export async function orderDetails(o) {
+  if (!o) return {};
+  const {orderSummary} = await import('./orders.js');
+  const sum = orderSummary(o);
+  const months = sum.months ? ' · ' + sum.months.toLocaleString('fa-IR') + ' ماهه' : '';
+  const service = o.kind === 'test' ? 'سفارش آزمایشی' : o.kind === 'topup' ? 'اعتبار عکس' : o.kind === 'customer_pack' ? Number(o.credits || 0).toLocaleString('fa-IR') + ' عکس مشتری'
+    : sum.title + months + (PLANS[o.plan]?.name ? ' · پلن ' + PLANS[o.plan].name : '');
+  return {ref: o.ref, buyer: o.contact_name || '', salon: o.salon_name || '', phone: o.phone || '', service, paid: Math.round(Number(o.amount || 0) / 10)};
 }
 
 /* Pairing the owner's Android payment app (android/): /admin makes a 6-digit code that lives

@@ -747,6 +747,8 @@ function renderHead(){
   el('div',{class:'hero__cta'},[el('button',{class:'btn btn--primary btn--lg',type:'button',onclick:function(){go(state.original?2:1)},html:ICO.camera+'<span>شروع با عکس خودم</span>'})])
  ]);
  head.replaceChildren(el('div',{class:'wrap'},[bar,cover,body]));
+ /* Embedded in /studio (the direct page) the studio already has its own title: only the start button stays. */
+ head.classList.toggle('head--direct',!!(EMBED&&state.pub.direct));
  fitName(name);
 }
 // The salon name always sits on one line: the font shrinks to fit; only very long names wrap.
@@ -1768,7 +1770,7 @@ function tourSteps(){
   {el:mobile?'#dock .dock__inner':'.hero__cta .btn',title:'شروع کنیم؟',text:'اول عکس خودت را بگذار. بعد از دیدن نتیجه، با یک دکمه برای سالن فرستاده می‌شود و خود سالن با تو تماس می‌گیرد.',last:true}
  ].filter(Boolean);
 }
-function maybeTour(){if(SLUG==='demo'&&/[?&]draft=1/.test(location.search))return;try{if(localStorage.getItem(TOUR_KEY))return}catch(e){return}if(state.busy)return;setTimeout(startTour,700)}
+function maybeTour(){if(SLUG==='demo'&&/[?&]draft=1/.test(location.search))return;/* inside /studio the page around explains the steps; a tour over a frame only confuses */if(EMBED&&state.pub&&state.pub.direct)return;try{if(localStorage.getItem(TOUR_KEY))return}catch(e){return}if(state.busy)return;setTimeout(startTour,700)}
 function startTour(){
  if($('.tour'))return;
  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -2121,7 +2123,7 @@ document.addEventListener('click',function(e){
 });
 `;
 
-const embeddedCSS='.embedded-demo .head,.embedded-demo #steps,.embedded-demo #invite,.embedded-demo .trialbar,.embedded-demo footer{display:none!important}.embedded-demo main{padding-top:20px}.embedded-demo{background:#f6f0e7}.embedded-demo .panel{box-shadow:none}';
+const embeddedCSS='.embedded-demo .head--direct .hero__bar,.embedded-demo .head--direct .cover,.embedded-demo .head--direct .hero__text{display:none!important}.embedded-demo .head--direct .hero__body{padding-top:4px}.embedded-demo .head,.embedded-demo #steps,.embedded-demo #invite,.embedded-demo .trialbar,.embedded-demo footer{display:none!important}.embedded-demo main{padding-top:20px}.embedded-demo{background:#f6f0e7}.embedded-demo .panel{box-shadow:none}';
 export {clientJS as customerJS};
 export const customerHTML=String.raw`<!doctype html><html lang="fa" dir="rtl"><head>
 <meta charset="utf-8">

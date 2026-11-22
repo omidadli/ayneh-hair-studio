@@ -138,7 +138,7 @@ export async function orderDetails(o) {
   const {orderSummary} = await import('./orders.js');
   const sum = orderSummary(o);
   const months = sum.months ? ' · ' + sum.months.toLocaleString('fa-IR') + ' ماهه' : '';
-  const service = o.kind === 'test' ? 'سفارش آزمایشی' : o.kind === 'topup' ? 'اعتبار عکس' : o.kind === 'customer_pack' ? Number(o.credits || 0).toLocaleString('fa-IR') + ' عکس مشتری'
+  const service = o.kind === 'test' ? 'سفارش آزمایشی' : o.kind === 'topup' ? 'اعتبار عکس' : o.kind === 'customer_pack' ? 'شارژ ' + Number(o.credits || 0).toLocaleString('fa-IR') + ' سکهٔ مشتری'
     : sum.title + months + (PLANS[o.plan]?.name ? ' · پلن ' + PLANS[o.plan].name : '');
   return {ref: o.ref, buyer: o.contact_name || '', salon: o.salon_name || '', phone: o.phone || '', service, paid: Math.round(Number(o.amount || 0) / 10)};
 }

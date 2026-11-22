@@ -14,7 +14,7 @@
 //    at the same instant can overshoot by one; the salon daily cap bounds bursts.
 import {Problem, must, uid, hash} from './domain.js';
 import {smsReady} from './sms.js';
-import {CUSTOMER_FREE_IMAGES} from './customerprices.js';
+import {CUSTOMER_FREE_IMAGES, IMAGE_COINS} from './customerprices.js';
 
 const one = (db, sql, ...a) => db.prepare(sql).bind(...a).first();
 const run = (db, sql, ...a) => db.prepare(sql).bind(...a).run();
@@ -71,11 +71,14 @@ export async function accountFor(db, env, s, visitor, {create = false} = {}) {
   return one(db, 'SELECT * FROM customer_accounts WHERE id=?', id);
 }
 
+/* Her coins: ledger (coins in) minus IMAGE_COINS for every image she paid for that did not fail.
+   left: whole images she can still make; coins: what the wallet shows. */
 export async function customerBalance(db, accountId) {
-  if (!accountId) return {granted: 0, used: 0, left: 0};
+  if (!accountId) return {granted: 0, used: 0, left: 0, coins: 0, spent: 0};
   const granted = Number((await one(db, 'SELECT COALESCE(SUM(delta),0) n FROM customer_ledger WHERE account_id=?', accountId))?.n || 0);
   const used = Number((await one(db, "SELECT COUNT(*) n FROM generations WHERE paid_by=? AND state<>'fail'", accountId))?.n || 0);
-  return {granted, used, left: Math.max(0, granted - used)};
+  const coins = Math.max(0, granted - used * IMAGE_COINS);
+  return {granted, used, coins, spent: used * IMAGE_COINS, left: Math.floor(coins / IMAGE_COINS)};
 }
 
 /* Free images used on the direct page by this person (session, browser id, verified mobile). */
@@ -86,7 +89,7 @@ export async function directUsed(db, s, visitor) {
   return Number(r?.n || 0);
 }
 
-export const DIRECT_OUT = 'نمونهٔ رایگانتان استفاده شد. برای نمونه‌های بیشتر، ثبت‌نام کنید و حسابتان را شارژ کنید.';
+export const DIRECT_OUT = 'عکس‌های هدیه‌ات تموم شد. برای عکس بیشتر کیف سکه‌ات رو شارژ کن.';
 
 /* Who pays for the next image. Returns null when it is free (her quota, or the salon's credit
    decides after this), or her account id when it comes from the images she bought. Throws the
@@ -127,13 +130,13 @@ export async function quotaView(db, env, salon, s, visitor, quota) {
 export async function confirmCustomerPack(db, env, row) {
   must(row.customer_id, 'حساب این سفارش پیدا نشد.', 409);
   const r = await run(db, 'INSERT OR IGNORE INTO customer_ledger(id,account_id,delta,reason,order_id,created_at) VALUES(?,?,?,?,?,?)',
-    uid(), row.customer_id, Math.trunc(Number(row.credits || 0)), 'pack', row.id, Date.now());
+    uid(), row.customer_id, Math.trunc(Number(row.credits || 0)), 'topup', row.id, Date.now());
   const claimed = r.meta.changes > 0;
   if (claimed) {
     /* The owner hears about it without the customer's mobile (she is not Ayneh's salon buyer). */
     try {
       const {notifyOwner} = await import('./alerts.js');
-      await notifyOwner(env, {kind: 'order', level: 'good', text: 'پرداخت بستهٔ ' + Number(row.credits).toLocaleString('fa-IR') + ' تصویر مشتری تأیید شد',
+      await notifyOwner(env, {kind: 'order', level: 'good', text: 'شارژ ' + Number(row.credits).toLocaleString('fa-IR') + ' سکهٔ مشتری تأیید شد',
         detail: '💳 ' + row.ref + ' · ' + Math.round(row.amount / 10).toLocaleString('fa-IR') + ' تومان'});
     } catch {}
   }

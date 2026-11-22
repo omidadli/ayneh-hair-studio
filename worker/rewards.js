@@ -13,7 +13,7 @@
 //  * No self-referral: the referrer's own salon, or a referrer whose mobile is the buyer's.
 //  * No cap (owner's decision): every rewarded referral gives the referrer its images.
 import {uid} from './domain.js';
-import {REFERRAL_IMAGES} from './customerprices.js';
+import {REFERRAL_IMAGES, IMAGE_COINS} from './customerprices.js';
 
 export const REF_COOKIE = 'ayneh_ref';
 const ALPHABET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -96,7 +96,7 @@ export async function rewardReferral(db, env, row, salon) {
         .bind(uid(), salon.id, REFERRAL_IMAGES, row.id, now, row.id),
       ref.kind === 'salon'
         ? db.prepare("INSERT INTO credit_ledger(id,salon_id,delta,reason,order_id,created_at) SELECT ?,?,?,'referral',?,? " + guard).bind(uid(), ref.owner_id, REFERRAL_IMAGES, row.id, now, row.id)
-        : db.prepare("INSERT INTO customer_ledger(id,account_id,delta,reason,order_id,created_at) SELECT ?,?,?,'referral',?,? " + guard).bind(uid(), ref.owner_id, REFERRAL_IMAGES, row.id, now, row.id),
+        : db.prepare("INSERT INTO customer_ledger(id,account_id,delta,reason,order_id,created_at) SELECT ?,?,?,'referral',?,? " + guard).bind(uid(), ref.owner_id, REFERRAL_IMAGES * IMAGE_COINS, row.id, now, row.id),
     ]);
   } catch (e) {
     /* Another confirmation of the same order (or of the same buyer salon) won the race. */

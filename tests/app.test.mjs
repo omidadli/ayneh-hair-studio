@@ -795,8 +795,8 @@ test('without SMS invites the bot offers messenger buttons and /i/ is a send pag
  }finally{tg.restore()}});
 
 // ---------- landing page and salon inquiries ----------
-test('landing page is public at / and the owner console stays at /admin',async()=>{const e=tgEnv(fixture());
- const r=await app.fetch(new Request(origin+'/'),e);assert.equal(r.status,200);const html=await r.text();
+test('landing page is public at /salons and the owner console stays at /admin',async()=>{const e=tgEnv(fixture());
+ const r=await app.fetch(new Request(origin+'/salons'),e);assert.equal(r.status,200);const html=await r.text();
  assert.match(html,/id="choose"/);assert.match(html,/<title>آینه \| مشتری قبل از نوبت، مدل رو روی عکس خودش می‌بینه<\/title>/);assert.doesNotMatch(html,/noindex/);
  new Function(html.match(/<script>([\s\S]*?)<\/script>/g).map(s=>s.replace(/<\/?script>/g,'')).join('\n'));
  // one page per service, each with its own studio, plans and checkout, and scripts that parse
@@ -835,7 +835,7 @@ test('free trial salon: built from the landing form, one per mobile, 5 images an
   const done=await call(e,'/api/s/'+slug+'/public');assert.equal(done.status,200);assert.equal(done.data.trial.expired,true);
  }finally{globalThis.fetch=previous;tg.restore()}});
 
-test('landing carries an absolute share image and revalidates instead of going stale',async()=>{const e=fixture();const r=await app.fetch(new Request(origin+'/'),e);const html=await r.text();
+test('landing carries an absolute share image and revalidates instead of going stale',async()=>{const e=fixture();const r=await app.fetch(new Request(origin+'/salons'),e);const html=await r.text();
  // Cacheable was the reason the owner kept seeing an old build: max-age=300 plus an hour of
  // stale-while-revalidate meant a reload could serve a page from an hour ago.
  assert.match(r.headers.get('cache-control'),/no-cache/);
@@ -1154,8 +1154,8 @@ test('copy plan: header has the logo, three links and one fixed «مشاهده �
  assert.ok(header,'header exists');
  assert.match(header,/class="brand__mark"/);assert.match(header,/class="brand__word">آینه</);
  const nav=(header.match(/<nav class="nav"[\s\S]*?<\/nav>/)||[])[0];
- assert.equal((nav.match(/<a /g)||[]).length,3,'three menu items');
- for(const item of ['#choose">خدمات','#services">تعرفه‌ها','#faq">سؤالات'])assert.ok(nav.includes(item),'home nav '+item);
+ assert.equal((nav.match(/<a /g)||[]).length,4,'three menu items and the way to the customer side');
+ for(const item of ['#choose">خدمات','#services">تعرفه‌ها','#faq">سؤالات','/studio">مشتری هستید؟'])assert.ok(nav.includes(item),'home nav '+item);
  const actions=(header.match(/<div class="header-cta">[\s\S]*?<\/div>/)||[])[0]||'';
  assert.doesNotMatch(actions,/class="btn--login"/,'the header login button was removed by the user');
  assert.match(actions,/class="btn" href="#choose">مشاهده خدمات</,'the fixed button links to the services section');
@@ -2914,7 +2914,8 @@ test('result: Instagram story keeps the result untouched and signs it with the r
 });
 test('search engines: canonical per page, robots.txt, sitemap.xml and organisation data',async()=>{
  const e=fixture();
- for(const p of ['/','/hair','/color','/nails','/lashes','/salon-panel','/sample']){
+ assert.ok((await (await app.fetch(new Request(origin+'/'),e)).text()).includes('<link rel="canonical" href="'+origin+'/">'),'canonical / (the chooser)');
+ for(const p of ['/salons','/hair','/color','/nails','/lashes','/salon-panel','/sample']){
   const html=await (await app.fetch(new Request(origin+p),e)).text();
   assert.ok(html.includes('<link rel="canonical" href="'+origin+p+'">'),'canonical '+p);
   assert.doesNotMatch(html,/__CANON__|__ORIGIN__/,'no placeholder left on '+p);
@@ -2924,7 +2925,7 @@ test('search engines: canonical per page, robots.txt, sitemap.xml and organisati
  const robots=await (await app.fetch(new Request(origin+'/robots.txt'),e)).text();
  assert.match(robots,/Disallow: \/admin/);assert.match(robots,/Disallow: \/api\//);assert.ok(robots.includes('Sitemap: '+origin+'/sitemap.xml'));
  const map=await (await app.fetch(new Request(origin+'/sitemap.xml'),e)).text();
- for(const p of ['/hair','/salon-panel','/try'])assert.ok(map.includes('<loc>'+origin+p+'</loc>'),'sitemap '+p);
+ for(const p of ['/','/studio','/salons','/hair','/salon-panel'])assert.ok(map.includes('<loc>'+origin+p+'</loc>'),'sitemap '+p);
  assert.doesNotMatch(map,/admin|example\/panel|\/s\//);
 });
 
@@ -3283,4 +3284,25 @@ test('every plan on sale is confirmed by the bank notification with production a
       assert.equal((await call(e, '/api/order/' + o.data.id)).data.status, 'paid');
     }
   } finally { amountMode.roundFirst = was; }
+});
+
+test('«/» only asks customer or salon; /salons is the salon home; /try moved to /studio', async () => {
+  const e = fixture();
+  const r = await app.fetch(new Request(origin + '/?ref=R2345678'), e);
+  assert.equal(r.status, 200);
+  const html = await r.text();
+  assert.match(html, /سلام! شما کدومید؟/);
+  assert.ok(html.includes('href="/studio"') && html.includes('href="/salons"'), 'two choices');
+  assert.doesNotMatch(html, /id="services"|data-buy=/, 'nothing is sold on the chooser');
+  assert.doesNotMatch(html, /__ORIGIN__/);
+  new Function(html.match(/<script>([\s\S]*?)<\/script>/)[1]);
+  assert.match(r.headers.get('set-cookie') || '', /ref/i, 'a referral link still counts through the chooser');
+  const salons = await (await app.fetch(new Request(origin + '/salons'), e)).text();
+  assert.match(salons, /id="services"/);
+  assert.doesNotMatch(salons, /href="\/"/, 'business pages link home to /salons, never to the chooser');
+  const old = await app.fetch(new Request(origin + '/try?x=1', {redirect: 'manual'}), e);
+  assert.equal(old.status, 301);assert.equal(old.headers.get('location'), '/studio?x=1');
+  const studio = await (await app.fetch(new Request(origin + '/studio'), e)).text();
+  assert.match(studio, /مدل جدیدت رو روی عکس خودت ببین/);assert.match(studio, /href="\/salons"/);
+  for (const l of ['hair', 'color', 'nails', 'lashes']) assert.ok(studio.includes('data-line="' + l + '"'), 'service card ' + l);
 });

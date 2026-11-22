@@ -42,12 +42,12 @@ test('the customers\' studio («/» of the main domain) is the direct salon\'s o
  const e=fixture();
  const res=await app.fetch(new Request(origin+'/'),e);assert.equal(res.status,200);const html=await res.text();
  assert.match(html,/<meta name="ayneh-slug" content="try">/,'the page runs on the direct salon');
- assert.match(html,/<title>آینه \| مدل بعدی‌ات رو روی عکس خودت ببین<\/title>/);
+ assert.match(html,/<title>آینه \| روی عکس خودت ببین چی بهت میاد<\/title>/);
  assert.ok(html.includes('<meta name="ayneh-biz" content="https://business.test.example">'),'the way to the salons\' site');
  assert.ok(html.includes('window.AynehPacks='),'the coin sheet');
  assert.doesNotMatch(html,/<iframe/,'one page, no frame');
  // The studio's words live in the page script (studio mode), the sheet's in the pack script.
- for(const t of ['مدل بعدی‌ات رو روی عکس خودت ببین','عکس هدیه داری','آرایشگر هستید؟','عکس‌های هدیه‌ات تموم شد.','شارژ کیف سکه','این عکس فقط برای خودته.','لینک آینه را برایشان بفرست؛ ۲ عکس اول برای آن‌ها هم هدیه است','مبلغ دلخواه','سکه‌ها به کیف شما اضافه شد.','کپی به ریال'])
+ for(const t of ['روی عکس خودت ببین چی بهت میاد','عکس اول رایگانه','آرایشگر هستید؟','عکس‌های هدیه‌ات تموم شد.','شارژ کیف سکه','این عکس فقط برای خودته.','لینک آینه را برایشان بفرست؛ ۲ عکس اول برای آن‌ها هم هدیه است','مبلغ دلخواه','سکه‌ها به کیف شما اضافه شد.','کپی به ریال'])
   assert.ok(html.includes(t),'copy: '+t);
  // what a salon buys is a «پلن» (AGENTS.md); the photo line says where the photo goes, honestly
  assert.doesNotMatch(html,/پنل آینه بگیرد|فقط برای ساخت همین نمونه/);

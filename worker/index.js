@@ -59,7 +59,7 @@ async function salonPage(u,env,forcedSlug=''){
    in studio mode (customer.js: wallet, no salon) — one page, one scroll, no frame. */
 async function studioPage(u,env,slug){
  const M=mainOrigin(u,env),B=bizOrigin(u,env);
- const title='آینه | مدل بعدی‌ات رو روی عکس خودت ببین';
+ const title='آینه | روی عکس خودت ببین چی بهت میاد';
  const desc='مدل مو، رنگ مو، ناخن و مژه را قبل از رفتن به آرایشگاه روی عکس خودتان ببینید. بدون نصب؛ ۲ عکس اول هدیه است.';
  const tags='<title>'+title+'</title>\n<meta name="ayneh-slug" content="'+attr(slug)+'">\n<meta name="description" content="'+desc+'">\n<link rel="canonical" href="'+M+'/">\n<meta property="og:title" content="'+title+'">\n<meta property="og:description" content="'+desc+'">\n<meta property="og:type" content="website">\n<meta property="og:url" content="'+M+'/">\n<meta property="og:site_name" content="آینه">\n<meta property="og:image" content="'+M+'/landing/og.jpg">\n<meta name="ayneh-biz" content="'+attr(B)+'">\n<script type="application/ld+json">'+JSON.stringify({'@context':'https://schema.org','@type':'WebApplication',name:'آینه',url:M+'/',applicationCategory:'LifestyleApplication',inLanguage:'fa-IR',offers:{'@type':'Offer',price:'0',priceCurrency:'IRR',description:'۲ عکس اول رایگان'}})+'</script>';
  return customerHTML.replace(/<meta name="description"[^>]*>\n?/,'').replace(/<meta property="og:[a-z:]+"[^>]*>\n?/g,'').replace(/<title>[^<]*<\/title>/,tags).replace('</body>',()=>packsTag+'</body>');

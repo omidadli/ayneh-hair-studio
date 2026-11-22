@@ -126,7 +126,7 @@ export const packsJS = String.raw`
    if(o.status==='expired'||o.status==='cancelled'){try{localStorage.removeItem(KEY)}catch(e){}start();return}
    var left=el('span',{}),msg=el('p',{class:'ap-note'});
    var back=el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'تغییر مبلغ شارژ',onclick:function(){try{localStorage.removeItem(KEY)}catch(e){}stop();start()}});
-   function show(){msg.textContent='پرداخت خودکار و معمولاً چند ثانیه بعد از واریز تأیید می‌شود و سکه‌ها همان لحظه به کیفتان اضافه می‌شود. اگر تا ۱۰ دقیقه تأیید نشد، کد پیگیری را برای پشتیبانی آینه بفرستید.'}
+   function show(){msg.textContent='پرداخت خودکار و معمولاً چند ثانیه بعد از واریز تأیید می‌شود و سکه‌ها همان لحظه به کیفتان اضافه می‌شود. اگر پول از حسابتان کم شده، دوباره واریز نکنید؛ اگر تا ۱۰ دقیقه تأیید نشد، کد پیگیری را برای پشتیبانی آینه بفرستید.'}
    var t=setInterval(function(){var s=Math.max(0,Math.round((o.expires_at-Date.now())/1000));left.textContent=o.status==='open'?(Math.floor(s/60)+':'+String(s%60).padStart(2,'0')):'';},1000);
    var p=setInterval(function(){api('/api/c/order/'+o.id).then(function(r){o=Object.assign(o,r);if(r.status==='paid'){stop();done(o.coins||o.count)}else if(r.status==='expired'||r.status==='cancelled'){stop();try{localStorage.removeItem(KEY)}catch(e){}fail('مهلت این سفارش تمام شد؛ اگر واریز کرده‌اید با کد پیگیری به پشتیبانی خبر بدهید.');start(true)}else show()}).catch(function(){})},5000);
    function stop(){clearInterval(t);clearInterval(p)}
@@ -135,7 +135,7 @@ export const packsJS = String.raw`
    box.replaceChildren(el('div',{class:'ap-pay'},[
     el('div',{class:'ap-paysum'},[el('span',{},[coinSVG(),document.createTextNode(fa(o.coins||o.count)+' سکه')]),el('b',{text:fa(o.amount)+' تومان'})]),
     el('ol',{class:'ap-steps'},[
-     el('li',{},[el('b',{text:'به این کارت'}),card?el('div',{class:'ap-cardrow'},[el('div',{class:'ap-card',dir:'ltr',text:card.replace(/(\d{4})(?=\d)/g,'$1 ')}),copyBtn('کپی شماره کارت',card)]):el('p',{class:'notice notice--warn',text:'پرداخت هنوز آماده نیست؛ کمی بعد دوباره سر بزنید.'}),o.card_owner?el('small',{class:'ap-note',text:'به نام '+o.card_owner}):null]),
+     el('li',{},[el('b',{text:'به این کارت'}),card?el('div',{class:'ap-cardrow'},[el('div',{class:'ap-card',dir:'ltr',text:card.replace(/(\d{4})(?=\d)/g,'$1 ')}),copyBtn('کپی شماره کارت',card)]):el('p',{class:'notice notice--warn',text:'پرداخت هنوز آماده نیست؛ کمی بعد دوباره سر بزنید.'}),o.card_owner?el('small',{class:'ap-note',text:'به نام '+o.card_owner+'؛ قبل از تأیید در اپ بانکت، اسم گیرنده را چک کن.'}):null]),
      el('li',{},[el('b',{text:'دقیقاً همین مبلغ را بزنید'}),el('div',{class:'ap-amount'},[el('span',{text:fa(o.amount*10)+' ریال'}),copyBtn('کپی به ریال',String(o.amount*10))]),el('div',{class:'ap-amount ap-amount--alt'},[el('span',{text:fa(o.amount)+' تومان'}),copyBtn('کپی به تومان',String(o.amount))]),el('small',{class:'ap-note',text:(o.amount%1000?'این مبلغ عمداً کمی کمتر از '+fa(Math.ceil(o.amount/1000)*1000)+' تومان است تا واریز شما بدون رسید و خودکار شناسایی شود؛ آن را گرد نکنید. ':'')+'بیشتر بانک‌ها مبلغ را به ریال می‌خواهند.'})]),
      el('li',{},[el('b',{text:'همین صفحه را باز بگذارید'}),el('div',{class:'ap-wait'},[el('span',{class:'ap-spin','aria-hidden':'true'}),el('span',{},['در انتظار واریز · ',left])]),msg])
     ]),

@@ -3294,7 +3294,7 @@ test('two sites: the main domain is the customers\' studio, business. is the sal
   const home = await app.fetch(new Request(origin + '/?r=abc'), e);
   assert.equal(home.status, 200, 'a customer share link (?r=) stays on the studio');
   const html = await home.text();
-  assert.match(html, /مدل بعدی‌ات رو روی عکس خودت ببین/);
+  assert.match(html, /روی عکس خودت ببین چی بهت میاد/);
   assert.ok(html.includes('<meta name="ayneh-biz" content="' + BIZ + '">'), 'a way to the salons\' site');
   assert.ok(html.includes('<link rel="canonical" href="' + origin + '/">'));
   assert.doesNotMatch(html, /__ORIGIN__|__MAIN__|__CANON__/);

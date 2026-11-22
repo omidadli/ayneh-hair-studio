@@ -598,6 +598,15 @@ img[loading="lazy"].is-in{opacity:1}
 .proof__arrow{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--accent);box-shadow:0 4px 12px rgba(10,32,42,.12)}
 .proof__arrow svg{width:16px;height:16px}
 .proof figcaption{font-size:12px;color:var(--muted)}
+@media (min-width:900px){
+ .studio{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);grid-template-areas:"title proof" "tag proof" "wallet proof" "cta proof";column-gap:48px;align-items:start;align-content:start}
+ .studio__title{grid-area:title;font-size:44px}.studio__tag{grid-area:tag}.wallet{grid-area:wallet}.studio__cta{grid-area:cta}
+ .proof{grid-area:proof;align-self:center}.proof__pair{max-width:none}.proof__img{max-height:340px}
+}
+/* While the start button is on screen the dock would repeat it (and cover it on small phones). */
+body.cta-on-screen #dock{transform:translateY(130%);opacity:0;pointer-events:none}
+#dock{transition:transform .25s var(--ease,ease),opacity .2s}
+@media (prefers-reduced-motion:reduce){#dock{transition:none}}
 .btn .coin-pill__ico svg{width:20px;height:20px}
 `;
 
@@ -705,7 +714,7 @@ function track(kind,meta,once){if(STUDIO_PREVIEW)return;if(once){if(tracked[kind
  try{var rr=await Promise.race([api('ref',{v:VISITOR,r:refIn}),sleep(2500).then(function(){return null})]);if(rr){state.tag=rr.tag;state.mine=rr.mine||null}}catch(e){}
  if(refIn&&history.replaceState){try{history.replaceState(null,'',location.pathname)}catch(e){}}
  if(state.mine)state.pub.portfolio=(state.pub.portfolio||[]).slice().sort(function(a,b){return (b.maker===state.mine)-(a.maker===state.mine)});
- document.title=state.pub.direct?'آینه | مدل بعدی‌ات رو روی عکس خودت ببین':state.pub.salon.name+' | آینه';
+ document.title=state.pub.direct?'آینه | روی عکس خودت ببین چی بهت میاد':state.pub.salon.name+' | آینه';
  if(state.pub.salon.profile?.brand)applyBrand(state.pub.salon.profile.brand);
  if(state.pub.trial)trialBar(state.pub.trial);
  if((state.pub.demo||FROM_LANDING)&&!$('.trialbar'))ownerReturnBar();
@@ -778,13 +787,21 @@ var GIFT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-widt
 function studio(){return !!(state.pub&&state.pub.direct&&!EMBED)}
 function bizHome(){var m=document.querySelector('meta[name="ayneh-biz"]');return (m&&m.content?m.content:location.protocol+'//business.'+location.host.replace(/^www\./,''))+'/'}
 function openWallet(){if(window.AynehPacks){track('wallet','open');window.AynehPacks.open()}}
+var ctaWatch=null;
+function watchCta(){
+ if(!('IntersectionObserver' in window))return;
+ if(ctaWatch)ctaWatch.disconnect();
+ var c=document.querySelector('.studio__cta');if(!c)return;
+ ctaWatch=new IntersectionObserver(function(es){document.body.classList.toggle('cta-on-screen',es[0].isIntersecting)},{threshold:.6});
+ ctaWatch.observe(c);
+}
 function renderStudioHead(){
  var head=$('#head');head.classList.add('head--studio');
  var foot=$('#foot');if(foot)foot.textContent='نتیجه یک پیش‌نمایش پیشنهادی است و اجرای دقیق آرایشگر را تضمین نمی‌کند. '+STUDIO_PRIVACY;
  var pill=el('button',{class:'coin-pill',type:'button',onclick:openWallet,title:'کیف سکه'},[el('span',{class:'coin-pill__ico',html:COIN}),el('span',{id:'coinPill',text:'کیف سکه'})]);
  var bar=el('div',{class:'hero__bar'},[el('a',{class:'brand brand--studio',href:'/','aria-label':'آینه، صفحهٔ اصلی',html:MARK+'<span>آینه</span>'}),el('div',{class:'hero__tools'},[el('a',{class:'pro-link',href:bizHome(),text:'آرایشگر هستید؟'}),pill])]);
  var body=el('div',{class:'studio'},[
-  el('h1',{class:'studio__title',text:'مدل بعدی‌ات رو روی عکس خودت ببین'}),
+  el('h1',{class:'studio__title',text:'روی عکس خودت ببین چی بهت میاد'}),
   el('p',{class:'studio__tag',text:'مدل مو، رنگ مو، ناخن و مژه؛ قبل از اینکه بری آرایشگاه. بدون نصب، فقط با یه عکس.'}),
   studioProof(),
   el('div',{class:'wallet',id:'wallet','aria-live':'polite'},[el('div',{class:'skel',style:'height:56px;border-radius:16px'})]),
@@ -792,7 +809,7 @@ function renderStudioHead(){
   el('button',{class:'btn btn--primary btn--lg studio__cta',type:'button',onclick:function(){track('cta','studio');if(state.original){go(2);return}go(1);var p=$('#pick');if(p)p.click()},html:ICO.camera+'<span>'+(state.original?'ادامه با همین عکس':'شروع با عکس خودم')+'</span>'})
  ]);
  head.replaceChildren(el('div',{class:'wrap'},[bar,body]));
- paintWallet(false);
+ paintWallet(false);watchCta();
 }
 /* Proof before the first tap: a real before/after of the chosen service (the landing's sample pair). */
 var PROOF={hair:['style','مدل مو'],color:['color','رنگ مو'],nails:['nails','ناخن'],lashes:['lashes','مژه']};
@@ -822,7 +839,7 @@ function drawWallet(d){
  /* A newcomer's pill shows what she has (her gift), never an empty «۰ سکه». */
  if(pill)pill.textContent=coins<=0&&free>0?fa(free)+' عکس هدیه':fa(coins)+' سکه';
  var rows=[];
- if(free>0)rows.push(el('div',{class:'wallet__gift'},[el('span',{class:'wallet__gift-ico',html:GIFT}),el('div',{},[el('b',{text:fa(free)+' عکس هدیه داری'}),el('small',{text:'رایگان؛ بدون ثبت‌نام. بعدش هر عکس '+fa(per)+' سکه.'})])]));
+ if(free>0)rows.push(el('div',{class:'wallet__gift'},[el('span',{class:'wallet__gift-ico',html:GIFT}),el('div',{},[el('b',{text:fa(free)+' عکس اول رایگانه'}),el('small',{text:'بدون ثبت‌نام. بعدش هر عکس '+fa(per)+' سکه ('+fa(d.image_price||50000)+' تومان).'})])]));
  var main=el('div',{class:'wallet__main'},[
   el('span',{class:'wallet__coin',html:COIN}),
   el('div',{class:'wallet__txt'},[el('b',{text:fa(coins)+' سکه'}),el('small',{text:imgs>0?('برای '+fa(imgs)+' عکس'+(free>0?' بعد از هدیه‌ها':'')):(coins>0?fa(per-coins%per)+' سکهٔ دیگه تا عکس بعدی':'هر عکس '+fa(per)+' سکه؛ '+fa(d.image_price||50000)+' تومان')})]),

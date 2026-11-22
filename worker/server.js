@@ -406,6 +406,16 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  if(route.startsWith('media/')){const id=route.slice(6),m=await one(db,'SELECT * FROM media WHERE id=? AND salon_id=?',id,salon.id);must(m,'عکس یافت نشد',404);const profile=parse(salon.profile);let visible=m.kind==='brand'&&PROFILE_IMAGES.some(k=>profile[k]===id);if(!visible)visible=!!await one(db,'SELECT 1 FROM portfolio WHERE salon_id=? AND published=1 AND permission=1 AND EXISTS(SELECT 1 FROM json_each(images) WHERE value=?)',salon.id,id);if(!visible){let isOwner=false;try{await owner(req,env);isOwner=true}catch{}if(!isOwner){const s=await session(req,db,salon);await ownMedia(db,s,id);}}const object=await bucketFor(env).get(m.object_key);must(object,'عکس در دسترس نیست',410);return new Response(object.body,{headers:{'Content-Type':m.mime,'Cache-Control':visible?'public,max-age=300':'private,no-store','X-Content-Type-Options':'nosniff','Content-Security-Policy':"default-src 'none'"}});}
  if(route==='ref'&&req.method==='POST'){const b=await req.json().catch(()=>({}));await limited(db,'ref:'+salon.id+':'+clientIp(req),3000);return J(await attribute(db,salon,String(b.v||''),String(b.r||'')));}
  if(route==='track'&&req.method==='POST'){const b=await req.json().catch(()=>({}));must(TRACK_KINDS.includes(b.kind)&&b.kind!=='sent','رویداد معتبر نیست');await limited(db,'track:'+salon.id+':'+clientIp(req),800);await logEvent(db,salon.id,b.kind,String(b.v||''),typeof b.meta==='string'||typeof b.meta==='number'?String(b.meta):'');return J({ok:true});}
+ /* «ترند»: the looks tried and liked most in the last 30 days, per service. */
+ if(route==='trending'){
+  const since=Date.now()-30*864e5;
+  const tried=await all(db,"SELECT line,style,COUNT(*) n FROM generations WHERE salon_id=? AND created_at>? AND style IS NOT NULL AND state<>'fail' GROUP BY line,style",salon.id,since);
+  const liked=await all(db,"SELECT item,kind,COUNT(*) n FROM customer_saves WHERE salon_id=? AND created_at>? AND item NOT LIKE 'img:%' AND owner NOT LIKE 's:%' GROUP BY item,kind",salon.id,since);
+  const score={};for(const r of tried){const k=r.line+':'+r.style;score[k]=(score[k]||0)+Number(r.n)}
+  for(const r of liked){score[r.item]=(score[r.item]||0)+2*Number(r.n)}
+  const likes={};for(const r of liked)if(r.kind==='like')likes[r.item]=(likes[r.item]||0)+Number(r.n);
+  return J({score,likes});
+ }
  const s=await session(req,db,salon);
  if(route==='session')return J({ok:true,verified:!!s.verified_phone,name:s.verified_name||'',phone:s.verified_phone||'',quota:trial||demo||await unlimited(db,s)?null:await (async v=>quotaView(db,env,salon,s,v,{per:QUOTA_PER_LINE,left:quotaLeft(await quotaUsed(db,salon,s,v))}))(/^[a-f0-9]{16,32}$/.test(u.searchParams.get('v')||'')?u.searchParams.get('v'):'')});
  // Mobile verification: a one-time code texted by Melipayamak. Only the hash of the code is stored.
@@ -490,16 +500,6 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   if(b.on===false)await run(db,'DELETE FROM customer_saves WHERE salon_id=? AND owner=? AND kind=? AND item=?',salon.id,owner,kind,item);
   else await run(db,'INSERT OR IGNORE INTO customer_saves(salon_id,owner,kind,item,created_at) VALUES(?,?,?,?,?)',salon.id,owner,kind,item,Date.now());
   return J({ok:true});
- }
- /* «ترند»: the looks tried and liked most in the last 30 days, per service. */
- if(route==='trending'){
-  const since=Date.now()-30*864e5;
-  const tried=await all(db,"SELECT line,style,COUNT(*) n FROM generations WHERE salon_id=? AND created_at>? AND style IS NOT NULL AND state<>'fail' GROUP BY line,style",salon.id,since);
-  const liked=await all(db,"SELECT item,kind,COUNT(*) n FROM customer_saves WHERE salon_id=? AND created_at>? AND item NOT LIKE 'img:%' AND owner NOT LIKE 's:%' GROUP BY item,kind",salon.id,since);
-  const score={};for(const r of tried){const k=r.line+':'+r.style;score[k]=(score[k]||0)+Number(r.n)}
-  for(const r of liked){score[r.item]=(score[r.item]||0)+2*Number(r.n)}
-  const likes={};for(const r of liked)if(r.kind==='like')likes[r.item]=(likes[r.item]||0)+Number(r.n);
-  return J({score,likes});
  }
  /* «خروج از حساب»: this browser forgets the mobile; her coins stay with her mobile for the next sign-in. */
  if(route==='otp/logout'&&req.method==='POST'){await run(db,'UPDATE sessions SET verified_phone=NULL,verified_name=NULL WHERE id=?',s.id);return J({ok:true})}

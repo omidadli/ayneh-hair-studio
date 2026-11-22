@@ -681,6 +681,7 @@ body.cta-on-screen #dock{transform:translateY(130%);opacity:0;pointer-events:non
 .profile__who p{font-size:13.5px;color:var(--muted);line-height:1.8}
 .profile__stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .profile__stat{display:grid;gap:2px;text-align:center;padding:14px 8px;border-radius:16px;background:var(--surface);border:1px solid var(--line)}
+.profile__stat b *{font:inherit}
 .profile__stat b{font-family:var(--display);font-size:22px;font-weight:800;color:var(--ink)}
 .profile__stat span{font-size:12.5px;color:var(--muted)}
 .profile__sec{padding:16px;display:grid;gap:12px}
@@ -1071,7 +1072,7 @@ function profilePage(card){
   var since='';try{if(me.since)since=new Intl.DateTimeFormat('fa-IR',{year:'numeric',month:'long'}).format(new Date(me.since))}catch(e){}
   var idCard=el('section',{class:'panel profile__id'},[
    el('span',{class:'profile__avatar',text:ini,'aria-hidden':'true'}),
-   el('div',{class:'profile__who'},[el('h1',{text:full||'حساب من'}),el('p',{},[el('span',{dir:'ltr',text:fa0(me.phone)}),me.city?' · '+me.city:'',since?' · عضو از '+since:''])]),
+   el('div',{class:'profile__who'},[el('h1',{text:full||'حساب من'}),el('p',{},[el('span',{dir:'ltr',text:fa0(me.phone)}),me.city?' · '+me.city:'',since?el('span',{dir:'rtl',text:' · عضو از '+since}):''])]),
    el('button',{class:'btn btn--ghost btn--sm',type:'button',html:ICO.edit?ICO.edit+'<span>ویرایش</span>':'ویرایش',onclick:function(){editProfile(me,function(){profilePage(card)})}})
   ]);
   var stats=el('div',{class:'profile__stats'},[
@@ -1245,7 +1246,7 @@ function drawWallet(d){
  /* A newcomer's pill shows what she has (her gift), never an empty «۰ سکه». */
  if(pill)pill.textContent=coins<=0&&free>0?fa(free)+' عکس هدیه':fa(coins)+' سکه';
  var rows=[];
- if(free>0)rows.push(el('div',{class:'wallet__gift'},[el('span',{class:'wallet__gift-ico',html:GIFT}),el('div',{},[el('b',{text:fa(free)+' عکس اول رایگانه'}),el('small',{text:(state.pub.otp&&!state.verified?'فقط با تأیید شمارهٔ موبایل؛ بدون رمز. ':'')+'بعدش هر عکس '+fa(per)+' سکه ('+fa(d.image_price||50000)+' تومان).'})])]));
+ if(free>0)rows.push(el('div',{class:'wallet__gift'},[el('span',{class:'wallet__gift-ico',html:GIFT}),el('div',{},[el('b',{text:free>=((d.free&&d.free.per)||2)?fa(free)+' عکس اول رایگانه':fa(free)+' عکس هدیه برایت مانده'}),el('small',{text:(state.pub.otp&&!state.verified?'فقط با تأیید شمارهٔ موبایل؛ بدون رمز. ':'')+'بعدش هر عکس '+fa(per)+' سکه ('+fa(d.image_price||50000)+' تومان).'})])]));
  var main=el('div',{class:'wallet__main'},[
   el('span',{class:'wallet__coin',html:COIN}),
   el('div',{class:'wallet__txt'},[el('b',{text:fa(coins)+' سکه'}),el('small',{text:imgs>0?('برای '+fa(imgs)+' عکس'+(free>0?' بعد از هدیه‌ها':'')):(coins>0?fa(per-coins%per)+' سکهٔ دیگه تا عکس بعدی':'هر عکس '+fa(per)+' سکه؛ '+fa(d.image_price||50000)+' تومان')})]),
@@ -1316,7 +1317,7 @@ function openAbout(){
 /* ---------- steps ---------- */
 /* ---------- service lines: hairstyle, hair colour, nails, lashes ---------- */
 // Each line keeps its own photo, choices and result; switching is one tap and loses nothing.
-var LINE_FIELDS=['busy','rating','step','original','preview','ratio','reference','refTitle','style','custom','q','tab','transfer','color','opts','result','gen','genState','views','viewsIdem','idem','filter','error','justUploaded','base','genBase','resultBase','genT0'];
+var LINE_FIELDS=['busy','rating','seen','step','original','preview','ratio','reference','refTitle','style','custom','q','tab','transfer','color','opts','result','gen','genState','views','viewsIdem','idem','filter','error','justUploaded','base','genBase','resultBase','genT0'];
 var LINE_LIST=[['hair','مدل مو','scissors'],['color','رنگ مو','drop'],['nails','ناخن','nails'],['lashes','مژه','lashes']];
 /* «مدل مو، رنگ مو، طرح ناخن یا مژه» — only the lines this salon offers. */
 var LINE_WORDS={hair:'مدل مو',color:'رنگ مو',nails:'طرح ناخن',lashes:'مژه'};
@@ -1349,7 +1350,7 @@ function switchLine(to,opts){
  }
  if(opts&&opts.step)next.step=opts.step;
  if(to==='color'&&opts&&opts.onHair)next.base='hair';
- clearTimeout(state.advT);Object.assign(state,next);state.line=to;
+ clearTimeout(state.advT);Object.assign(state,next);state.line=to;state.seen=state.result;
  try{localStorage.setItem('ayneh-line-'+SLUG,to)}catch(e){}
  if(!(opts&&opts.silent))track('line',to);
  document.body.setAttribute('data-line',to);
@@ -1366,7 +1367,7 @@ function renderAll(){if(accountMode()){renderAccount();return}renderHead();rende
 function lineSwitch(){
  var bar=el('div',{class:'linesw',role:'tablist','aria-label':'خدمت'});
  LINE_LIST.forEach(function(x){
-  var on=state.line===x[0],d=lineData(x[0]),st=d&&d.busy?' is-busy':d&&d.result&&!on?' is-ready':'';
+  var on=state.line===x[0],d=lineData(x[0]),st=on?'':d&&d.busy?' is-busy':d&&d.result&&d.result!==d.seen?' is-ready':'';
   bar.append(el('button',{class:'linesw__btn'+(on?' is-on':'')+st,type:'button',role:'tab','data-line':x[0],'aria-selected':on?'true':'false',onclick:function(){switchLine(x[0])},html:ICO[x[2]]+'<span>'+x[1]+'</span>'}));
  });
  return bar;
@@ -2191,7 +2192,7 @@ function poll(id,resumed,line){
    if(d.state==='success'){
     track('result','',true);
     if(window.__trialLeft)window.__trialLeft();
-    L().result=d.result_id;L().resultBase=L().genBase||null;L().busy=false;L().idem=null;state.session=false;loadSession().catch(function(){});
+    L().result=d.result_id;if(line===state.line)L().seen=d.result_id;L().resultBase=L().genBase||null;L().busy=false;L().idem=null;state.session=false;loadSession().catch(function(){});
     try{sessionStorage.removeItem('ayneh-job-'+SLUG+'-'+line)}catch(e){}
     L().rating=Number(localStorage.getItem('ayneh-rating-'+d.result_id)||0);
     paint();toast(line===state.line?'شبیه‌سازی آماده شد':LINES.label[line]+' آماده شد؛ در تب خودش ببین');renderSteps();

@@ -24,7 +24,7 @@ const packsCSS = String.raw`
 .ap-sheet__panel{width:min(560px,100%);max-height:92vh;overflow:auto;background:var(--glass);border-radius:var(--r-lg) var(--r-lg) 0 0;padding:18px 16px calc(18px + var(--safe-b));display:grid;gap:12px}
 .ap-sheet__head{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ap-sheet__head h2{font-family:var(--display);font-size:18px}
-.ap-x{border:0;background:transparent;font-size:26px;line-height:1;color:var(--ink);cursor:pointer;min-width:var(--tap);min-height:var(--tap)}
+.ap-x{border:0;background:transparent;font-size:24px;line-height:1;color:var(--ink);cursor:pointer;width:44px;height:44px;min-width:44px;border-radius:50%!important;display:grid;place-items:center;padding:0}
 .ap [hidden],.ap-pay [hidden]{display:none!important}
 .ap-pack{position:relative}
 .ap-pack b{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}

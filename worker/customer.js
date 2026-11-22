@@ -1350,7 +1350,7 @@ function stepPhoto(){
     h('p',studio()?STUDIO_PRIVACY:'عکس شما فقط برای ساخت نمونه و دیدنِ سالن استفاده می‌شود؛ نسخهٔ فشردهٔ آن برای ساخت تصویر به سرویس تصویر ارسال می‌شود. عکس دسترسی عمومی ندارد و در سابقهٔ سالن نگه داشته می‌شود تا آرایشگرت بعداً هم آن را ببیند. نتیجه را فقط وقتی خودت دکمهٔ «از دوستم نظر بپرسم» را بزنی برای کسی می‌فرستی.')
    ])
   ]);
-  box.append(input,el('div',{class:'demo-row'},[demoCompare('demo--small'),el('div',{class:'demo-row__text'},[h('b','این‌طوری می‌شود'),h('span',LP().demo)])]),el('div',{class:'shoot'},[drop,side]));
+  box.append(input,el('div',{class:'demo-row'},[demoCompare('demo--small'),el('div',{class:'demo-row__text'},[h('b','این‌طوری می‌شود'),h('span',studio()?LP().demo.replace(/ و بعد برای \S+ می‌فرستی/,''):LP().demo)])]),el('div',{class:'shoot'},[drop,side]));
  }else{
   var fresh=state.justUploaded;
   box.append(flowHead(fresh?'عکست بارگذاری شد':'عکست آماده است',fresh?'الان می‌رویم سراغ انتخاب '+({color:'رنگ',nails:'طرح'}[state.line]||'مدل')+'…':LP().ready));

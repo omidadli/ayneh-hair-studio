@@ -34,26 +34,31 @@ function el(t,a,k){var e=document.createElement(t);a=a||{};for(var x in a){if(x=
 function post(p,b){return fetch(p,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(b||{})}).then(function(r){return r.json().catch(function(){return {}}).then(function(d){d._status=r.status;return d})})}
 function fa(n){return Number(n||0).toLocaleString('fa-IR')}
 function when(t){try{return new Date(t).toLocaleString('fa-IR-u-ca-persian',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'})}catch(e){return new Date(t).toLocaleString('fa-IR')}}
-var CHIP={paid:['تأیید شد','ok'],none:['سفارشی پیدا نشد','warn'],many:['نیاز به بررسی','warn'],closed:['تأیید نشد','bad'],error:['خطا','bad']};
+var CHIP={ignored:['واریز نبود','gray'],already:['قبلاً تأیید شده','gray'],paid:['تأیید شد','ok'],none:['سفارشی پیدا نشد','warn'],many:['نیاز به بررسی','warn'],closed:['تأیید نشد','bad'],error:['خطا','bad']};
 var DETAIL={none:'سفارش بازی با این مبلغ نبود. اگر پول مشتری است، در پنل مدیر بررسی کنید.',many:'این مبلغ با چند سفارش یکی بود؛ در پنل مدیر تأیید کنید.',closed:'سفارش بسته یا لغو شده بود؛ به مدیر هشدار رفت.'};
-var params=new URLSearchParams(location.search),sms=params.get('sms')||'';
-if(sms)history.replaceState(null,'',location.pathname);
+var params=new URLSearchParams(location.search),sms=params.get('sms')||'',k=params.get('k')||'';
+if(sms||k)history.replaceState(null,'',location.pathname);
+/* Only this iPhone's own Shortcut carries the device key (made at pairing, kept here); a link from
+   anyone else with ?sms= is shown for an explicit tap instead of being sent on its own. */
+function devKey(){try{return localStorage.getItem('aynehpay_dev')||''}catch(e){return ''}}
+function newDevKey(){var a=new Uint8Array(12);crypto.getRandomValues(a);var v=Array.from(a,function(x){return x.toString(16).padStart(2,'0')}).join('');try{localStorage.setItem('aynehpay_dev',v)}catch(e){}return v}
+var trusted=!!sms&&!!k&&k===devKey();
 /* An SMS that arrived before this iPhone was paired waits here and is sent right after pairing. */
-try{if(!sms)sms=sessionStorage.getItem('aynehpay_sms')||''}catch(e){}
+function pending(){try{return sessionStorage.getItem('aynehpay_sms')||''}catch(e){return ''}}
 function pairView(msg){
  var code=el('input',{inputmode:'numeric',maxlength:'6',placeholder:'••••••',autocomplete:'one-time-code'});
  var err=el('p',{class:'muted',style:'color:#B42318'});if(msg)err.textContent=msg;
- var go=el('button',{text:'وصل شو',onclick:function(){var c=code.value.replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)}).replace(/\\D/g,'');if(c.length!==6){err.textContent='کد ۶ رقمی را کامل بنویسید.';return}go.disabled=true;go.textContent='در حال اتصال…';post('/api/pay/pair',{code:c,web:true}).then(function(d){if(d.ok)start();else{go.disabled=false;go.textContent='وصل شو';err.textContent=d.error||'اتصال نشد'}}).catch(function(){go.disabled=false;go.textContent='وصل شو';err.textContent='اینترنت در دسترس نیست.'})}});
+ var go=el('button',{text:'وصل شو',onclick:function(){var c=code.value.replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)}).replace(/\\D/g,'');if(c.length!==6){err.textContent='کد ۶ رقمی را کامل بنویسید.';return}go.disabled=true;go.textContent='در حال اتصال…';post('/api/pay/pair',{code:c,web:true}).then(function(d){if(d.ok){if(!devKey())newDevKey();start()}else{go.disabled=false;go.textContent='وصل شو';err.textContent=d.error||'اتصال نشد'}}).catch(function(){go.disabled=false;go.textContent='وصل شو';err.textContent='اینترنت در دسترس نیست.'})}});
  app.replaceChildren(el('div',{class:'card'},[el('div',{class:'big',text:'اتصال این آیفون'}),el('p',{class:'muted',text:'این صفحه را در Safari باز کنید. در پنل مدیر (پرداخت و پنل) «ساخت کد اتصال اپ» را بزنید و کد ۶ رقمی را این‌جا بنویسید.'}),code,err,go]),guide());
 }
 function guide(){
- var url=location.origin+'/app/i?sms=';
+ var url=location.origin+'/app/i?k='+(devKey()||newDevKey())+'&sms=';
  return el('details',{class:'card'},[el('summary',{text:'راهنمای تنظیم آیفون (یک بار)'}),el('ol',{},[
   el('li',{text:'اول شمارهٔ پیامک بانک (بلو: +989999987641) را در مخاطبین با نام «بلو» ذخیره کنید.'}),
   el('li',{text:'اپ Shortcuts ← Automation ← + ← Create Personal Automation ← Message.'}),
   el('li',{text:'Sender: مخاطب «بلو». Message Contains: واریز ← Next.'}),
   el('li',{text:'Add Action ← «URL Encode» (ورودی: Shortcut Input).'}),
-  el('li',{},[document.createTextNode('Add Action ← «Text» و این را بنویسید، بعد متغیر «URL Encoded Text» را دقیقاً بعدش بچسبانید: '),el('code',{text:url})]),
+  el('li',{},[document.createTextNode('Add Action ← «Text» و این نشانی (مخصوص همین آیفون) را بچسبانید، بعد متغیر «URL Encoded Text» را دقیقاً بعدش بگذارید: '),el('code',{text:url}),el('button',{class:'ghost',style:'margin-top:8px;padding:10px',text:'کپی نشانی',onclick:function(e){try{navigator.clipboard.writeText(url);e.target.textContent='کپی شد'}catch(x){}}})]),
   el('li',{text:'Add Action ← «Open URLs» (ورودی: Text) ← Next ← Done.'}),
   el('li',{text:'از این به بعد با هر پیامک واریز، اعلانی می‌آید؛ رویش بزنید. این صفحه باز می‌شود و واریز خودش تأیید می‌شود.'})
  ]),el('p',{class:'muted',text:'در iOS ۱۶ (آیفون X) اپل اجازهٔ اجرای کاملاً خودکار پیامک را نمی‌دهد؛ برای همین با هر واریز یک لمس لازم است.'})]);
@@ -74,9 +79,17 @@ function render(hist,last){
  kids.push(guide());
  app.replaceChildren.apply(app,kids);
 }
+function confirmView(t){
+ app.replaceChildren(el('div',{class:'card'},[el('div',{class:'big',text:'این پیام از میان‌بر خود آیفون نیامده'}),
+  el('p',{class:'muted',text:'اگر خودتان این لینک را باز نکرده‌اید یا متن، پیام واقعی بانک نیست، ارسالش نکنید. ارسال یک متن ساختگی می‌تواند سفارشی را بدون پرداخت باز کند.'}),
+  el('p',{class:'muted',style:'white-space:pre-wrap;background:#FCF3EB;border-radius:12px;padding:10px;color:#12333C',text:t}),
+  el('button',{text:'این پیام بانک است؛ ارسال کن',onclick:function(){sms=t;trusted=true;start()}}),
+  el('button',{class:'ghost',text:'نادیده بگیر',onclick:function(){start()}})]),guide());
+}
 function start(){
- var first=sms?post('/api/pay/sms',{text:sms}):Promise.resolve(null);sms='';
- var sent=sms;first.then(function(last){if(last&&last._status===401){try{sessionStorage.setItem('aynehpay_sms',sent)}catch(e){}return pairView('اول این آیفون را وصل کنید؛ واریز بعد از اتصال خودش فرستاده می‌شود.')}
+ if(sms&&!trusted){var t=sms;sms='';return confirmView(t)}
+ var sent=sms||pending();sms='';trusted=false;
+ var first=sent?post('/api/pay/sms',{text:sent}):Promise.resolve(null);first.then(function(last){if(last&&last._status===401){try{sessionStorage.setItem('aynehpay_sms',sent)}catch(e){}return pairView('اول این آیفون را وصل کنید؛ واریز بعد از اتصال خودش فرستاده می‌شود.')}
   if(last){try{sessionStorage.removeItem('aynehpay_sms')}catch(e){}}
   return post('/api/pay/history').then(function(h){if(h._status===401)return pairView('');render(h,last)})})
  .catch(function(){app.replaceChildren(el('div',{class:'card'},[el('p',{class:'muted',text:'اینترنت در دسترس نیست. دوباره امتحان کنید.'}),el('button',{text:'دوباره',onclick:start})]))});

@@ -543,7 +543,7 @@ export async function confirmOrder(db, env, id, {by = 'owner', origin = '', amou
     await notifyOwner(env, {
       kind: 'order', level: 'good',
       text: 'پرداخت ' + planName(row) + ' برای «' + salon.name + '» تأیید شد',
-      detail: '🔗 صفحه: /s/' + salon.slug + '\n👤 ' + row.contact_name + '\n💳 ' + row.ref + '\n✅ تأیید با: ' + (by === 'webhook' ? 'سایت پرداخت' : 'پنل مدیر'),
+      detail: '🔗 صفحه: /s/' + salon.slug + '\n👤 ' + row.contact_name + '\n💳 ' + row.ref + '\n✅ تأیید با: ' + (by === 'webhook' ? 'سایت پرداخت' : by === 'sms' ? 'اعلان/پیامک بانک (آینه‌پی)' : 'پنل مدیر'),
     });
   } catch {}
   return {order: await publicOrder(db, env, updated, {origin}), claimed: true};

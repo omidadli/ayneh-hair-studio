@@ -107,6 +107,15 @@ final class Sender {
         }
     }
 
+    /* Unique notification ids (two deposits a moment apart must not replace each other); each
+       uses two request codes (open + call). */
+    private static synchronized int nextId(Context c) {
+        android.content.SharedPreferences p = c.getSharedPreferences("aynehpay", Context.MODE_PRIVATE);
+        int id = (p.getInt("nid", 100) + 2) % 2000000000;
+        p.edit().putInt("nid", id).apply();
+        return id;
+    }
+
     private static android.graphics.Bitmap logo(Context c) {
         try {
             android.graphics.drawable.Drawable d = c.getDrawable(R.drawable.logo_badge);
@@ -135,7 +144,7 @@ final class Sender {
             if (!b.optString("service").isEmpty()) big.append("سرویس: ").append(b.optString("service")).append('\n');
             big.append("مبلغ: ").append(Fa.money(toman)).append(" تومان");
             if (!b.optString("ref").isEmpty()) big.append(" · کد ").append(b.optString("ref"));
-            int id = (int) (System.currentTimeMillis() % 1000000);
+            int id = nextId(c);
             PendingIntent open = PendingIntent.getActivity(c, id, new Intent(c, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
             Notification.Builder nb = new Notification.Builder(c, CHANNEL)
                     .setSmallIcon(R.drawable.ic_stat)
@@ -163,7 +172,7 @@ final class Sender {
             ensureChannel(c);
             NotificationManager nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
             if (nm == null) return;
-            int id = (int) (System.currentTimeMillis() % 1000000);
+            int id = nextId(c);
             PendingIntent open = PendingIntent.getActivity(c, id, new Intent(c, MainActivity.class), PendingIntent.FLAG_IMMUTABLE);
             Notification n = new Notification.Builder(c, CHANNEL_CHECK)
                     .setSmallIcon(R.drawable.ic_stat)

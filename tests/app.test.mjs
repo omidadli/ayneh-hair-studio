@@ -3236,3 +3236,28 @@ test('payment apps see the buyer: name, salon, mobile, service and the exact amo
     assert.ok(h.items.some(i => i.result === 'ignored' && i.sample.includes('###')));
   } finally { restore() }
 });
+
+test('pay review fixes: re-forwarded paid deposit is «already», outgoing «نشست» is not a deposit, tiny amounts stay sane, a crashed try is worked again', async () => {
+  const {parseDeposit, uniqueAmount} = await import('../worker/paysms.js');
+  assert.equal(parseDeposit('انتقال وجه\n50,000 ریال به حساب علی نشست.'), null, 'an outgoing transfer is not a deposit');
+  assert.equal(parseDeposit('واریز پول\nامید عزیز،50,000 ریال به حساب شما نشست.'), 50000);
+  const e = fixture();
+  assert.equal(await uniqueAmount(e.DB, 0), 0);
+  assert.equal(await uniqueAmount(e.DB, 10), 10);
+  const t = await call(e, '/api/owner/test-order', {amount: 20000}, OWNER);
+  const key = (await call(e, '/api/owner/payment', undefined, OWNER)).data.webhook.key;
+  const send = text => app.fetch(new Request(origin + '/api/pay/sms', {method: 'POST', headers: {'content-type': 'application/json', authorization: 'Bearer ' + key}, body: JSON.stringify({text})}), e).then(r => r.json());
+  const n = 'واریز پول\nامید عزیز،' + (t.data.amount * 10).toLocaleString('en-US') + ' ریال به حساب شما نشست.';
+  assert.equal((await send(n + '\n⏱1')).status, 'paid');
+  const again = await send(n + '\n⏱99');
+  assert.equal(again.already, true, 'the same deposit forwarded by a second phone is «already paid», not a stray deposit');
+  // a new order never takes the amount of a recently paid one
+  const t2 = await call(e, '/api/owner/test-order', {amount: 20000}, OWNER);
+  assert.notEqual(t2.data.amount, t.data.amount);
+  // a try that broke half-way (result 'error') is worked again on the retry
+  const n2 = 'واریز پول\nامید عزیز،' + (t2.data.amount * 10).toLocaleString('en-US') + ' ریال به حساب شما نشست.\n⏱7';
+  const {hash, digits} = await import('../worker/domain.js');
+  const id = await hash('pay-sms:' + digits(n2).replace(/\s+/g, ' ').trim());
+  e.DB.sql.prepare("INSERT INTO pay_sms(id,amount,result,created_at) VALUES(?,?,'error',?)").run(id, t2.data.amount * 10, Date.now());
+  assert.equal((await send(n2)).status, 'paid');
+});

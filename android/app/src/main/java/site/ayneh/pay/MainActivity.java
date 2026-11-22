@@ -230,6 +230,13 @@ public class MainActivity extends Activity {
         code.setHintTextColor(MUTED);
         code.setHint("······");
         code.setText(typed);
+        code.setSelection(typed.length());
+        /* Keep what is typed: a deposit arriving meanwhile redraws the screen. */
+        code.addTextChangedListener(new android.text.TextWatcher() {
+            public void beforeTextChanged(CharSequence a, int b, int c2, int d) { }
+            public void onTextChanged(CharSequence a, int b, int c2, int d) { }
+            public void afterTextChanged(android.text.Editable e) { typed = e.toString().trim(); }
+        });
         code.setContentDescription("کد اتصال ۶ رقمی");
         code.setTextDirection(View.TEXT_DIRECTION_LTR);
         code.setBackground(round(SURFACE2, 18, pairError.isEmpty() ? LINE : ERR));

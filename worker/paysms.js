@@ -32,12 +32,17 @@ export const MAX_OFFSET_TOMAN = 999;
 export const amountMode = {roundFirst: false};
 export async function uniqueAmount(db, rial, notId = '') {
   const since = Date.now() - AMOUNT_HOLD_MS;
+  /* A free order (a 100% coupon) or a tiny amount has no room to move. */
+  if (!(rial > 20)) return rial;
+  /* Paid orders of the window keep their amount too: a second forward of the same deposit
+     (SMS and notification, two phones) must never land on a newer order. */
   const taken = new Set((await all(db,
-    "SELECT amount FROM orders WHERE status<>'paid' AND created_at>? AND id<>? AND amount BETWEEN ? AND ?",
+    "SELECT amount FROM orders WHERE created_at>? AND id<>? AND amount BETWEEN ? AND ?",
     since, notId, rial - MAX_OFFSET_TOMAN * 10, rial)).map(r => Number(r.amount)));
   if (!amountMode.roundFirst) taken.add(rial);
   if (!taken.has(rial)) return rial;
   const room = Math.min(MAX_OFFSET_TOMAN, Math.floor(rial / 10) - 1);
+  if (room < 1) return rial;
   for (let i = 0; i < 40; i++) {
     const r = rial - (1 + crypto.getRandomValues(new Uint32Array(1))[0] % room) * 10;
     if (!taken.has(r)) return r;
@@ -51,8 +56,9 @@ export async function uniqueAmount(db, rial, notId = '') {
    write «واریز» / «انتقال به» / «+» with «ریال» similarly; the balance line is never read. */
 export function parseDeposit(raw) {
   const t = digits(String(raw || '')).replace(/٬/g, ',').replace(/‌/g, ' ');
-  if (!/واریز|نشست|\+\s*[\d,]+/.test(t)) return null;
-  if (/برداشت|خرید|کسر شد/.test(t) && !/واریز|نشست/.test(t)) return null;
+  /* A deposit says «واریز» or «به حساب شما»; «نشست» alone can also end an outgoing transfer. */
+  if (!/واریز|به حساب شما|\+\s*[\d,]+/.test(t)) return null;
+  if (/برداشت|خرید|کسر شد/.test(t) && !/واریز|به حساب شما/.test(t)) return null;
   const body = t.split(/موجودی|مانده/)[0];
   /* Rials as the bank writes them; an amount in toman (some app notifications) is turned into rials. */
   const m = body.match(/\+?\s*(\d{1,3}(?:,\d{3})+|\d{4,})\s*(ریال|تومان)/) || body.match(/\+\s*(\d{1,3}(?:,\d{3})+|\d{4,})/);
@@ -85,12 +91,19 @@ export async function smsConfirm(db, env, rawText, origin = '') {
   }
   const id = await hash('pay-sms:' + digits(text).replace(/\s+/g, ' ').trim());
   const fresh = await run(db, 'INSERT OR IGNORE INTO pay_sms(id,amount,result,created_at) VALUES(?,?,?,?)', id, rial, 'error', Date.now());
-  if (!fresh.meta.changes) return {duplicate: true};
+  if (!fresh.meta.changes) {
+    /* Seen before. Only a try that broke half-way ('error') is worked again; anything else was settled. */
+    const was = await db.prepare('SELECT result FROM pay_sms WHERE id=?').bind(id).first();
+    if (was?.result !== 'error') return {duplicate: true, result: was?.result || ''};
+  }
   const done = (result, order = null) => run(db, 'UPDATE pay_sms SET result=?,order_id=? WHERE id=?', result, order, id);
   const toman = rial / 10;
   const hits = rial % 10 ? [] : await all(db,
     "SELECT id,ref,status FROM orders WHERE amount=? AND status<>'paid' AND created_at>? ORDER BY created_at DESC", rial, Date.now() - AMOUNT_HOLD_MS);
   if (!hits.length) {
+    /* The same deposit forwarded again after its order was paid (SMS + notification, two phones). */
+    const paid = rial % 10 ? null : await db.prepare("SELECT ref FROM orders WHERE amount=? AND status='paid' AND created_at>?").bind(rial, Date.now() - AMOUNT_HOLD_MS).first();
+    if (paid) { await done('already'); return {matched: false, already: true, duplicate: true, amount: toman, ref: paid.ref}; }
     await done('none');
     await alert(env, 'واریز ' + fa(toman) + ' تومان رسید ولی سفارش بازی با این مبلغ نیست', '💰 ' + fa(toman) + ' تومان');
     return {matched: false, amount: toman};
@@ -113,7 +126,9 @@ export async function smsConfirm(db, env, rawText, origin = '') {
     return {matched: true, amount: toman, ref: r.order.ref, status: r.order.status, page: r.order.page_url, name, label, ...det};
   } catch (e) {
     await done('closed', hits[0].id);
-    return {matched: false, amount: toman, ref: hits[0].ref, error: e.message, name, label, ...det};
+    /* A refusal (Problem with a status) was already reported by confirmOrder; a crash was not. */
+    if (!e?.status) await alert(env, 'تأیید خودکار واریز ' + fa(toman) + ' تومان به خطا خورد', '💳 ' + hits[0].ref + '\n⚠️ ' + String(e?.message || e).slice(0, 200));
+    return {matched: false, amount: toman, ref: hits[0].ref, error: e?.status ? e.message : 'خطای سیستم؛ به مدیر خبر داده شد.', name, label, ...det};
   }
 }
 

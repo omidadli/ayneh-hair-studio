@@ -4,3 +4,5 @@ ALTER TABLE otps ADD COLUMN city TEXT NOT NULL DEFAULT '';
 CREATE TABLE IF NOT EXISTS customer_profiles(salon_id TEXT NOT NULL,phone TEXT NOT NULL,first_name TEXT NOT NULL,last_name TEXT NOT NULL,city TEXT NOT NULL DEFAULT '',created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,PRIMARY KEY(salon_id,phone));
 CREATE TABLE IF NOT EXISTS customer_saves(salon_id TEXT NOT NULL,owner TEXT NOT NULL,kind TEXT NOT NULL,item TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(salon_id,owner,kind,item));
 CREATE INDEX IF NOT EXISTS customer_saves_item ON customer_saves(salon_id,kind,item);
+-- The studio lets her try on a look from a photo she saw elsewhere (a screenshot): reference photos on.
+UPDATE salons SET settings = json_set(settings, '$.reference_verified', json('true')) WHERE id = 'ayneh-direct';

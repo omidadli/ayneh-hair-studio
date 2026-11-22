@@ -27,7 +27,7 @@ export const isDirect = salon => !!salon && salon.owner_id === DIRECT_OWNER && s
 export async function directSalon(db) {
   let s = await one(db, 'SELECT * FROM salons WHERE id=?', DIRECT_ID);
   if (s) return s;
-  const settings = JSON.stringify({generation_enabled: true, reference_verified: false, direct: true});
+  const settings = JSON.stringify({generation_enabled: true, reference_verified: true, direct: true});
   for (const slug of ['try', 'try-ayneh', 'try-' + uid().slice(0, 8)]) {
     if (await one(db, 'SELECT 1 FROM salons WHERE slug=?', slug)) continue;
     try {

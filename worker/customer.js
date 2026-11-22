@@ -714,6 +714,33 @@ body.cta-on-screen #dock{transform:translateY(130%);opacity:0;pointer-events:non
 .react--like.is-on{color:#D2405B}.react--like.is-on svg{fill:currentColor}
 .react--save.is-on{color:var(--accent)}.react--save.is-on svg{fill:currentColor}
 .react__n:empty{display:none}
+
+.trend{display:grid;gap:10px;margin-top:4px}
+.trend[hidden]{display:none}
+.trend__ico{display:inline-flex;width:20px;height:20px;color:#D9663B;vertical-align:-3px;margin-inline-end:4px}
+.trend__ico svg{width:100%;height:100%}
+.trend__strip{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:4px;scrollbar-width:none}
+.trend__strip::-webkit-scrollbar{display:none}
+.trend__wrap{position:relative;flex:0 0 128px;scroll-snap-align:start}
+.trend__item{display:grid;gap:2px;width:100%;padding:0;border:0;background:none;text-align:start;cursor:pointer}
+.trend__item img{width:128px;height:170px;object-fit:cover;border-radius:16px;background:var(--glass-2);box-shadow:0 6px 16px -10px rgba(10,32,42,.5)}
+.trend__name{font-size:13px;font-weight:700;color:var(--ink);margin-top:4px;line-height:1.5}
+.trend__line{font-size:11.5px;color:var(--muted)}
+.trend__wrap .react-row{top:6px;inset-inline-start:auto;inset-inline-end:6px}
+.trend__wrap .react{min-width:32px;height:32px}
+.style-wrap{position:relative;display:grid}
+.style-wrap>.style-card{height:100%}
+.style-wrap>.react-row{inset-inline-start:auto;inset-inline-end:8px}
+.style-card__hot{position:absolute;bottom:8px;inset-inline-start:8px;display:inline-flex;align-items:center;gap:3px;padding:2px 8px 2px 6px;border-radius:999px;background:rgba(255,255,255,.94);color:#B4502A;font-size:11px;font-weight:800}
+.style-card__hot svg{width:13px;height:13px}
+.own-ref{display:flex;align-items:center;gap:12px;width:100%;margin:10px 0 2px;padding:12px 14px;border:1.5px dashed var(--line-2);border-radius:var(--r);background:var(--surface);text-align:start;cursor:pointer;font:inherit;color:var(--ink)}
+.own-ref:hover{border-color:var(--accent)}
+.own-ref__ico{flex:0 0 40px;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--accent-soft,#E4F1EC);color:var(--accent)}
+.own-ref__ico svg{width:22px;height:22px}
+.own-ref b{display:block;font-size:14.5px}
+.own-ref small{display:block;font-size:12.5px;color:var(--muted);line-height:1.7}
+.own-ref>span:nth-child(2){flex:1;min-width:0}
+.own-ref__go{color:var(--muted)}.own-ref__go svg{width:18px;height:18px}
 `;
 
 const clientJS=String.raw`
@@ -840,6 +867,8 @@ function track(kind,meta,once){if(STUDIO_PREVIEW)return;if(once){if(tracked[kind
  /* The landing no longer pre-picks a look (owner's decision): she chooses it after her photo. */
  // Open on the salon's own work for this line when it has some, otherwise on the ready-made looks.
  state.tab=hasLineWork(state.line)?'salon':'catalog';
+ /* From the profile's saved looks (/?l=nails&pick=3): that look is already chosen. */
+ var pk=(location.search.match(/[?&]pick=(\d{1,3})/)||[])[1];if(pk&&studio()&&itemOf(state.line+':'+pk)){state.style=+pk;state.tab='catalog'}
  renderAll();
  if(SLUG==='demo'&&/[?&]draft=1/.test(location.search)){try{var draft=await window.__AYN_DRAFT.take();if(draft&&draft.file){/* nothing is pre-chosen: after her photo she picks the look herself, then taps «بساز» */state.style=null;state.color='';if(EMBED){state.preview=URL.createObjectURL(draft.file);renderFlow();var continuePhoto=async function(){await handleFile(draft.file,'original');if(state.original){clearTimeout(state.advT);state.justUploaded=false;go(2)}};await ensureSession();if(state.verified||!state.pub.otp)continuePhoto();else openOtp(continuePhoto)}else handleFile(draft.file,'original')}}catch(e){toast('عکس را دوباره از گالری انتخاب کن','error')}}
  Object.keys(pendings).forEach(function(k){if(!LINES.label[k])return;var o=lineRef(k);o.gen=pendings[k];o.step=3;o.busy=true;o.genT0=Date.now()-8000;poll(pendings[k],true,k)});if(Object.keys(pendings).length){renderFlow();renderDock()}
@@ -1155,13 +1184,40 @@ function renderStudioHead(){
   el('div',{class:'wallet',id:'wallet','aria-live':'polite'},[el('div',{class:'skel',style:'height:56px;border-radius:16px'})]),
   /* One tap to the photo picker (the gesture opens it on iOS too); with a photo already in, straight to the choices. */
   el('button',{class:'btn btn--primary btn--lg studio__cta',type:'button',onclick:function(){track('cta','studio');if(state.original){go(2);return}go(1);var p=$('#pick');if(p)p.click()},html:ICO.camera+'<span>'+(state.original?'ادامه با همین عکس':'شروع با عکس خودم')+'</span>'}),
+  el('section',{class:'trend',id:'trend','aria-label':'ترندهای این هفته'}),
   el('section',{class:'album',id:'album','aria-label':'آلبوم من',hidden:true})
  ]);
  head.replaceChildren(el('div',{class:'wrap'},[bar,body]));
+ drawTrend();loadTrend().then(drawTrend);loadSaves().then(drawTrend);
  paintWallet(false);watchCta();
  /* Signed in on this browser before? Ask once, so her name and gift line are right from the start. */
  if(!state.session&&!studioAsked){studioAsked=true;loadSession().catch(function(){})}
  drawAlbum();
+}
+
+/* «ترند این هفته»: the looks tried and liked most lately, across every service (a curated start
+   until there are enough tries). A tap opens that look in its own tab, ready for her photo. */
+var TREND_SEED=['hair:1','color:4','nails:7','lashes:5','hair:2','color:9','nails:8','hair:8','color:13','lashes:4','nails:4','color:3','hair:14','lashes:7'];
+function trendItems(line){
+ var seen={},out=[];
+ Object.keys(trend.score||{}).filter(function(k){return !line||k.indexOf(line+':')===0}).sort(function(a,b){return trend.score[b]-trend.score[a]}).concat(TREND_SEED.filter(function(k){return !line||k.indexOf(line+':')===0})).forEach(function(k){if(seen[k])return;var it=itemOf(k);if(!it||!LINES.label[it.line])return;seen[k]=1;out.push(it)});
+ return out;
+}
+function drawTrend(){
+ var box=$('#trend');if(!box)return;
+ var items=trendItems().slice(0,12);if(!items.length){box.hidden=true;return}
+ box.hidden=false;
+ box.replaceChildren(el('div',{class:'album__head'},[el('h2',{html:'<span class="trend__ico">'+ICO.fire+'</span>ترند این هفته'}),el('span',{text:'پرطرفدارترین‌های آینه'})]),
+  el('div',{class:'trend__strip'},items.map(function(it){var key=it.line+':'+it.i;
+   var b=el('button',{class:'trend__item',type:'button','aria-label':it.name+' · '+LINES.label[it.line],onclick:function(){openTrend(it)}},[el('img',{src:it.img,alt:'',loading:'lazy',decoding:'async'}),el('span',{class:'trend__name',text:it.name}),el('span',{class:'trend__line',text:LINES.label[it.line]})]);
+   return el('div',{class:'trend__wrap'},[b,reactBtns(key)])})));
+}
+function openTrend(it){
+ track('cta','trend:'+it.line+':'+it.i);
+ if(state.line!==it.line)switchLine(it.line,{silent:true});
+ state.tab='catalog';state.filter='همه';state.q='';state.style=it.i;state.custom='';state.reference=null;state.refTitle='';
+ if(state.original){go(2);setTimeout(scrollToBuild,80)}
+ else{go(1);renderFlow();focusFlow();toast('عکست را بگذار تا «'+it.name+'» را روی خودت ببینی')}
 }
 /* Proof before the first tap: a real before/after of the chosen service (the landing's sample pair). */
 var PROOF={hair:['style','مدل مو'],color:['color','رنگ مو'],nails:['nails','ناخن'],lashes:['lashes','مژه']};
@@ -1510,7 +1566,8 @@ function stepModel(){
   var SEARCH_PH={hair:'جستجوی مدل مو؛ مثلاً «لایه‌ای» یا «باب»',color:'جستجوی رنگ مو؛ مثلاً «فندقی» یا «بالیاژ»',nails:'جستجوی طرح ناخن؛ مثلاً «فرنچ» یا «کروم»',lashes:'جستجوی مدل مژه؛ مثلاً «والیوم» یا «کلاسیک»'}[L];
   var qIn=el('input',{class:'look-search__in',type:'search',value:state.q||'',placeholder:SEARCH_PH,'aria-label':SEARCH_PH,enterkeyhint:'search'});
   var qTimer=null;qIn.addEventListener('input',function(){clearTimeout(qTimer);qTimer=setTimeout(function(){state.q=qIn.value.slice(0,60);var pos=qIn.selectionStart;renderFlow();var n=$('.look-search__in');if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}},250)});
-  box.append(el('div',{class:'look-search'},[el('span',{class:'look-search__ico',html:ICO.spark}),qIn]));
+  box.append(el('div',{class:'look-search'},[el('span',{class:'look-search__ico',html:ICO.search}),qIn]));
+  if(studio()&&!(state.q||'').trim())box.append(el('button',{class:'own-ref',type:'button',onclick:function(){state.tab='upload';renderFlow();setTimeout(function(){var r=$('#pickref');if(r)r.click()},60)}},[el('span',{class:'own-ref__ico',html:ICO.gallery}),el('span',{},[el('b',{text:{hair:'مدلی جایی دیدی و خوشت اومد؟',color:'رنگی جایی دیدی و خوشت اومد؟',nails:'طرحی جایی دیدی و خوشت اومد؟',lashes:'مدل مژه‌ای جایی دیدی؟'}[L]}),el('small',{text:'عکسش را بگذار (اسکرین‌شات اینستاگرام هم می‌شود)؛ همان را روی خودت می‌سازیم.'})]),el('span',{class:'own-ref__go',html:ICO.arrow})]))
   var Q=(state.q||'').trim(),norm=function(t){return String(t).replace(/[\u200c\s]+/g,' ').replace(/ي/g,'ی').replace(/ك/g,'ک').toLowerCase()};
   if(Q.length>=2){
    var onC=state.custom===Q;
@@ -1518,7 +1575,8 @@ function stepModel(){
    cc.addEventListener('click',function(){track('look','q:'+Q.slice(0,30));chooseLook(function(){state.custom=Q;state.style=null;state.reference=null;state.refTitle='';if(L==='color')state.color=''})});
    box.append(cc);
   }
-  var filters=cat?cat.filters:['همه','کوتاه','متوسط','بلند','چتری','فر','جمع'];
+  var filters=(cat?cat.filters:['همه','کوتاه','متوسط','بلند','چتری','فر','جمع']).slice();
+  if(studio()){filters.splice(1,0,'ترند');if((saves.saved||[]).some(function(k){return k.indexOf(L+':')===0}))filters.splice(2,0,'ذخیره‌شده')}
   var fbar=el('div',{class:'filters'});
   filters.forEach(function(f){
    var on=(state.filter||'همه')===f;
@@ -1529,8 +1587,12 @@ function stepModel(){
   box.append(fbar);
   var grid=el('div',{class:'looks'});
   var shown=0;
-  LIST.forEach(function(s,i){
-   if((state.filter||'همه')!=='همه'&&s[2]!==state.filter)return;
+  var F=state.filter||'همه',order=LIST.map(function(_,i){return i});
+  if(F==='ترند'){order=trendItems(L).map(function(it){return it.i})}
+  else if(F==='ذخیره‌شده'){order=order.filter(function(i){return isOn('save',L+':'+i)})}
+  var hot={};trendItems(L).slice(0,3).forEach(function(it){hot[it.i]=1});
+  order.forEach(function(i){var s=LIST[i];
+   if(F!=='همه'&&F!=='ترند'&&F!=='ذخیره‌شده'&&s[2]!==F)return;
    if(Q.length>=1&&norm(s[0]+' '+s[1]+' '+s[2]).indexOf(norm(Q))<0)return;
    shown++;
    var on=state.style===i&&!state.reference;
@@ -1543,7 +1605,8 @@ function stepModel(){
     el('span',{class:'style-card__body'},[el('span',{class:'style-card__name',text:s[0]}),el('span',{class:'style-card__tag',text:s[2]})])
    ]);
    card.addEventListener('click',function(){track('look',lookPrefix()+i);if(L==='color')track('color',s[0]);chooseLook(function(){state.style=i;state.custom='';state.reference=null;state.refTitle='';if(L==='color')state.color=''})});
-   grid.append(card);
+   if(studio()){if(hot[i])art.append(el('span',{class:'style-card__hot',html:ICO.fire+'<span>ترند</span>'}));grid.append(el('div',{class:'style-wrap'},[card,reactBtns(L+':'+i)]))}
+   else grid.append(card);
   });
   box.append(grid);
   if(Q&&!shown)box.append(h('p','نمونهٔ آماده‌ای با این نام نداریم؛ دکمهٔ بالا همین را برایتان می‌سازد.','hint'));

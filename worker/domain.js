@@ -26,7 +26,27 @@ export const STYLE_DETAILS={
  'Big spiral curls':'big defined spiral curls (bouncy corkscrew ringlets) from the roots to the ends, lots of volume',
  'Messy top bun':'a messy top bun (مدل گوجه‌ای) high on the crown, loose and voluminous, with a few soft strands framing the face',
  'Low bun updo':'an elegant low bun at the nape, smooth sides, a few soft face-framing tendrils',
- 'High ponytail':'a sleek high ponytail at the crown, smooth pulled-back sides, long flowing tail'
+ 'High ponytail':'a sleek high ponytail at the crown, smooth pulled-back sides, long flowing tail',
+ 'Bixie cut':'a bixie cut: a short tousled cut between a pixie and a bob, ear-to-chin length with soft choppy layers and wispy pieces around the face',
+ 'French bob':'a French bob: a blunt jaw-length bob with soft movement and short eyebrow-skimming bangs',
+ 'Italian bob':'an Italian bob: a thick, full chin-to-jaw length bob with soft rounded voluminous ends that flip slightly, glossy',
+ 'Layered bob':'a layered bob: chin length with visible soft layers through the ends for movement and volume, side part',
+ 'Egyptian cut (blunt bob with heavy bangs)':'an Egyptian-style cut: sleek straight hair cut bluntly at the shoulders with heavy thick blunt bangs straight across at eyebrow level',
+ 'Shag haircut':'a modern shag: shoulder-length with lots of choppy feathered layers, curtain bangs and airy tousled texture',
+ 'Jellyfish haircut':'a jellyfish haircut: a short straight chin-length top layer like a bob sitting over long straight hair underneath, a clear two-tier shape',
+ 'Hime cut':'a hime cut: long straight hair with blunt bangs and straight cheek-length side locks framing the face, very sleek',
+ 'V-cut long layers':'a V-cut: long hair with layers so the back ends in a clear V point, sleek and smooth',
+ 'U-cut':'a U-cut: long hair with the back ends forming a soft rounded U shape, smooth with gentle layers',
+ 'Shoulder-length layered cut':'shoulder-length hair with soft layers and face-framing pieces, light bouncy blow-dry',
+ 'Wispy bangs':'long hair with light see-through wispy bangs that softly cover the forehead',
+ 'Micro bangs':'medium-length hair with very short blunt micro bangs well above the eyebrows',
+ 'Long pixie with side bangs':'a long pixie cut with longer swept side bangs and short sides',
+ 'Beach waves':'long hair with loose effortless tousled beach waves, piece-y texture',
+ 'Hollywood glam waves':'glamorous vintage Hollywood waves: deep side part, smooth sculpted S-waves, very glossy',
+ 'Half-up half-down':'half-up half-down: the top section pulled back into a small knot at the crown, the rest long and softly waved',
+ 'French twist updo':'an elegant French twist: hair rolled vertically up the back of the head, smooth with soft face-framing pieces',
+ 'Two French braids':'two neat French braids running from the hairline down both sides of the head',
+ 'Sleek low ponytail':'a sleek low ponytail at the nape with a center part, perfectly smooth and glossy',
 };
 // Persian colour names from the colour box, described precisely for the model.
 export const COLOR_EN={

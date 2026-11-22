@@ -36,10 +36,29 @@ export const COLOR_STYLES=[
  ['آمبره قهوه‌ای به بلوند','Brown-to-blonde ombré','بالیاژ و مش','ombré: dark brown from the roots to about chin level, then a smooth gradual fade to light golden blonde ends'],
  ['بیبی لایت','Babylights','بالیاژ و مش','babylights: very fine, delicate, soft golden-blonde highlights spread evenly through light-brown hair, sun-kissed and natural'],
  ['رزگلد','Rose gold','فانتزی','rose gold: a soft metallic pinkish-peach blonde, one even colour'],
- ['یاسی پاستلی','Pastel lilac','فانتزی','pastel lilac: a soft light lavender-purple, one even pastel colour']
+ ['یاسی پاستلی','Pastel lilac','فانتزی','pastel lilac: a soft light lavender-purple, one even pastel colour'],
+ ["مشکی نرم", "Soft black", "تیره", "soft black: a deep brown-black that reads as black but softer than jet black, with a warm brown reflection in the light, one even colour"],
+ ["زغالی دودی", "Charcoal brunette", "تیره", "charcoal brunette: a very dark cool brown with a smoky grey cast and no warmth, one even colour"],
+ ["شکلات داغ", "Hot chocolate brown", "قهوه‌ای", "hot chocolate brown: a rich warm medium-dark brown with soft dimension, glossy"],
+ ["شاه‌بلوطی", "Chestnut brown", "قهوه‌ای", "chestnut brown: a medium brown with a warm reddish glow, one even glossy colour"],
+ ["قهوه‌ای تدی", "Teddy brown", "قهوه‌ای", "teddy brown: a soft warm light-medium golden brown, neither ashy nor red, one even colour"],
+ ["کشمیری", "Cashmere brunette", "قهوه‌ای", "cashmere brunette: a soft neutral-cool light brown with a beige veil, muted and smooth, one even colour"],
+ ["برونده (بژ عسلی)", "Bronde", "روشن و بلوند", "bronde: a blend between light brown and dark blonde, a beige-golden neutral, one even colour"],
+ ["بلوند خاکستری", "Ash blonde", "روشن و بلوند", "ash blonde: a cool medium-light blonde with a grey-beige tone and no yellow, one even colour"],
+ ["بلوند توت‌فرنگی", "Strawberry blonde", "روشن و بلوند", "strawberry blonde: a light golden blonde with a soft pinkish copper tint, one even colour"],
+ ["دارچینی", "Cinnamon", "قرمز و مسی", "cinnamon: a warm medium copper-brown, spicy red-brown, one even glossy colour"],
+ ["ماهاگونی", "Mahogany", "قرمز و مسی", "mahogany: a deep red-brown with violet-red reflections, one even glossy colour"],
+ ["قرمز گیلاسی", "Cherry red", "قرمز و مسی", "cherry red: a vivid deep saturated cherry red, one even glossy colour"],
+ ["بالیاژ دودی", "Smoky balayage", "بالیاژ و مش", "smoky balayage: dark brown roots melting into cool ash-beige hand-painted ribbons from mid-length to the ends"],
+ ["مانی پیس (قاب صورت)", "Money piece", "بالیاژ و مش", "money piece: dark brown hair with two bold bright honey-blonde strands only at the front hairline framing the face; all the rest stays dark brown"],
+ ["مش کاراملی", "Caramel highlights", "بالیاژ و مش", "caramel highlights: many fine caramel streaks woven evenly through medium-brown hair from the roots to the ends"],
+ ["آمبره مسی", "Copper ombré", "بالیاژ و مش", "copper ombré: dark brown from the roots to about chin level, then a smooth fade to bright copper ends"],
+ ["صورتی پاستلی", "Pastel pink", "فانتزی", "pastel pink: a soft light baby pink, one even pastel colour"],
+ ["نقره‌ای", "Silver grey", "فانتزی", "silver grey: a metallic cool silver-grey, one even colour, no yellow"],
+ ["آبی شب", "Midnight blue", "فانتزی", "midnight blue: a very dark blue-black that shows deep navy blue in the light, one even colour"]
 ];
 // Card swatch for each colour (shown until its photo loads): one hex, or "root,ends" for balayage.
-export const COLOR_SWATCHES=['#0f1420','#2a1b14','#4b2b1c','#8d6646','#6b6450','#8b5a2b','#a86c34','#b8803a','#e2cfa5','#e7cf8f','#ece8dc','#b5602f','#6b1f2e','#4a1a22','#3b2518,#c8913f','#4b2b1c,#b9864f','#5e4a3e,#b6aa96','#3b2518,#ddc28c','#8b5a2b,#ddc28c','#c98c7a','#b8a1d6'];
+export const COLOR_SWATCHES=['#0f1420','#2a1b14','#4b2b1c','#8d6646','#6b6450','#8b5a2b','#a86c34','#b8803a','#e2cfa5','#e7cf8f','#ece8dc','#b5602f','#6b1f2e','#4a1a22','#3b2518,#c8913f','#4b2b1c,#b9864f','#5e4a3e,#b6aa96','#3b2518,#ddc28c','#8b5a2b,#ddc28c','#c98c7a','#b8a1d6',"#1f1915","#2c2a28","#5a3424","#6e3a22","#7a5236","#8a7462","#b89470","#b8ad94","#d9a07a","#8a4a2a","#5b2420","#8c1424","#3b2e26,#b3a895","#3b2518,#e0b871","#5a3b26,#c08a4e","#3b2518,#c0652f","#e8b4c0","#c3c3c6","#1c2440"];
 // Lookbook photo of each colour: the same long soft-waved cut seen from behind, so only the colour changes.
 export const COLOR_SHOTS=COLOR_STYLES.map(c=>c[3]);
 
@@ -61,7 +80,26 @@ export const NAIL_STYLES=[
  ['هندسی و خطی','Geometric lines','طرح‌دار','geometric nail art with clean thin lines and small colour blocks'],
  ['نگین و سنگ','Rhinestones','نگین','elegant nails with small rhinestones and crystals placed near the cuticle on a few accent nails'],
  ['آئورا (هاله‌ای)','Aura nails','طرح‌دار','aura nails: a soft airbrushed glow of colour in the centre of each nail fading outwards'],
- ['ابری (اسموکی)','Smoky clouds','طرح‌دار','smoky nail art with soft cloudy swirls of colour']
+ ['ابری (اسموکی)','Smoky clouds','طرح‌دار','smoky nail art with soft cloudy swirls of colour'],
+ ["ناخن ابری", "Cloud nails", "ساده", "cloud nails: every nail a soft milky-white sheer base with a hazy, diffused, soft-focus finish like a cloud, glossy; no art; short-medium rounded nails"],
+ ["شیری (میلکی)", "Milky white", "ساده", "milky white: every nail one solid opaque soft milky white glossy gel; no art; short rounded nails"],
+ ["قهوه‌ای شکلاتی", "Chocolate brown", "ساده", "every nail one solid glossy deep chocolate brown gel; no art; short square nails"],
+ ["قرمز گوجه‌ای", "Tomato red", "ساده", "every nail one solid glossy warm tomato red gel; no art; short squoval nails"],
+ ["استیلتو مشکی", "Black stiletto", "ساده", "every nail one solid glossy jet black gel; long sharp stiletto nails; no art"],
+ ["کاشت تابوتی نود", "Nude coffin", "ساده", "long coffin (ballerina) shaped extensions in one glossy nude beige; no art"],
+ ["فرنچ کروم", "Chrome French", "فرنچ", "a sheer nude-pink base on every nail with a thin silver mirror-chrome French tip along the smile line; medium-length almond nails"],
+ ["فرنچ دوبل", "Double French", "فرنچ", "a sheer nude base on every nail with two thin parallel curved tip lines, white then gold; medium-length almond nails"],
+ ["کت‌آی مخملی", "Velvet cat eye", "براق", "velvet cat-eye: every nail a soft champagne-beige magnetic gel with a diffused, all-over velvety shimmer; medium-length almond nails"],
+ ["کروم صورتی", "Pink glazed chrome", "براق", "a sheer soft pink base on every nail with an iridescent pearly chrome glaze; short-medium almond nails"],
+ ["کروم طلایی", "Gold chrome", "براق", "every nail solid mirror gold chrome with bright reflections; medium-length almond nails"],
+ ["شیشه‌ای", "Glass nails", "براق", "glass nails: every nail clear crystal-like glossy gel with a faint iridescent sheen, see-through like glass; medium-length oval nails"],
+ ["قطره آب", "Water droplets", "طرح‌دار", "a sheer nude base with tiny clear raised 3D gel droplets scattered like water drops on every nail; medium-length almond nails"],
+ ["خال‌خالی", "Polka dots", "طرح‌دار", "a nude base on every nail with small evenly spaced white polka dots; short rounded nails"],
+ ["راه‌راه", "Pinstripes", "طرح‌دار", "a nude base on every nail with thin vertical black and gold pin stripes; medium-length square nails"],
+ ["گل سه‌بعدی", "3D flowers", "طرح‌دار", "a sheer pink base; the ring and middle finger nails each carry one small white 3D gel flower with a tiny pearl centre; other nails plain; medium-length almond nails"],
+ ["آمبره غروب", "Sunset ombré", "طرح‌دار", "sunset ombré: every nail a smooth vertical gradient from coral at the cuticle to soft peach-yellow at the tip; medium-length almond nails"],
+ ["مرمر یشمی", "Jade marble", "طرح‌دار", "deep jade-green marble on every nail with soft lighter veins and fine gold vein lines; medium-length almond nails"],
+ ["مروارید", "Pearl accents", "نگین", "a glossy nude base on every nail with a neat row of tiny white pearls along the cuticle; medium-length almond nails"]
 ];
 export const LASH_STYLES=[
  ['کلاسیک (یک‌به‌یک)','Classic','طبیعی','classic eyelash extensions: one extension on each natural lash, a natural defined look like perfect mascara'],
@@ -72,7 +110,18 @@ export const LASH_STYLES=[
  ['کیم (ویسپی)','Wispy (Kim)','پرحجم','wispy "Kim K" eyelash extensions: longer textured spikes mixed through a fluffy base'],
  ['اسپایکی (انیمه)','Spiky anime','پرحجم','anime-style eyelash extensions with defined, separated spikes and a doll-like look'],
  ['لیفت و لمینت','Lash lift and tint','بدون کاشت','a lash lift and tint on her own natural lashes: curled up from the root, darker and more visible, no extensions'],
- ['رگهٔ رنگی','Colour accents','پرحجم','black volume lashes with a few subtle coloured strands near the outer corners']
+ ['رگهٔ رنگی','Colour accents','پرحجم','black volume lashes with a few subtle coloured strands near the outer corners'],
+ ["کاشت قهوه‌ای", "Brown lashes", "طبیعی", "brown lash extensions: dark chocolate-brown hybrid lashes instead of black, soft and natural, about 10–11 mm"],
+ ["ویسپی طبیعی", "Natural wispy", "طبیعی", "natural wispy lashes: soft hybrid lashes with a few slightly longer spikes, lighter and more natural than Kim lashes, about 10–12 mm"],
+ ["گربه‌ای کلاسیک", "Classic cat eye", "طبیعی", "classic lashes mapped gradually longer toward the outer corners for a lifted cat-eye shape, short at the inner corner"],
+ ["عروسکی", "Doll eye", "پرحجم", "doll-eye volume lashes: longest lashes in the centre above the pupil and shorter toward both corners, round and wide open"],
+ ["وای‌وای (YY)", "YY lashes", "پرحجم", "YY lashes: Y-shaped split fans giving a soft, fluffy, medium-density texture, about 10–12 mm"],
+ ["مدوسا", "Medusa lashes", "پرحجم", "Medusa lashes: a dense volume base with many thick spikes of different lengths fanning outward in several directions"],
+ ["مانگا", "Manga lashes", "پرحجم", "manga lashes: clearly separated clustered spikes on the upper lashes and bold defined spikes on the lower lashes, wide-open look"],
+ ["والیوم کوتاه", "Short fluffy volume", "پرحجم", "short fluffy volume: dense soft fans only 8–9 mm long, full but short"],
+ ["رگهٔ قهوه‌ای", "Brown mix", "پرحجم", "black volume lashes with dark brown lashes mixed evenly throughout for a soft multidimensional look"],
+ ["مژهٔ پایین", "Lower lash extensions", "پرحجم", "natural upper volume lashes plus fine short extensions on the lower lash line"],
+ ["لیفت و رنگ قهوه‌ای", "Lash lift with brown tint", "بدون کاشت", "a lash lift on her own natural lashes, curled up from the root and tinted dark brown, natural length, no extensions"]
 ];
 // Lookbook photo of each catalog entry (scripts/generate-catalog.mjs). Every detail that defines the
 // look is spelled out (colour, finish, shape, length, placement) and everything else is excluded, so

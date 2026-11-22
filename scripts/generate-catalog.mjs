@@ -1,3 +1,4 @@
+// Catalog: 40 hairstyles, 40 hair colours, 37 nail looks, 20 lash looks (appended; existing numbers never change).
 // Generates one lookbook photo per ready-made style with the project's own KIE key:
 //  - hair (worker/legacy.js `styles`) → public/catalog/NN.webp, plus demo-before/after.webp;
 //  - hair colour, nails and lashes (worker/lines.js) → public/catalog/color/NN.webp,

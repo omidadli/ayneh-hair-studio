@@ -264,7 +264,7 @@ test('KV adapter round-trips a photo when R2 is unavailable',async()=>{const e=f
 test('catalog generator covers every ready-made style and the catalog folder is served as static assets',()=>{
  const src=readFileSync(new URL('../scripts/generate-catalog.mjs',import.meta.url),'utf8');assert.match(src,/styles\.entries\(\)/);assert.match(src,/padStart\(2,'0'\)/);
  assert.match(readFileSync(new URL('../wrangler.toml',import.meta.url),'utf8'),/\[assets\]\s*directory = "\.\/public"/);
- assert.equal(styles.length,20);
+ assert.equal(styles.length,40);
 });
 
 test('salon can pick the faster model; a rejected model falls back once, network errors never retry a paid task',async()=>{const e=fixture(),s=await salon(e),g=await guest(e,s);e.KIE_API_KEY='mock';

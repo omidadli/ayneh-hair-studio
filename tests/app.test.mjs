@@ -621,7 +621,7 @@ test('transfer consent through the bot: the manager button asks, an unlinked mem
 }finally{tg.restore()}});
 
 test('result sharing: three actions, approximate note, friend share with the same link, Ayneh mark on the saved image, privacy text is the true one',()=>{
- for(const x of ['درخواست نوبت می‌دهم','از دوستم نظر بپرسم','ذخیره تصویر','یک نمونه است؛ برای انتخاب قبل از نوبت.','کدوم مدل بیشتر بهم میاد؟','function openAsk','fillText(\'آینه\''])assert(customerJS.includes(x),x);
+ for(const x of ['درخواست نوبت می‌دهم','از دوستم نظر بپرسم','ذخیره تصویر','این یک پیش‌نمایش است تا قبل از رفتن به آرایشگاه انتخابت را راحت‌تر کنی.','کدوم مدل بیشتر بهم میاد؟','function openAsk','fillText(\'آینه\''])assert(customerJS.includes(x),x);
  assert(customerJS.includes('openAsk')&&/var url=shareUrl\(\),both=ASK_TEXT/.test(customerJS),'the friend link is the visitor tag link of this salon');
  const PRIV='عکس شما فقط برای ساخت نمونه و دیدنِ سالن استفاده می‌شود؛ نسخهٔ فشردهٔ آن برای ساخت تصویر به سرویس تصویر ارسال می‌شود.';
  assert(customerJS.includes(PRIV)&&customerHTML.includes(PRIV),'one agreed privacy sentence');

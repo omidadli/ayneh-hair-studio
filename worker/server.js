@@ -468,7 +468,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  }
  /* «آلبوم من»: her finished images, newest first — this browser's, and every session where she
     verified the same mobile (so signing in on another phone brings her album too). */
- if(route==='looks'){if(!s.verified_phone)return J({looks:[],signed_in:false});const rows=await all(db,"SELECT id,result_id,line,created_at FROM generations WHERE salon_id=? AND state='success' AND result_id IS NOT NULL AND kind<>'views' AND (session_id=? OR (? IS NOT NULL AND session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?))) ORDER BY created_at DESC LIMIT 60",salon.id,s.id,s.verified_phone||null,salon.id,s.verified_phone||null);return J({looks:rows.map(r=>({id:r.id,image:r.result_id,line:r.line,at:r.created_at}))})}
+ if(route==='looks'){if(!s.verified_phone)return J({looks:[],signed_in:false});const rows=await all(db,"SELECT id,result_id,line,style,transfer,color,created_at FROM generations WHERE salon_id=? AND state='success' AND result_id IS NOT NULL AND kind<>'views' AND (session_id=? OR (? IS NOT NULL AND session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?))) ORDER BY created_at DESC LIMIT 60",salon.id,s.id,s.verified_phone||null,salon.id,s.verified_phone||null);return J({looks:rows.map(r=>({id:r.id,image:r.result_id,line:r.line,style:r.style,mode:r.transfer,text:r.transfer==='text'||r.transfer==='salon'?String(r.color||'').slice(0,40):'',at:r.created_at}))})}
  /* «پروفایل من»: her account page — name, city, mobile, coins history, saved and liked looks. */
  if(route==='me'&&req.method==='GET'){
   if(!s.verified_phone)return J({signed_in:false});
@@ -477,9 +477,10 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   const acc=await one(db,'SELECT id FROM customer_accounts WHERE phone=?',s.verified_phone);
   const ledger=acc?await all(db,'SELECT delta,reason,created_at FROM customer_ledger WHERE account_id=? ORDER BY created_at DESC LIMIT 30',acc.id):[];
   const spent=acc?await all(db,"SELECT line,created_at FROM generations WHERE paid_by=? AND state<>'fail' ORDER BY created_at DESC LIMIT 30",acc.id):[];
+  const gifts=await all(db,"SELECT line,created_at FROM generations WHERE salon_id=? AND paid_by IS NULL AND state='success' AND kind<>'views' AND session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?) ORDER BY created_at DESC LIMIT 10",salon.id,salon.id,s.verified_phone);
   const made=Number((await one(db,"SELECT COUNT(*) n FROM generations WHERE salon_id=? AND state='success' AND kind<>'views' AND (session_id=? OR session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?))",salon.id,s.id,salon.id,s.verified_phone))?.n||0);
   return J({signed_in:true,phone:s.verified_phone,first_name:p?.first_name||bits[0]||'',last_name:p?.last_name||bits.slice(1).join(' '),city:p?.city||'',since:p?.created_at||null,made,
-   history:[...ledger.map(r=>({kind:r.reason,coins:r.delta,at:r.created_at})),...spent.map(r=>({kind:'image',line:r.line,coins:-IMAGE_COINS,at:r.created_at}))].sort((a,b)=>b.at-a.at).slice(0,30)});
+   history:[...ledger.map(r=>({kind:r.reason,coins:r.delta,at:r.created_at})),...gifts.map(r=>({kind:'gift',line:r.line,coins:0,at:r.created_at})),...spent.map(r=>({kind:'image',line:r.line,coins:-IMAGE_COINS,at:r.created_at}))].sort((a,b)=>b.at-a.at).slice(0,30)});
  }
  if(route==='me'&&req.method==='POST'){
   must(s.verified_phone,'اول وارد حسابت شو',401);

@@ -46,7 +46,7 @@ test('the customers\' studio («/» of the main domain) is the direct salon\'s o
  assert.ok(html.includes('window.AynehPacks='),'the coin sheet');
  assert.doesNotMatch(html,/<iframe/,'one page, no frame');
  // The studio's words live in the page script (studio mode), the sheet's in the pack script.
- for(const t of ['روی عکس خودت ببین چی بهت میاد','عکس اول رایگانه','ورود یا ثبت‌نام','دریافت کد ورود','این شماره هنوز حساب ندارد','ثبت‌نام با همین شماره','پروفایل من','ذخیره‌شده‌ها','تراکنش‌ها','خروج از حساب','عکس‌های هدیه‌ات تموم شد.','شارژ کیف سکه','این عکس فقط برای خودته.','لینک آینه را برایشان بفرست؛ ۲ عکس اول برای آن‌ها هم هدیه است','مبلغ دلخواه','سکه‌ها به کیف شما اضافه شد.','کپی به ریال'])
+ for(const t of ['روی عکس خودت ببین چی بهت میاد','عکس اول رایگانه','ورود یا ثبت‌نام','دریافت کد ورود','این شماره هنوز حساب ندارد','ثبت‌نام با همین شماره','پروفایل من','ذخیره‌ها','پسندیده‌ها','تراکنش‌ها','خروج از حساب','عکس‌های هدیه‌ات تموم شد.','شارژ کیف سکه','این عکس فقط برای خودته.','لینک آینه را برایشان بفرست؛ ۲ عکس اول برای آن‌ها هم هدیه است','مبلغ دلخواه','سکه‌ها به کیف شما اضافه شد.','کپی به ریال'])
   assert.ok(html.includes(t),'copy: '+t);
  // what a salon buys is a «پلن» (AGENTS.md); the photo line says where the photo goes, honestly
  assert.doesNotMatch(html,/پنل آینه بگیرد|فقط برای ساخت همین نمونه/);

@@ -460,8 +460,8 @@ body.is-touring{overflow:hidden}
  .linesw{gap:6px}
  .linesw__btn{min-height:54px;border-radius:14px}
 }
-/* ---------- toasts sit at the top, never over the choices or the dock; a tap closes them ---------- */
-.toast{top:calc(env(safe-area-inset-top,0px) + 10px);bottom:auto;transform:translateY(-12px);pointer-events:auto;cursor:pointer;font-size:13.5px;line-height:1.8}
+/* ---------- toasts sit low, above the fixed bar, never over the service tabs; a tap closes them ---------- */
+.toast{top:auto;bottom:calc(env(safe-area-inset-bottom,0px) + 96px);transform:translateY(12px);pointer-events:auto;cursor:pointer;font-size:13.5px;line-height:1.8}
 /* ---------- images that are still loading: a soft shimmer, then a fade-in ---------- */
 .style-card__art,.port-card .mirror__glass,.base__opt img{background-image:linear-gradient(100deg,rgba(255,255,255,0) 30%,rgba(255,255,255,.55) 50%,rgba(255,255,255,0) 70%);background-size:220% 100%;background-color:#dfe7e4;animation:shimmer 1.3s linear infinite}
 .style-card__art--sw{background-image:none;animation:none}
@@ -605,6 +605,8 @@ img[loading="lazy"].is-in{opacity:1}
 .proof__arrow{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--accent);box-shadow:0 4px 12px rgba(10,32,42,.12)}
 .proof__arrow svg{width:16px;height:16px}
 .proof figcaption{font-size:12px;color:var(--muted)}
+.flow .compare:not(.compare--demo){max-height:calc(100vh - 220px);margin-inline:auto}
+@media(min-width:960px){.flow .compare:not(.compare--demo){width:min(100%,calc((100vh - 220px) * .75))}}
 .compare--hero{aspect-ratio:4/5;width:min(100%,calc(min(52vh,500px) * .8));justify-self:center;border-radius:var(--r-lg,24px)}
 .trend__lines{margin:0}
 .compare--hero img{object-fit:cover;object-position:50% 22%}
@@ -648,6 +650,9 @@ img[loading="lazy"].is-in{opacity:1}
 .signin__names[hidden]{display:none}
 .signin__sent{font-size:14.5px;color:var(--ink-2)}
 .signin__row{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.signin__row .btn{background:none!important;border:0!important;box-shadow:none!important;color:var(--accent);font-weight:700;padding-inline:4px}
+.signin__row .btn::after{display:none}
+.signin__row .btn[disabled]{color:var(--muted);opacity:1}
 .signin__perks{list-style:none;margin:4px 0 0;padding:14px 0 0;border-top:1px solid var(--line);display:grid;gap:10px;text-align:start}
 .signin__perks li{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink-2)}
 .signin__perk-ico{flex:0 0 32px;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--glass-2,#F3EEE6);color:var(--accent)}
@@ -694,6 +699,7 @@ body.cta-on-screen #dock{transform:translateY(130%);opacity:0;pointer-events:non
 .profile__sec .seg{margin-bottom:0}
 .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .pgrid__item{display:grid;gap:4px;padding:0;border:0;background:none;text-align:center;font-size:11.5px;color:var(--ink-2);font-weight:600;text-decoration:none;cursor:pointer}
+.pgrid__item>span{display:grid;gap:1px;line-height:1.5}.pgrid__item b{font-size:12px;color:var(--ink)}.pgrid__item small{font-size:11px;color:var(--muted);font-weight:500}
 .pgrid__item img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px;background:var(--glass-2)}
 .empty{display:grid;gap:6px;justify-items:center;text-align:center;padding:22px 8px}
 .empty b{font-size:15px;color:var(--ink)}
@@ -742,7 +748,8 @@ body.cta-on-screen #dock{transform:translateY(130%);opacity:0;pointer-events:non
 .own-ref b{display:block;font-size:14.5px}
 .own-ref small{display:block;font-size:12.5px;color:var(--muted);line-height:1.7}
 .own-ref>span:nth-child(2){flex:1;min-width:0}
-.own-ref__go{color:var(--muted)}.own-ref__go svg{width:18px;height:18px}
+.own-ref__go{color:var(--muted)}
+.ico-back{display:inline-flex;transform:scaleX(-1)}.ico-back svg{width:18px;height:18px}.own-ref__go svg{width:18px;height:18px}
 `;
 
 const clientJS=String.raw`
@@ -815,7 +822,7 @@ function toast(msg,kind){
  var t=$('#toast');if(!t)return;
  t.textContent=msg;t.className='toast is-on'+(kind==='error'?' is-error':'');
  if(!t.__tap){t.__tap=1;t.addEventListener('click',function(){t.className='toast'})}
- clearTimeout(window.__tt);window.__tt=setTimeout(function(){t.className='toast'},kind==='error'?6500:4200);
+ clearTimeout(window.__tt);window.__tt=setTimeout(function(){t.className='toast'},kind==='error'?6000:3200);
 }
 function svg(name){return el('span',{html:ICO[name]||'',class:'ico'})}
 
@@ -927,7 +934,7 @@ function heroTag(){return {nails:'طرح ناخن بعدی‌ات را روی ع
 var COIN='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="#E9B949" stroke="#B9822E" stroke-width="1.5"/><circle cx="12" cy="12" r="6" fill="none" stroke="#B9822E" stroke-width="1.3"/><path d="M12 8.6v6.8M9.6 10.4 12 8.6l2.4 1.8" fill="none" stroke="#8A5A14" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 var GIFT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8.5" width="17" height="4" rx="1"/><path d="M5 12.5V20h14v-7.5M12 8.5V20M12 8.5S10.8 4 8.3 4a2.2 2.2 0 0 0 0 4.5H12zM12 8.5S13.2 4 15.7 4a2.2 2.2 0 0 1 0 4.5H12z"/></svg>';
 function studio(){return !!(state.pub&&state.pub.direct&&!EMBED)}
-function openWallet(){if(window.AynehPacks){track('wallet','open');window.AynehPacks.open()}}
+function openWallet(){if(studio()&&state.pub&&state.pub.otp&&!state.verified){openSignin(function(){paintWallet(true);renderAll()},state.me&&state.me.phone?'login':'signup','کیف سکه مال حساب توست. وارد شو یا ثبت‌نام کن؛ حساب تازه ۲ عکس اول را رایگان دارد.');return}if(window.AynehPacks){track('wallet','open');window.AynehPacks.open()}}
 var ctaWatch=null,studioAsked=false;
 function watchCta(){
  if(!('IntersectionObserver' in window))return;
@@ -993,7 +1000,7 @@ function authForm(mode,done,swap,prefill){
   var verify=el('button',{class:'btn btn--primary btn--block btn--lg',type:'submit',text:mode==='signup'?'تأیید و ساخت حساب':'ورود'});
   var again=el('button',{class:'btn btn--ghost btn--sm',type:'button',disabled:true,text:''});
   var edit=el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'ویرایش شماره',onclick:step1});
-  var f2=el('form',{class:'signin__form',novalidate:'true'},[el('p',{class:'signin__sent'},['کد به ',el('b',{dir:'ltr',text:fa0(last.shown)}),' پیامک شد.']),codeWrap,verify,el('div',{class:'signin__row'},[again,edit])]);
+  var f2=el('form',{class:'signin__form',novalidate:'true'},[el('p',{class:'signin__sent'},['کد به ',el('b',{dir:'ltr',text:fa0(last.shown).replace(/^(.{4})(.{3})(.+)$/,'$1 $2 $3')}),' پیامک شد.']),codeWrap,verify,el('div',{class:'signin__row'},[again,edit])]);
   box.replaceChildren(f2);
   var left=60;function tick(){if(!box.isConnected){clearInterval(timer);return}again.disabled=left>0;again.textContent=left>0?'ارسال دوباره تا '+fa(left)+' ثانیه':'ارسال دوبارهٔ کد';if(left>0)left--}
   clearInterval(timer);tick();timer=setInterval(tick,1000);setTimeout(function(){input.focus()},60);
@@ -1020,7 +1027,7 @@ function authSwitch(mode,go){
 }
 function normalizeDigits(v){return String(v||'').replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d)})}
 var SIGNIN_PERKS=[['coin','سکه‌ها و عکس‌هات روی هر گوشی همراهت می‌مونه'],['lock','رمز نمی‌خواد؛ هر بار یه کد پیامکی'],['gift','۲ عکس اول رایگانه']];
-function perks(){return el('ul',{class:'signin__perks'},SIGNIN_PERKS.map(function(p){return el('li',{},[el('span',{class:'signin__perk-ico',html:p[0]==='coin'?COIN:p[0]==='gift'?GIFT:ICO.lock}),el('span',{text:p[1]})])}))}
+function perks(mode){return el('ul',{class:'signin__perks'},SIGNIN_PERKS.filter(function(p){return mode!=='login'||p[0]!=='gift'}).map(function(p){return el('li',{},[el('span',{class:'signin__perk-ico',html:p[0]==='coin'?COIN:p[0]==='gift'?GIFT:ICO.lock}),el('span',{text:p[1]})])}))}
 function openSignin(next,mode,why){
  var panel=el('div',{class:'sheet__panel signin-sheet'});
  function draw(m,ph){
@@ -1029,7 +1036,7 @@ function openSignin(next,mode,why){
    el('div',{class:'sheet__head'},[h('h2',m==='signup'?'ثبت‌نام':'ورود'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),
    h('p',why||(m==='signup'?'برای ساخت عکس، یک حساب رایگان بساز. رمز لازم نیست؛ یک کد پیامکی می‌گیری.':'با شمارهٔ موبایلت وارد شو؛ یک کد پیامکی برایت می‌فرستیم.'),'muted'),
    authForm(m,function(){closeSheet();renderHead();toast(m==='signup'?'حسابت ساخته شد':'خوش اومدی');if(next)next()},draw,ph),
-   authSwitch(m,function(x){draw(x)}),perks());
+   authSwitch(m,function(x){draw(x)}),perks(m));
  }
  draw(mode||'login');
  openSheet(panel);
@@ -1038,7 +1045,7 @@ function renderAccount(){
  ['#steps','#flow','#side','#dock','#invite','#mine'].forEach(function(q){var n=$(q);if(n)n.hidden=true});
  document.body.classList.add('is-studio');
  var page=accountPage(),head=$('#head');head.classList.add('head--studio','head--account');
- var bar=el('div',{class:'hero__bar'},[el('a',{class:'brand brand--studio',href:'/','aria-label':'آینه، صفحهٔ اصلی',html:MARK+'<span>آینه</span>'}),el('div',{class:'hero__tools'},[el('a',{class:'btn btn--ghost btn--sm',href:'/',html:ICO.arrow+'<span>استودیو</span>'})])]);
+ var bar=el('div',{class:'hero__bar'},[el('a',{class:'brand brand--studio',href:'/','aria-label':'آینه، صفحهٔ اصلی',html:MARK+'<span>آینه</span>'}),el('div',{class:'hero__tools'},[el('a',{class:'btn btn--ghost btn--sm',href:'/',html:'<span class="ico-back">'+ICO.arrow+'</span><span>استودیو</span>'})])]);
  var next=nextPath();
  var card=el('section',{class:'account panel','aria-busy':'true'},[el('div',{class:'skel',style:'width:64px;height:64px;border-radius:50%;justify-self:center'}),el('div',{class:'skel',style:'height:28px;width:55%;justify-self:center'}),el('div',{class:'skel',style:'height:52px;border-radius:14px'}),el('div',{class:'skel',style:'height:52px;border-radius:14px'})]);
  head.replaceChildren(el('div',{class:'wrap'},[bar,card]));
@@ -1053,7 +1060,7 @@ function renderAccount(){
    el('p',{class:'account__sub',text:m==='signup'?'نام، شماره و شهرت را بنویس؛ با یک کد پیامکی حسابت ساخته می‌شود.':'شمارهٔ موبایلت را بنویس تا کد ورود برایت پیامک شود.'}),
    state.pub.otp?authForm(m,function(){location.href=next||'/profile'},function(x,phone){history.replaceState(null,'','/'+x+(next?'?next='+encodeURIComponent(next):''));authPage(x,phone)},ph):el('p',{class:'notice notice--info',text:'ورود با شماره موبایل به‌زودی فعال می‌شود.'}),
    authSwitch(m,function(x){history.replaceState(null,'','/'+x+(next?'?next='+encodeURIComponent(next):''));authPage(x)}),
-   perks());
+   perks(m));
  }
  ensureSession().then(function(){
   card.removeAttribute('aria-busy');
@@ -1073,32 +1080,30 @@ function profilePage(card){
   var since='';try{if(me.since)since=new Intl.DateTimeFormat('fa-IR',{year:'numeric',month:'long'}).format(new Date(me.since))}catch(e){}
   var idCard=el('section',{class:'panel profile__id'},[
    el('span',{class:'profile__avatar',text:ini,'aria-hidden':'true'}),
-   el('div',{class:'profile__who'},[el('h1',{text:full||'حساب من'}),el('p',{},[el('span',{dir:'ltr',text:fa0(me.phone)}),me.city?' · '+me.city:'',since?el('span',{dir:'rtl',text:' · عضو از '+since}):''])]),
+   el('div',{class:'profile__who'},[el('h1',{text:full||'حساب من'}),el('p',{},[el('bdi',{dir:'ltr',text:fa0(me.phone).replace(/^(.{4})(.{3})(.+)$/,'$1 $2 $3')}),me.city?'، '+me.city:'']),since?el('p',{text:'عضو از '+since}):null]),
    el('button',{class:'btn btn--ghost btn--sm',type:'button',html:ICO.edit?ICO.edit+'<span>ویرایش</span>':'ویرایش',onclick:function(){editProfile(me,function(){profilePage(card)})}})
   ]);
   var stats=el('div',{class:'profile__stats'},[
-   stat(fa(me.made||0),'عکس ساخته‌شده'),stat('<span id="pfCoins">…</span>','سکه'),stat(fa((saves.saved||[]).length),'ذخیره‌شده')
+   stat(fa(me.made||0),'عکس ساخته‌شده'),stat(fa((saves.saved||[]).length),'ذخیره‌شده'),stat(fa((saves.liked||[]).length),'پسندیده')
   ]);
   var w=el('div',{class:'wallet',id:'wallet'});
   var walletBox=el('section',{class:'panel profile__sec'},[el('div',{class:'profile__sechead'},[el('h2',{text:'کیف سکه'})]),w]);
   var tabsBar=el('div',{class:'seg',role:'tablist'}),tabBody=el('div',{class:'profile__tab'});
-  var TABS=[['album','آلبوم من'],['saved','ذخیره‌شده‌ها'],['history','تراکنش‌ها']],cur='album';
+  var TABS=[['album','آلبوم'],['saved','ذخیره‌ها'],['liked','پسندیده‌ها'],['history','تراکنش‌ها']],cur='album';
   function drawTabs(){
    tabsBar.replaceChildren.apply(tabsBar,TABS.map(function(t){return el('button',{type:'button',role:'tab','aria-selected':String(cur===t[0]),text:t[1],onclick:function(){cur=t[0];drawTabs()}})}));
-   if(cur==='album')tabBody.replaceChildren(looks&&looks.length?el('div',{class:'pgrid'},looks.map(function(l){return el('button',{class:'pgrid__item',type:'button',onclick:function(){openLook(l)}},[el('img',{src:media(l.image),alt:'',loading:'lazy'}),el('span',{text:(LINES.label[l.line]||'')+' · '+lookDate(l.at)})])})):empty('هنوز عکسی نساختی','از استودیو یک مدل انتخاب کن و روی عکس خودت ببین.','/','رفتن به استودیو'));
-   else if(cur==='saved'){var items=(saves.saved||[]).map(itemOf).filter(Boolean);tabBody.replaceChildren(items.length?el('div',{class:'pgrid'},items.map(function(it){return el('a',{class:'pgrid__item',href:'/?l='+it.line+'&pick='+it.i},[el('img',{src:it.img,alt:'',loading:'lazy'}),el('span',{text:it.name+' · '+LINES.label[it.line]})])})):empty('هنوز چیزی ذخیره نکردی','روی نشان ذخیره کنار هر مدل بزن تا اینجا بماند.','/','دیدن مدل‌ها'))}
-   else tabBody.replaceChildren(me.history&&me.history.length?el('ul',{class:'ledger'},me.history.map(function(x){var plus=x.coins>0;return el('li',{},[el('span',{class:'ledger__ico'+(plus?' is-plus':''),html:plus?COIN:ICO.spark}),el('span',{class:'ledger__txt'},[el('b',{text:x.kind==='image'?'ساخت عکس · '+(LINES.label[x.line]||''):x.kind==='referral'?'هدیهٔ دعوت دوست':x.kind==='owner'?'هدیهٔ آینه':'شارژ کیف سکه'}),el('small',{text:lookDate(x.at)})]),el('b',{class:'ledger__amt'+(plus?' is-plus':''),dir:'ltr',text:(plus?'+':'−')+fa(Math.abs(x.coins))})])})):empty('تراکنشی نداری','دو عکس اول هدیه است؛ بعد از آن با شارژ کیف سکه ادامه بده.'));
+   if(cur==='album')tabBody.replaceChildren(looks&&looks.length?el('div',{class:'pgrid'},looks.map(function(l){return el('button',{class:'pgrid__item',type:'button',onclick:function(){openLook(l)}},[el('img',{src:media(l.image),alt:'',loading:'lazy'}),el('span',{},[el('b',{text:lookTitle(l)}),el('small',{text:LINES.label[l.line]+'، '+lookDate(l.at)})])])})):empty('هنوز عکسی نساختی','از استودیو یک مدل انتخاب کن و روی عکس خودت ببین.','/','رفتن به استودیو'));
+   else if(cur==='saved'||cur==='liked'){var lk=cur==='liked',items=(lk?saves.liked:saves.saved||[]).map(itemOf).filter(Boolean);tabBody.replaceChildren(items.length?el('div',{class:'pgrid'},items.map(function(it){return el('a',{class:'pgrid__item',href:'/?l='+it.line+'&pick='+it.i},[el('img',{src:it.img,alt:'',loading:'lazy'}),el('span',{},[el('b',{text:it.name}),el('small',{text:LINES.label[it.line]})])])})):empty(lk?'هنوز مدلی نپسندیدی':'هنوز چیزی ذخیره نکردی',lk?'روی قلب کنار هر مدل بزن تا اینجا بماند.':'روی نشان ذخیره کنار هر مدل بزن تا اینجا بماند.','/','دیدن مدل‌ها'))}
+   else tabBody.replaceChildren(me.history&&me.history.length?el('ul',{class:'ledger'},me.history.map(function(x){var plus=x.coins>0;return el('li',{},[el('span',{class:'ledger__ico'+(plus?' is-plus':''),html:plus?COIN:ICO.spark}),el('span',{class:'ledger__txt'},[el('b',{text:x.kind==='gift'?'عکس هدیه، '+(LINES.label[x.line]||''):x.kind==='image'?'ساخت عکس، '+(LINES.label[x.line]||''):x.kind==='referral'?'هدیهٔ دعوت دوست':x.kind==='owner'?'هدیهٔ آینه':'شارژ کیف سکه'}),el('small',{text:lookDate(x.at)})]),el('b',{class:'ledger__amt'+(plus?' is-plus':''),dir:'ltr',text:x.kind==='gift'?'هدیه':(plus?'+':'−')+fa(Math.abs(x.coins))})])})):empty('هنوز تراکنشی نداری','هر عکسی که بسازی یا هر شارژی که انجام بدهی اینجا ثبت می‌شود.'));
   }
   function stat(v,l){return el('div',{class:'profile__stat'},[el('b',{html:v}),el('span',{text:l})])}
   function empty(t,sub,href,cta){return el('div',{class:'empty'},[el('b',{text:t}),el('p',{text:sub}),href?el('a',{class:'btn btn--soft btn--sm',href:href,text:cta}):null])}
   drawTabs();
   var out=el('button',{class:'btn btn--ghost btn--block account__out',type:'button',text:'خروج از حساب',onclick:function(e){var b=e.currentTarget;b.disabled=true;api('otp/logout',{}).then(function(){state.verified=false;state.me={};looks=null;saves={saved:[],liked:[]};try{localStorage.removeItem('ayneh-me')}catch(x){}walletData=null;location.href='/'}).catch(function(err){b.disabled=false;toast(err.message,'error')})}});
-  walletBox.querySelector('.profile__sechead').append(el('button',{class:'btn btn--soft btn--sm',type:'button',onclick:openWallet,html:'<span class="coin-pill__ico">'+COIN+'</span><span>شارژ</span>'}));
   var invite=el('section',{class:'panel profile__sec',hidden:true});
-  if(window.AynehPacks)window.AynehPacks.me(true).then(function(d){if(!d||!d.referral)return;var link=d.referral.link;invite.hidden=false;invite.replaceChildren(el('div',{class:'profile__sechead'},[el('h2',{text:'آرایشگرت را دعوت کن'})]),el('p',{class:'muted',text:'اگر آرایشگرت با لینک تو پلن آینه بگیرد، '+fa(d.referral.images*d.image_coins)+' سکه هدیه می‌گیری.'}),el('div',{class:'profile__link'},[el('code',{dir:'ltr',text:link.replace(/^https?:\/\//,'')}),el('button',{class:'btn btn--soft btn--sm',type:'button',text:'کپی لینک',onclick:function(e){var b=e.currentTarget;(navigator.clipboard?navigator.clipboard.writeText(link):Promise.reject()).then(function(){b.textContent='کپی شد'},function(){})}})]))}).catch(function(){});
+  if(window.AynehPacks)window.AynehPacks.me(true).then(function(d){if(!d||!d.referral)return;var link=d.referral.link;invite.hidden=false;invite.replaceChildren(el('div',{class:'profile__sechead'},[el('h2',{text:'آرایشگرت را دعوت کن'})]),el('p',{class:'muted',text:'لینک دعوتت را برای آرایشگرت بفرست؛ اگر او هم از آینه برای سالنش استفاده کند، '+fa(d.referral.images*d.image_coins)+' سکه هدیه می‌گیری.'}),el('button',{class:'btn btn--soft',type:'button',text:'کپی لینک دعوت',onclick:function(e){var b=e.currentTarget;(navigator.clipboard?navigator.clipboard.writeText(link):Promise.reject()).then(function(){b.textContent='لینک کپی شد'},function(){toast(link)})}}))}).catch(function(){});
   card.replaceChildren(idCard,stats,walletBox,el('section',{class:'panel profile__sec'},[tabsBar,tabBody]),invite,out);
   paintWallet(true);
-  var tries=0;(function coins(){var c=$('#pfCoins');if(!c)return;if(walletData){c.textContent=fa(walletData.coins||0)}else if(tries++<20)setTimeout(coins,250)})();
  }).catch(function(e){toast(e.message,'error')});
 }
 function editProfile(me,done){
@@ -1147,31 +1152,36 @@ function reactBtns(item){
 var looks=null,looksAt=0;
 function loadLooks(){if(!state.verified){looks=null;drawAlbum();return}if(Date.now()-looksAt<3000)return;looksAt=Date.now();api('looks').then(function(d){looks=d.looks||[];drawAlbum()}).catch(function(){})}
 function lookDate(t){try{return new Intl.DateTimeFormat('fa-IR',{month:'long',day:'numeric'}).format(new Date(t))}catch(e){return ''}}
+/* A look's own name: the catalog style, her typed words, or «از عکس خودت». */
+function lookTitle(l){var it=l.style!==null&&l.style!==undefined?itemOf(l.line+':'+l.style):null;return it?it.name:l.text?l.text:/reference|style/.test(l.mode||'')?'مدل از عکس خودت':(LINES.label[l.line]||'')}
+function lineLooks(){return (looks||[]).filter(function(l){return l.line===state.line})}
+/* Home: the album of the service she is on (the profile shows them all). */
 function drawAlbum(){
  var box=$('#album');if(!box)return;
- if(!state.verified||!looks||!looks.length){box.hidden=true;return}
+ var mine=lineLooks();
+ if(!state.verified||!mine.length){box.hidden=true;return}
  box.hidden=false;
- var strip=el('div',{class:'album__strip'},looks.slice(0,12).map(function(l){return el('button',{class:'album__item',type:'button','aria-label':(LINES.label[l.line]||'')+' · '+lookDate(l.at),onclick:function(){openLook(l)}},[el('img',{src:media(l.image),alt:'',loading:'lazy',decoding:'async'}),el('span',{text:LINES.label[l.line]||''})])}));
- box.replaceChildren(el('div',{class:'album__head'},[el('h2',{text:'آلبوم من'}),el('span',{text:fa(looks.length)+' عکس'}),looks.length>1?el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'مقایسه',onclick:function(){pickCompare(null)}}):null]),strip);
+ var strip=el('div',{class:'album__strip'},mine.slice(0,12).map(function(l){return el('button',{class:'album__item',type:'button','aria-label':lookTitle(l)+'، '+lookDate(l.at),onclick:function(){openLook(l)}},[el('img',{src:media(l.image),alt:'',loading:'lazy',decoding:'async'}),el('span',{text:lookTitle(l)})])}));
+ box.replaceChildren(el('div',{class:'album__head'},[el('h2',{text:'آلبوم '+LINE_WORDS[state.line]}),el('span',{text:fa(mine.length)+' عکس'}),mine.length>1?el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'مقایسه',onclick:function(){pickCompare(null)}}):null]),strip);
 }
 function openLook(l){
  var panel=el('div',{class:'sheet__panel look'});
- panel.append(el('div',{class:'sheet__head'},[h('h2',(LINES.label[l.line]||'')+' · '+lookDate(l.at)),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),
+ panel.append(el('div',{class:'sheet__head'},[h('h2',lookTitle(l)),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),
   el('img',{class:'look__img',src:media(l.image),alt:'نتیجهٔ '+(LINES.label[l.line]||'')}),
-  el('div',{class:'look__actions'},[downloadLink('btn btn--primary','ذخیره عکس',l.image),looks.length>1?el('button',{class:'btn btn--soft',type:'button',text:'مقایسه با یکی دیگه',onclick:function(){pickCompare(l)}}):null]));
+  el('div',{class:'look__actions'},[downloadLink('btn btn--primary','دانلود عکس',l.image),(looks||[]).filter(function(x){return x.line===l.line}).length>1?el('button',{class:'btn btn--soft',type:'button',text:'مقایسه با یکی دیگه',onclick:function(){pickCompare(l)}}):null]));
  openSheet(panel);
 }
 function pickCompare(first){
- var panel=el('div',{class:'sheet__panel look'}),chosen=first?[first]:[];
+ var panel=el('div',{class:'sheet__panel look'}),chosen=first?[first]:[],pool=(looks||[]).filter(function(x){return x.line===(first?first.line:state.line)});
  function draw(){
   if(chosen.length===2){
    panel.replaceChildren(el('div',{class:'sheet__head'},[h('h2','کدوم بیشتر بهت میاد؟'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),
-    el('div',{class:'look__pair'},chosen.map(function(l){return el('figure',{},[el('img',{src:media(l.image),alt:''}),el('figcaption',{text:(LINES.label[l.line]||'')+' · '+lookDate(l.at)})])})),
+    el('div',{class:'look__pair'},chosen.map(function(l){return el('figure',{},[el('img',{src:media(l.image),alt:''}),el('figcaption',{text:lookTitle(l)})])})),
     el('div',{class:'look__actions'},[el('button',{class:'btn btn--soft',type:'button',text:'انتخاب دوباره',onclick:function(){chosen=[];draw()}})]));
    track('cta','compare');return;
   }
   panel.replaceChildren(el('div',{class:'sheet__head'},[h('h2',chosen.length?'یکی دیگه رو انتخاب کن':'دو تا عکس رو برای مقایسه انتخاب کن'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),
-   el('div',{class:'look__grid'},looks.map(function(l){var on=chosen.indexOf(l)>=0;return el('button',{class:'look__pick'+(on?' is-on':''),type:'button','aria-pressed':String(on),onclick:function(){if(!on){chosen.push(l);draw()}}},[el('img',{src:media(l.image),alt:'',loading:'lazy'}),el('span',{text:LINES.label[l.line]||''})])})));
+   el('div',{class:'look__grid'},pool.map(function(l){var on=chosen.indexOf(l)>=0;return el('button',{class:'look__pick'+(on?' is-on':''),type:'button','aria-pressed':String(on),onclick:function(){if(!on){chosen.push(l);draw()}}},[el('img',{src:media(l.image),alt:'',loading:'lazy'}),el('span',{text:lookTitle(l)})])})));
  }
  draw();openSheet(panel);
 }
@@ -1211,9 +1221,8 @@ function drawTrend(){
  var box=$('#trend');if(!box)return;
  var L=state.line,items=trendItems(L).slice(0,12);if(!items.length){box.hidden=true;return}
  box.hidden=false;
- /* One service at a time, the same one as the tabs below; the chips switch both. */
- var chips=el('div',{class:'filters trend__lines',role:'tablist','aria-label':'ترند کدام خدمت'},LINE_LIST.map(function(x){return el('button',{class:'chip',type:'button',role:'tab','aria-pressed':String(x[0]===L),'aria-selected':String(x[0]===L),text:x[1],onclick:function(){if(x[0]!==state.line)switchLine(x[0],{silent:true})}})}));
- box.replaceChildren(el('div',{class:'album__head'},[el('h2',{html:'<span class="trend__ico">'+ICO.fire+'</span>ترند '+LINE_WORDS[L]}),el('span',{text:'پرطرفدارترین‌های این هفته'})]),chips,
+ /* One service at a time: the same one as the service tabs right below. */
+ box.replaceChildren(el('div',{class:'album__head'},[el('h2',{html:'<span class="trend__ico">'+ICO.fire+'</span>ترند '+LINE_WORDS[L]}),el('span',{text:'پرطرفدارترین‌های این هفته'})]),
   el('div',{class:'trend__strip'},items.map(function(it){var key=it.line+':'+it.i;
    var b=el('button',{class:'trend__item',type:'button','aria-label':it.name+' · '+LINES.label[it.line],onclick:function(){openTrend(it)}},[el('img',{src:it.img,alt:'',loading:'lazy',decoding:'async'}),el('span',{class:'trend__name',text:it.name})]);
    var w=el('div',{class:'trend__wrap'},[b,reactBtns(key)]);b.querySelector('img').addEventListener('error',function(){w.remove()});return w})));
@@ -1235,8 +1244,9 @@ function studioProof(){
  return el('figure',{class:'proof'},[slider,el('figcaption',{text:'یک نمونه از '+p[1]+' با آینه · خط وسط را بکش'})]);
 }
 /* What «بساز» costs, on the button itself (studio): her gift first, then 25 coins. */
-function buildText(){if(!studio())return 'بساز';return state.quota&&state.quota.free>0?'بساز · هدیه':'بساز · ۲۵ سکه'}
-var STUDIO_PRIVACY='عکست فقط برای ساختن نمونهٔ خودت استفاده می‌شود؛ نسخهٔ فشرده‌اش برای ساخت تصویر به سرویس تصویر فرستاده می‌شود. دسترسی عمومی ندارد و برای هیچ آرایشگاهی فرستاده نمی‌شود. نتیجه را فقط وقتی خودت ذخیره کنی یا برای دوستت بفرستی کسی می‌بیند.';
+var giftOut=false;
+function buildText(){if(!studio())return 'بساز';return state.quota&&state.quota.free>0&&!giftOut?'بساز · هدیه':'بساز · ۲۵ سکه'}
+var STUDIO_PRIVACY='عکست فقط برای ساختن نمونهٔ خودت استفاده می‌شود؛ نسخهٔ فشرده‌اش برای ساخت تصویر به سرویس تصویر فرستاده می‌شود. دسترسی عمومی ندارد و برای هیچ آرایشگاهی فرستاده نمی‌شود. نتیجه‌ها در آلبوم حساب خودت می‌مانند و فقط خودت می‌بینی؛ مگر اینکه خودت برای کسی بفرستی.';
 
 var walletAt=0,walletData=null;
 function paintWallet(force){
@@ -1246,8 +1256,10 @@ function paintWallet(force){
 }
 function drawWallet(d){
  var w=$('#wallet'),pill=$('#coinPill');if(!w)return;
- var free=d.free?d.free.left:0,coins=d.own?d.own.coins||0:0,per=d.image_coins||25,imgs=Math.floor(coins/per);
+ var free=d.free&&!giftOut?d.free.left:0,coins=d.own?d.own.coins||0:0,per=d.image_coins||25,imgs=Math.floor(coins/per);
  /* A newcomer's pill shows what she has (her gift), never an empty «۰ سکه». */
+ /* Signed out, the numbers belong to no one yet: a plain promise, real numbers after sign-in. */
+ if(state.pub.otp&&!state.verified){if(pill)pill.textContent='کیف سکه';w.replaceChildren(el('div',{class:'wallet__gift'},[el('span',{class:'wallet__gift-ico',html:GIFT}),el('div',{},[el('b',{text:'۲ عکس اول رایگانه'}),el('small',{text:'برای حساب‌های تازه؛ ثبت‌نام فقط با شمارهٔ موبایل، بدون رمز. بعدش هر عکس '+fa(per)+' سکه ('+fa(d.image_price||50000)+' تومان).'})])]));return}
  if(pill)pill.textContent=coins<=0&&free>0?fa(free)+' عکس هدیه':fa(coins)+' سکه';
  var rows=[];
  if(free>0)rows.push(el('div',{class:'wallet__gift'},[el('span',{class:'wallet__gift-ico',html:GIFT}),el('div',{},[el('b',{text:free>=((d.free&&d.free.per)||2)?fa(free)+' عکس اول رایگانه':fa(free)+' عکس هدیه برایت مانده'}),el('small',{text:(state.pub.otp&&!state.verified?'فقط با تأیید شمارهٔ موبایل؛ بدون رمز. ':'')+'بعدش هر عکس '+fa(per)+' سکه ('+fa(d.image_price||50000)+' تومان).'})])]));
@@ -1786,7 +1798,7 @@ function compareSlider(beforeSrc,afterSrc,alts){
 }
 function ratingBlock(){
  var wrap=el('div',{class:'rate-line'});
- wrap.append(h('span','چقدر شبیه خودت شد؟','tiny muted'));
+ wrap.append(h('span',state.line==='nails'?'چقدر طبیعی شد؟':'چقدر شبیه خودت شد؟','tiny muted'));
  var stars=el('div',{class:'rating',role:'group','aria-label':'امتیاز به شباهت'});
  for(var i=1;i<=5;i++){
   (function(n){
@@ -1833,7 +1845,7 @@ function colorLabel(){if(state.line==='hair')return '';if(state.line==='color')r
 function artist(){return {nails:'ناخن‌کار',lashes:'مژه‌کار',color:'رنگ‌کار'}[state.line]||'آرایشگر'}
 function sendButton(){
  /* The studio has no salon to send to: keep the result, or top up when she is out of images. */
- if(studio())return state.result?downloadLink('btn btn--primary','ذخیره عکس'):el('button',{class:'btn btn--primary',type:'button',onclick:openWallet,html:'<span class="coin-pill__ico">'+COIN+'</span><span>شارژ کیف سکه</span>'});
+ if(studio())return state.result?downloadLink('btn btn--primary','دانلود عکس'):el('button',{class:'btn btn--primary',type:'button',onclick:openWallet,html:'<span class="coin-pill__ico">'+COIN+'</span><span>شارژ کیف سکه</span>'});
  return el('button',{class:'btn btn--primary',type:'button',onclick:openRequest,html:ICO.send+'<span>'+(state.result?'درخواست نوبت می‌دهم':'فرستادن برای '+artist())+'</span>'})}
 // Building: a playful scene for each service in the mirror, the stage it is at and a live percentage.
 var BUILD={
@@ -1942,7 +1954,7 @@ function prepareStory(id){
 }
 function storyLink(cls){
  var id=state.result;
- var a=el('a',{class:cls,'data-story':id,href:'#',download:'',html:ICO.download+'<span>قالب استوری اینستاگرام</span>'});
+ var a=el('a',{class:cls,'data-story':id,href:'#',download:'',html:ICO.instagram+'<span>قالب استوری اینستاگرام</span>'});
  a.addEventListener('click',function(e){
   var r=stories[id];
   // on a phone the share sheet goes straight to Instagram; on a computer it downloads
@@ -1985,7 +1997,7 @@ function downloadLink(cls,label,forId){
 function stepResult(){
  var box=el('div',{class:'panel flow'}),L=state.line;
  box.append(flowHead(state.result?({color:'خودت با رنگ جدید',nails:'ناخن‌هایت با طرح جدید',lashes:'خودت با مژهٔ جدید'}[L]||'خودت با مدل جدید'):state.busy?'دارم می‌سازم…':(studio()?'نتیجه':'نتیجه و ارسال'),'این تصویر یک شبیه‌سازی پیشنهادی است، نه تضمین اجرا. تصمیم نهایی با '+artist()+' است.'));
- var meta=L==='hair'?(state.pub.demo&&state.color?'رنگ: '+state.color:'رنگ موهایت همان می‌ماند'):L==='color'?(baseId()?'روی مدل موی جدیدت':'روی عکس اصلی‌ات'):(state.color?'رنگ: '+state.color:'رنگ: هر چه به طرح بیاید');
+ var meta=L==='hair'?(state.pub.demo&&state.color?'رنگ: '+state.color:'رنگ موهایت همان می‌ماند'):L==='color'?(baseId()?'روی مدل موی جدیدت':'روی عکس اصلی‌ات'):(state.color?'رنگ: '+state.color:'رنگ: هماهنگ با طرح');
  box.append(el('div',{class:'summary'},[
   state.original?el('img',{src:media(state.original),alt:''}):null,
   el('div',{class:'grow'},[el('b',{text:(lookName()||'هنوز چیزی انتخاب نشده')}),el('div',{class:'summary__meta',text:meta})]),
@@ -1995,7 +2007,7 @@ function stepResult(){
  if(state.busy&&!state.result){box.append(buildStage());startBuildClock()}
  if(state.result){
   box.append(compareBlock());
-  box.append(h('p','یک نمونه است؛ برای انتخاب قبل از نوبت.','fine-print result-approx'));
+  box.append(h('p','این یک پیش‌نمایش است تا قبل از رفتن به آرایشگاه انتخابت را راحت‌تر کنی.','fine-print result-approx'));
   // The visitor demo (/sample): another sample (2 in all, worker/demo.js) or this service's plans.
   if(state.pub.demo){box.append(el('div',{class:'result-actions'},[
    el('a',{class:'btn btn--soft btn--sm',href:location.protocol+'//'+location.host.replace(/^business\./,'')+'/?l='+L,target:'_top',text:'ثبت‌نام و نمونهٔ بیشتر'}),
@@ -2004,11 +2016,11 @@ function stepResult(){
    storyLink('btn btn--ghost btn--sm')
   ]))}else
   box.append(el('div',{class:'result-actions'},[
-   L==='hair'?el('button',{class:'btn btn--soft btn--sm',type:'button',onclick:openViews,html:ICO.orbit+'<span>نمای ۳۶۰ درجه'+(studio()?' · ۱ عکس':'')+'</span>'}):null,
+   L==='hair'?el('button',{class:'btn btn--soft btn--sm',type:'button',onclick:openViews,html:ICO.orbit+'<span>نمای ۳۶۰ درجه'+(studio()?' (۱ عکس)':'')+'</span>'}):null,
    el('button',{class:'btn btn--soft btn--sm',type:'button',onclick:openAsk,html:SHARE_IC.chat+'<span>از دوستم نظر بپرسم</span>'}),
    studio()?null:downloadLink('btn btn--ghost btn--sm','ذخیره تصویر'),
    storyLink('btn btn--ghost btn--sm'),
-   el('button',{class:'btn btn--ghost btn--sm',type:'button',onclick:function(){state.result=null;state.gen=null;state.idem=null;state.error='';state.busy=false;state.resultBase=null;go(2)},text:'یک مدل دیگر'})
+   el('button',{class:'btn btn--ghost btn--sm',type:'button',onclick:function(){state.result=null;state.gen=null;state.idem=null;state.error='';state.busy=false;state.resultBase=null;go(2)},text:{nails:'یک طرح دیگر',color:'یک رنگ دیگر'}[L]||'یک مدل دیگر'})
   ]));
   // After a new hairstyle, the natural next step is its colour.
   if(L==='hair')box.append(el('button',{class:'next-line',type:'button',onclick:function(){track('color_on_hair');switchLine('color',{step:2,onHair:true,scroll:true})}},[el('span',{class:'next-line__ico',html:ICO.drop}),el('span',{},[el('b',{text:'رنگ مو را هم روی همین مدل امتحان کن'}),el('small',{text:'مدل همین می‌ماند و فقط رنگ عوض می‌شود.'})]),el('span',{class:'next-line__go',html:ICO.arrow})]));
@@ -2067,6 +2079,7 @@ function renderDock(){
   var ready=hasChoice(),can=canGenerate();
   var out=quotaLeft()===0;
   hint=out?'سهم ساخت این بخش تمام شد':ready?(can?'آماده؛ بزن بساز':'آماده'):missingReason();
+  if(studio()&&ready&&!out)hint=lookName()||hint;
   if(studio()&&!out&&!ready){dock.hidden=true;dock.classList.remove('is-in');return}
   if(studio()&&out){hint='عکس‌هات تموم شد';primary=sendButton()}
   else primary=el('button',{class:'btn btn--primary btn--build',type:'button',disabled:!ready,onclick:build,html:can?ICO.spark+'<span>'+buildText()+'</span>':out?ICO.send+'<span>فرستادن</span>':ICO.arrow+'<span>ادامه</span>'});
@@ -2076,7 +2089,7 @@ function renderDock(){
   else if(state.result||!canGenerate()){hint='فرستادن برای سالن';primary=el('button',{class:'btn btn--primary',type:'button',onclick:openRequest,html:ICO.send+'<span>'+(state.result?'درخواست نوبت می‌دهم':'فرستادن برای '+artist())+'</span>'})}
   else{hint='آمادهٔ ساخت';primary=el('button',{class:'btn btn--primary',type:'button',onclick:generate,html:ICO.spark+'<span>'+buildText()+'</span>'})}
  }
- inner.append(el('div',{class:'dock__hint',text:hint}),studio()?el('button',{class:'btn btn--ghost dock__wallet',type:'button',onclick:openWallet,'aria-label':'کیف سکه',html:COIN}):el('button',{class:'btn btn--ghost',type:'button',onclick:openAbout,'aria-label':'دربارهٔ سالن',html:ICO.info}),primary);
+ inner.append(el('div',{class:'dock__hint',text:hint}),studio()?null:el('button',{class:'btn btn--ghost',type:'button',onclick:openAbout,'aria-label':'دربارهٔ سالن',html:ICO.info}),primary);
  var wasHidden=dock.hidden;dock.replaceChildren(inner);dock.hidden=false;if(wasHidden&&studio()){dock.classList.remove('is-in');void dock.offsetWidth;dock.classList.add('is-in')}
  var cta=document.querySelector('.studio__cta span');if(cta)cta.textContent=state.original?'ادامه با همین عکس':'شروع با عکس خودم';
 }
@@ -2162,6 +2175,8 @@ function generate(){
   if(/سهم امتحان/.test(e.message)&&state.quota&&state.quota.left)state.quota.left[line]=0;
   /* Out of free images: offer the customer her own image packs (worker/regularpage.js). */
   if(/سهم امتحان|نمونهٔ رایگانتان تمام شد/.test(e.message)&&!state.pub.demo&&window.AynehPacks)window.AynehPacks.out();
+  /* Studio: today's gift images from this internet are used up — every counter says so and the next step is the coin sheet. */
+  if(studio()&&/از این اینترنت تمام/.test(e.message)){if(state.quota)state.quota.free=0;if(walletData&&walletData.free)walletData.free.left=0;giftOut=true;L().step=2;L().error='';paint();paintWallet(false);if(walletData)drawWallet(walletData);toast(e.message,'error');openWallet();return}
   if(state.pub.demo&&/ثبت‌نام کنید/.test(e.message))state.demoOut=true;
   /* The salon's images are paused (credits or plan): stop offering «بساز», offer sending. */
   if(/ساخت تصویر در این سالن فعلاً متوقف است/.test(e.message))state.paused=true;
@@ -2290,8 +2305,8 @@ function openViews(){
 // Uses /catalog/demo-before.webp and demo-after.webp (made by the catalog workflow); if they are
 // missing, nothing is shown. The line sweeps by itself; reduced motion keeps it still.
 function demoCompare(cls){
- var base='/catalog/'+(state.line==='hair'?'':state.line+'/');
- var wrap=el('div',{class:'compare compare--demo'},[el('img',{src:base+'demo-before.webp',alt:'نمونه: قبل',draggable:'false'}),el('div',{class:'compare__after'},[el('img',{src:base+'demo-after.webp',alt:'نمونه: بعد',draggable:'false'})]),el('div',{class:'compare__handle'}),el('span',{class:'compare__tag compare__tag--before',text:'قبل'}),el('span',{class:'compare__tag compare__tag--after',text:'بعد'})]);
+ var base='/catalog/'+(state.line==='hair'?'':state.line+'/'),pp=PROOF[state.line]||PROOF.hair,sb=studio()?'/landing/demo-'+pp[0]+'-before.webp':base+'demo-before.webp',sa=studio()?'/landing/demo-'+pp[0]+'-after.webp':base+'demo-after.webp';
+ var wrap=el('div',{class:'compare compare--demo'},[el('img',{src:sb,alt:'نمونه: قبل',draggable:'false'}),el('div',{class:'compare__after'},[el('img',{src:sa,alt:'نمونه: بعد',draggable:'false'})]),el('div',{class:'compare__handle'}),el('span',{class:'compare__tag compare__tag--before',text:'قبل'}),el('span',{class:'compare__tag compare__tag--after',text:'بعد'})]);
  var box=el('div',{class:'mirror demo '+(cls||'')},[wrap]),fails=0;
  Array.prototype.forEach.call(wrap.querySelectorAll('img'),function(i){i.addEventListener('error',function(){if(++fails===1)box.remove()})});
  wrap.style.setProperty('--x','62%');
@@ -2430,7 +2445,7 @@ function ensureSession(){
  });
 }
 // The session also says how many images this person has left in each service.
-function loadSession(){return api('session?v='+VISITOR).then(function(d){state.session=true;applyVerified(d);if(studio())loadLooks();if(d.quota){state.quota=d.quota;renderDockSoon();paintWallet(true);var f=$('#flow');if(f&&state.step===2&&!state.busy)renderFlow()}})}
+function loadSession(){return api('session?v='+VISITOR).then(function(d){state.session=true;applyVerified(d);if(studio()){loadLooks();if(state.verified&&!savesAt)loadSaves(true).then(function(){if(accountMode())return;drawTrend();if(state.step===2)renderFlow()})}if(d.quota){state.quota=d.quota;renderDockSoon();paintWallet(true);var f=$('#flow');if(f&&state.step===2&&!state.busy)renderFlow()}})}
 function quotaLeft(line){return state.quota&&state.quota.left?state.quota.left[line||state.line]:null}
 function spentQuota(line){if(state.quota&&state.quota.left&&state.quota.left[line]>0)state.quota.left[line]--;if(state.quota&&state.quota.free>0)state.quota.free--;paintWallet(true)}
 window.addEventListener('ayneh:credited',function(){state.paused=false;loadSession().catch(function(){})});
@@ -2627,7 +2642,7 @@ function renderInvite(){
  var box=$('#invite');if(!box||!state.pub)return;
  if(accountMode()){box.hidden=true;return}
  var pics=el('span',{class:'invite__pics','aria-hidden':'true'});
- ['03','09','15'].forEach(function(n){var i=el('img',{src:'/catalog/'+n+'.webp',alt:'',loading:'lazy'});i.addEventListener('error',function(){i.replaceWith(el('span'))});pics.append(i)});
+ ['03','09','15'].forEach(function(n){var i=el('img',{src:'/catalog/'+(state.line==='hair'?'':state.line+'/')+n+'.webp',alt:'',decoding:'async'});i.addEventListener('error',function(){i.replaceWith(el('span'))});pics.append(i)});
  var b=el('button',{class:'invite',type:'button',onclick:function(){track('share_open');openShare()}},[
   pics,
   el('span',{class:'invite__txt'},[

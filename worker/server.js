@@ -24,6 +24,7 @@ import {payForImage,quotaView,isDirect,ownImage} from './customers.js';
 import {spendDemoImage} from './demo.js';
 import {recordTiming} from './timing.js';
 import {attachReferral,refOf} from './rewards.js';
+import {IMAGE_COINS} from './customerprices.js';
 export {putImage};
 
 const J=(v,s=200,h={})=>new Response(JSON.stringify(v),{status:s,headers:{'Content-Type':'application/json;charset=utf-8','Cache-Control':'no-store',...h}});
@@ -468,7 +469,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   const spent=acc?await all(db,"SELECT line,created_at FROM generations WHERE paid_by=? AND state<>'fail' ORDER BY created_at DESC LIMIT 30",acc.id):[];
   const made=Number((await one(db,"SELECT COUNT(*) n FROM generations WHERE salon_id=? AND state='success' AND kind<>'views' AND (session_id=? OR session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?))",salon.id,s.id,salon.id,s.verified_phone))?.n||0);
   return J({signed_in:true,phone:s.verified_phone,first_name:p?.first_name||bits[0]||'',last_name:p?.last_name||bits.slice(1).join(' '),city:p?.city||'',since:p?.created_at||null,made,
-   history:[...ledger.map(r=>({kind:r.reason,coins:r.delta,at:r.created_at})),...spent.map(r=>({kind:'image',line:r.line,coins:-25,at:r.created_at}))].sort((a,b)=>b.at-a.at).slice(0,30)});
+   history:[...ledger.map(r=>({kind:r.reason,coins:r.delta,at:r.created_at})),...spent.map(r=>({kind:'image',line:r.line,coins:-IMAGE_COINS,at:r.created_at}))].sort((a,b)=>b.at-a.at).slice(0,30)});
  }
  if(route==='me'&&req.method==='POST'){
   must(s.verified_phone,'اول وارد حسابت شو',401);
@@ -494,10 +495,10 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  if(route==='trending'){
   const since=Date.now()-30*864e5;
   const tried=await all(db,"SELECT line,style,COUNT(*) n FROM generations WHERE salon_id=? AND created_at>? AND style IS NOT NULL AND state<>'fail' GROUP BY line,style",salon.id,since);
-  const liked=await all(db,"SELECT item,COUNT(*) n FROM customer_saves WHERE salon_id=? AND created_at>? AND item NOT LIKE 'img:%' GROUP BY item",salon.id,since);
+  const liked=await all(db,"SELECT item,kind,COUNT(*) n FROM customer_saves WHERE salon_id=? AND created_at>? AND item NOT LIKE 'img:%' AND owner NOT LIKE 's:%' GROUP BY item,kind",salon.id,since);
   const score={};for(const r of tried){const k=r.line+':'+r.style;score[k]=(score[k]||0)+Number(r.n)}
   for(const r of liked){score[r.item]=(score[r.item]||0)+2*Number(r.n)}
-  const likes={};for(const r of liked)likes[r.item]=(likes[r.item]||0)+Number(r.n);
+  const likes={};for(const r of liked)if(r.kind==='like')likes[r.item]=(likes[r.item]||0)+Number(r.n);
   return J({score,likes});
  }
  /* «خروج از حساب»: this browser forgets the mobile; her coins stay with her mobile for the next sign-in. */

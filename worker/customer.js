@@ -946,7 +946,7 @@ function accountChip(){
  return el('a',{class:'acct-chip',href:'/login?next=/',html:ICO.user+'<span>ورود</span>'})
 }
 var CITIES=['تهران','مشهد','اصفهان','کرج','شیراز','تبریز','قم','اهواز','کرمانشاه','ارومیه','رشت','زاهدان','همدان','کرمان','یزد','اردبیل','بندرعباس','اراک','زنجان','سنندج','قزوین','خرم‌آباد','گرگان','ساری','بجنورد','بوشهر','بیرجند','ایلام','شهرکرد','یاسوج','سمنان','کاشان','نیشابور','سبزوار','آمل','بابل','دزفول','کیش','خارج از ایران'];
-function nextPath(){var n=(location.search.match(/[?&]next=(\/[^&#]*)/)||[])[1]||'';n=decodeURIComponent(n||'');return /^\/(?!\/)/.test(n)?n:''}
+function nextPath(){var n=(location.search.match(/[?&]next=([^&#]*)/)||[])[1]||'';try{n=decodeURIComponent(n)}catch(e){return ''}if(!/^\/(?![\/\\])/.test(n)||/[\\\s]/.test(n))return '';try{var u=new URL(n,location.origin);return u.origin===location.origin?u.pathname+u.search:''}catch(e){return ''}}
 /* Two forms, one look: «ورود» (mobile → code) and «ثبت‌نام» (name, family name, mobile, city → code).
    mode: 'login' | 'signup'. swap(mode, phone) moves to the other form keeping the typed mobile. */
 function authForm(mode,done,swap,prefill){
@@ -1119,7 +1119,7 @@ function toggleSave(kind,item,btn){
  var list=saves[kind==='like'?'liked':'saved'],on=list.indexOf(item)<0;
  if(on)list.unshift(item);else list.splice(list.indexOf(item),1);
  if(btn){btn.classList.toggle('is-on',on);btn.setAttribute('aria-pressed',String(on))}
- if(kind==='like'&&trend.likes){trend.likes[item]=Math.max(0,(trend.likes[item]||0)+(on?1:-1));var n=btn&&btn.querySelector('.react__n');if(n)n.textContent=trend.likes[item]?fa(trend.likes[item]):''}
+ if(kind==='like'&&trend.likes&&state.verified){trend.likes[item]=Math.max(0,(trend.likes[item]||0)+(on?1:-1));var n=btn&&btn.querySelector('.react__n');if(n)n.textContent=trend.likes[item]?fa(trend.likes[item]):''}
  if(kind==='save')toast(on?'ذخیره شد؛ در پروفایلت می‌بینی':'از ذخیره‌ها برداشته شد');
  ensureSession().then(function(){return api('saves',{kind:kind,item:item,on:on})}).catch(function(e){toast(e.message,'error')});
 }
@@ -1390,6 +1390,7 @@ function renderSteps(){
  bar.replaceChildren(el('div',{class:'steps__top'},[el('div',{class:'wrap steps__topin'},[lineSwitch()])]),el('div',{class:'steps__bottom'},[list]));
 }
 function go(n,quiet){
+ if(n!==3&&state.busy&&state.gen){toast('صبر کن ساخت این عکس تمام شود؛ می‌توانی تب دیگری را امتحان کنی');return}
  if(n===2&&!state.original){toast('اول عکس خودت را اضافه کن');return}
  if(n!==1)state.justUploaded=false;clearTimeout(state.advT);
  state.step=n;renderSteps();renderFlow();renderDock();
@@ -2078,6 +2079,7 @@ function handleFile(file,kind){
  if(STUDIO_PREVIEW){toast('این صفحه برای پیش‌نمایش چیدمان است. برای امتحان روی عکس، دموی سالن ساناز را باز کنید.');return Promise.resolve()}
  if(!file){toast('عکسی انتخاب نشد');return}
  if(['image/jpeg','image/png','image/webp'].indexOf(file.type)<0){toast('فقط JPG، PNG یا WebP','error');return}
+ if(state.busy){toast('صبر کن کار فعلی این بخش تمام شود');return Promise.resolve()}
  var line=state.line,L=function(){return lineRef(line)};
  state.busy=true;renderDock();
  if(kind==='original'){try{if(state.preview)URL.revokeObjectURL(state.preview);state.preview=URL.createObjectURL(file)}catch(e){state.preview=null}state.original=null;state.justUploaded=false;clearTimeout(state.advT);if(state.step!==1){state.step=1;renderSteps()}renderFlow();focusFlow()}
@@ -2182,7 +2184,9 @@ function poll(id,resumed,line){
  function tick(){
   attempts++;
   if(line===state.line)updateProgress();
+  if(L().gen&&L().gen!==id)return;
   return api('generation/'+id).then(function(d){
+   if(L().gen&&L().gen!==id)return;
    L().genState=d.state;
    if(d.state==='success'){
     track('result','',true);

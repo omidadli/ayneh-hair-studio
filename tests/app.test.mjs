@@ -1155,8 +1155,8 @@ test('copy plan: header has the logo, three links and one fixed «مشاهده �
  assert.ok(header,'header exists');
  assert.match(header,/class="brand__mark"/);assert.match(header,/class="brand__word">آینه</);
  const nav=(header.match(/<nav class="nav"[\s\S]*?<\/nav>/)||[])[0];
- assert.equal((nav.match(/<a /g)||[]).length,4,'three menu items and the way to the customer side');
- for(const item of ['#choose">خدمات','#services">تعرفه‌ها','#faq">سؤالات','__MAIN__/">مشتری هستید؟'])assert.ok(nav.includes(item),'home nav '+item);
+ assert.equal((nav.match(/<a /g)||[]).length,3,'three menu items; no link to the customers\' side (owner\'s decision)');
+ for(const item of ['#choose">خدمات','#services">تعرفه‌ها','#faq">سؤالات'])assert.ok(nav.includes(item),'home nav '+item);
  const actions=(header.match(/<div class="header-cta">[\s\S]*?<\/div>/)||[])[0]||'';
  assert.doesNotMatch(actions,/class="btn--login"/,'the header login button was removed by the user');
  assert.match(actions,/class="btn" href="#choose">مشاهده خدمات</,'the fixed button links to the services section');
@@ -3295,7 +3295,6 @@ test('two sites: the main domain is the customers\' studio, business. is the sal
   assert.equal(home.status, 200, 'a customer share link (?r=) stays on the studio');
   const html = await home.text();
   assert.match(html, /روی عکس خودت ببین چی بهت میاد/);
-  assert.ok(html.includes('<meta name="ayneh-biz" content="' + BIZ + '">'), 'a way to the salons\' site');
   assert.ok(html.includes('<link rel="canonical" href="' + origin + '/">'));
   assert.doesNotMatch(html, /__ORIGIN__|__MAIN__|__CANON__/);
   const go = async (u) => { const r = await app.fetch(new Request(u, {redirect: 'manual'}), e); return [r.status, r.headers.get('location')]; };
@@ -3312,7 +3311,7 @@ test('two sites: the main domain is the customers\' studio, business. is the sal
   const biz = await app.fetch(new Request(BIZ + '/?ref=R2345678'), e);
   assert.equal(biz.status, 200);assert.match(biz.headers.get('set-cookie') || '', /ref/i, 'a referral link counts on the salons\' site');
   const bhtml = await biz.text();
-  assert.match(bhtml, /id="services"/);assert.ok(bhtml.includes('href="' + origin + '/">مشتری هستید؟'), 'the way back to the customers\' site');
+  assert.match(bhtml, /id="services"/);assert.doesNotMatch(bhtml, /مشتری هستید؟/, 'each side stands on its own (owner\'s decision)');
   assert.doesNotMatch(bhtml, /__MAIN__|__ORIGIN__|href="\/salons"/);
   for (const p of ['/panel', '/admin']) for (const o of [origin, BIZ]) assert.equal((await app.fetch(new Request(o + p), e)).status, 200, o + p + ' keeps working on both');
 });

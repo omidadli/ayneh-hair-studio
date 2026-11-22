@@ -410,9 +410,16 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  // Mobile verification: a one-time code texted by Melipayamak. Only the hash of the code is stored.
  if(route==='otp/send'){
   must(smsReady(env),'تأیید شماره هنوز فعال نشده است',503);
-  const b=await req.json(),first=text(String(b.first_name||''),40),last=text(String(b.last_name||''),60);
-  must(first.length>=2&&last.length>=2,'نام و نام خانوادگی را کامل بنویس');
+  const b=await req.json();let first=text(String(b.first_name||''),40),last=text(String(b.last_name||''),60);
   const number=phone(b.phone),now=Date.now();
+  /* Sign-in (the studio's «ورود یا ثبت‌نام»): a returning mobile needs no name again. The name she
+     gave before is reused here and never sent back before the code is verified. */
+  if(!first&&!last&&b.signin===true){
+   const known=await one(db,"SELECT verified_name FROM sessions WHERE verified_phone=? AND verified_name<>'' ORDER BY created_at DESC LIMIT 1",number);
+   if(known){const bits=String(known.verified_name).trim().split(/\s+/);first=bits[0]||'';last=bits.slice(1).join(' ')||'-';}
+   else return J({need_name:true});
+  }
+  must(first.length>=2&&last.length>=1,'نام و نام خانوادگی را کامل بنویس');
   const prev=await one(db,'SELECT created_at FROM otps WHERE session_id=? ORDER BY created_at DESC LIMIT 1',s.id);
   must(!prev||now-prev.created_at>=60000,'برای گرفتن دوبارهٔ کد یک دقیقه صبر کن',429);
   await limited(db,'otp-session:'+s.id,5,'چند بار کد گرفتی؛ فردا دوباره امتحان کن');
@@ -438,6 +445,8 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   await run(db,'DELETE FROM otps WHERE session_id=?',s.id);
   return J({ok:true,name,phone:o.phone});
  }
+ /* «خروج از حساب»: this browser forgets the mobile; her coins stay with her mobile for the next sign-in. */
+ if(route==='otp/logout'&&req.method==='POST'){await run(db,'UPDATE sessions SET verified_phone=NULL,verified_name=NULL WHERE id=?',s.id);return J({ok:true})}
  if(route==='requests'){const rows=await all(db,'SELECT id,look,salon_status,handled_at,created_at,follow_chat IS NOT NULL AS followed FROM leads WHERE session_id=? ORDER BY created_at DESC LIMIT 5',s.id);const prof=parse(salon.profile);return J({requests:rows,phone:prof.phone||''});}
  if(route==='leads'&&req.method==='POST'){
   const b=await req.json();must(b.data_consent===true,'رضایت ارسال عکس برای سالن لازم است');must(/^[a-f0-9-]{36}$/.test(b.idem),'شناسه درخواست معتبر نیست');

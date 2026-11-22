@@ -565,7 +565,6 @@ img[loading="lazy"].is-in{opacity:1}
 .head--studio .hero__bar{margin-bottom:6px;min-height:52px}
 .brand--studio{font-size:17px;font-weight:800;color:var(--ink);text-decoration:none;min-height:44px}
 .brand--studio svg{width:24px;height:34px}
-.pro-link{display:inline-flex;align-items:center;min-height:44px;padding:0 4px;font-size:13px;font-weight:600;color:var(--muted);text-decoration:underline;text-underline-offset:4px}
 .coin-pill{display:inline-flex;align-items:center;gap:7px;min-height:44px;padding:0 14px 0 12px;border-radius:999px;border:1.5px solid #E2BC63;background:var(--surface);color:#5B3F0C;font-weight:800;font-size:14px;cursor:pointer;box-shadow:0 4px 14px rgba(20,30,28,.08)}
 .coin-pill__ico,.wallet__coin{display:inline-flex}.coin-pill__ico svg{width:20px;height:20px}
 .coin-pill:active{transform:scale(.97)}
@@ -598,6 +597,33 @@ img[loading="lazy"].is-in{opacity:1}
 .proof__arrow{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--accent);box-shadow:0 4px 12px rgba(10,32,42,.12)}
 .proof__arrow svg{width:16px;height:16px}
 .proof figcaption{font-size:12px;color:var(--muted)}
+.acct-chip{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;font-size:14px;text-decoration:none}
+.acct-chip svg{width:18px;height:18px;color:var(--accent)}
+.acct-chip--in{background:var(--accent-soft,#E4F1EC);border-color:transparent}
+.acct-chip span{max-width:9ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.head--account .wrap{max-width:480px}
+.account{display:grid;gap:14px;justify-items:stretch;margin-top:10px;padding:26px 20px 22px;text-align:center}
+.account__avatar{justify-self:center;width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft,#E4F1EC);color:var(--accent)}
+.account__avatar svg{width:30px;height:30px}
+.account__title{font-family:var(--display);font-size:26px;font-weight:800;color:var(--ink)}
+.account__sub{color:var(--ink-2);font-size:15px;line-height:1.9}
+.account .wallet{text-align:start}
+.account__out{color:var(--muted)}
+.signin{display:grid;gap:12px;text-align:start}
+.signin__form{display:grid;gap:12px}
+.signin__form .field input{font-size:17px;min-height:52px}
+.signin__code{letter-spacing:.5em;text-align:center;font-size:22px!important;font-weight:800}
+.signin__new{font-size:14px;font-weight:700;color:var(--accent-ink,var(--accent))}
+.signin__names{display:grid;gap:10px}
+.signin__names[hidden]{display:none}
+.signin__sent{font-size:14.5px;color:var(--ink-2)}
+.signin__row{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.signin__perks{list-style:none;margin:4px 0 0;padding:14px 0 0;border-top:1px solid var(--line);display:grid;gap:10px;text-align:start}
+.signin__perks li{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--ink-2)}
+.signin__perk-ico{flex:0 0 32px;width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:var(--glass-2,#F3EEE6);color:var(--accent)}
+.signin__perk-ico svg{width:20px;height:20px}
+.signin-sheet .signin__perks{margin-top:8px}
+
 @media (min-width:900px){
  .studio{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);grid-template-areas:"title proof" "tag proof" "wallet proof" "cta proof";column-gap:48px;align-items:start;align-content:start}
  .studio__title{grid-area:title;font-size:44px}.studio__tag{grid-area:tag}.wallet{grid-area:wallet}.studio__cta{grid-area:cta}
@@ -785,9 +811,8 @@ function heroTag(){return {nails:'طرح ناخن بعدی‌ات را روی ع
 var COIN='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="#E9B949" stroke="#B9822E" stroke-width="1.5"/><circle cx="12" cy="12" r="6" fill="none" stroke="#B9822E" stroke-width="1.3"/><path d="M12 8.6v6.8M9.6 10.4 12 8.6l2.4 1.8" fill="none" stroke="#8A5A14" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 var GIFT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8.5" width="17" height="4" rx="1"/><path d="M5 12.5V20h14v-7.5M12 8.5V20M12 8.5S10.8 4 8.3 4a2.2 2.2 0 0 0 0 4.5H12zM12 8.5S13.2 4 15.7 4a2.2 2.2 0 0 1 0 4.5H12z"/></svg>';
 function studio(){return !!(state.pub&&state.pub.direct&&!EMBED)}
-function bizHome(){var m=document.querySelector('meta[name="ayneh-biz"]');return (m&&m.content?m.content:location.protocol+'//business.'+location.host.replace(/^www\./,''))+'/'}
 function openWallet(){if(window.AynehPacks){track('wallet','open');window.AynehPacks.open()}}
-var ctaWatch=null;
+var ctaWatch=null,studioAsked=false;
 function watchCta(){
  if(!('IntersectionObserver' in window))return;
  if(ctaWatch)ctaWatch.disconnect();
@@ -795,11 +820,118 @@ function watchCta(){
  ctaWatch=new IntersectionObserver(function(es){document.body.classList.toggle('cta-on-screen',es[0].isIntersecting)},{threshold:.6});
  ctaWatch.observe(c);
 }
+
+/* ---------- sign-in («ورود یا ثبت‌نام»), studio only ----------
+   One flow for both: her mobile, a texted code, and her name only the first time. No password.
+   Her coins and images follow her mobile, so signing in on another phone brings them along.
+   /login shows it as a page; «بساز» shows the same form in a sheet when she is not signed in. */
+function accountMode(){return studio()&&/^\/login\/?$/.test(location.pathname)}
+function accountChip(){
+ if(state.verified){var nm=String((state.me&&state.me.name)||'').trim().split(/\s+/)[0]||'حساب من';var a=el('a',{class:'acct-chip acct-chip--in',href:'/login','aria-label':'حساب من: '+nm,html:ICO.user});a.append(el('span',{text:nm}));return a}
+ return el('a',{class:'acct-chip',href:'/login?next=/',html:ICO.user+'<span>ورود</span>'})
+}
+function signinForm(done){
+ var box=el('div',{class:'signin'}),timer=null,last=null;
+ var phoneWrap=wrapField('siPhone','شمارهٔ موبایل','tel',(state.me&&state.me.phone)||'','۰۹۱۲ ۱۲۳ ۴۵۶۷',{inputmode:'tel',autocomplete:'tel'});
+ phoneWrap.querySelector('input').setAttribute('dir','ltr');
+ var firstWrap=wrapField('siFirst','نام','text','','',{autocomplete:'given-name'}),lastWrap=wrapField('siLast','نام خانوادگی','text','','',{autocomplete:'family-name'});
+ var names=el('div',{class:'signin__names',hidden:true},[el('p',{class:'signin__new',text:'اولین بارته که میای؛ اسمت رو هم بنویس.'}),firstWrap,lastWrap]);
+ var send=el('button',{class:'btn btn--primary btn--block btn--lg',type:'submit',text:'دریافت کد ورود'});
+ var f1=el('form',{class:'signin__form',novalidate:'true'},[phoneWrap,names,send]);
+ function step1(){clearInterval(timer);box.replaceChildren(f1);setTimeout(function(){var i=phoneWrap.querySelector('input');if(i&&!i.value)i.focus()},60)}
+ f1.addEventListener('submit',function(e){
+  e.preventDefault();
+  var num=normalizePhone(phoneWrap.querySelector('input').value);
+  if(!validate(phoneWrap,function(){return /^\+989\d{9}$/.test(num)},'شمارهٔ موبایل درست نیست؛ مثل ۰۹۱۲۱۲۳۴۵۶۷'))return;
+  var body={phone:num,signin:true};
+  if(!names.hidden){
+   var first=firstWrap.querySelector('input').value.trim(),lastName=lastWrap.querySelector('input').value.trim();
+   var a=validate(firstWrap,function(){return first.length>=2},'نام را بنویس'),b=validate(lastWrap,function(){return lastName.length>=2},'نام خانوادگی را بنویس');
+   if(!a||!b)return;body.first_name=first;body.last_name=lastName;delete body.signin;
+  }
+  send.disabled=true;send.textContent='در حال فرستادن…';
+  ensureSession().then(function(){return api('otp/send',body)}).then(function(d){
+   send.disabled=false;send.textContent='دریافت کد ورود';
+   if(d&&d.need_name){names.hidden=false;send.textContent='ثبت‌نام و دریافت کد';setTimeout(function(){firstWrap.querySelector('input').focus()},60);return}
+   last={body:body,shown:'0'+num.slice(3)};step2();
+  }).catch(function(err){send.disabled=false;send.textContent=names.hidden?'دریافت کد ورود':'ثبت‌نام و دریافت کد';toast(err.message,'error')});
+ });
+ function step2(){
+  var codeWrap=wrapField('siCode','کد ۵ رقمی','text','','',{autocomplete:'one-time-code',inputmode:'numeric'});
+  var input=codeWrap.querySelector('input');input.setAttribute('dir','ltr');input.classList.add('signin__code');
+  var verify=el('button',{class:'btn btn--primary btn--block btn--lg',type:'submit',text:'ورود'});
+  var again=el('button',{class:'btn btn--ghost btn--sm',type:'button',disabled:true,text:''});
+  var edit=el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'ویرایش شماره',onclick:step1});
+  var f2=el('form',{class:'signin__form',novalidate:'true'},[el('p',{class:'signin__sent'},['کد به ',el('b',{dir:'ltr',text:fa0(last.shown)}),' پیامک شد.']),codeWrap,verify,el('div',{class:'signin__row'},[again,edit])]);
+  box.replaceChildren(f2);
+  var left=60;function tick(){if(!box.isConnected){clearInterval(timer);return}again.disabled=left>0;again.textContent=left>0?'ارسال دوباره تا '+fa(left)+' ثانیه':'ارسال دوبارهٔ کد';if(left>0)left--}
+  clearInterval(timer);tick();timer=setInterval(tick,1000);setTimeout(function(){input.focus()},60);
+  again.addEventListener('click',function(){again.disabled=true;api('otp/send',last.body).then(function(){left=60;toast('کد تازه فرستاده شد')}).catch(function(err){toast(err.message,'error')})});
+  /* A full code submits itself (iOS fills it from the SMS). */
+  input.addEventListener('input',function(){var v=normalizeDigits(input.value).replace(/\D/g,'');if(v.length>=5&&!verify.disabled)f2.requestSubmit?f2.requestSubmit():verify.click()});
+  f2.addEventListener('submit',function(e){
+   e.preventDefault();var code=normalizeDigits(input.value).replace(/\D/g,'');
+   if(!validate(codeWrap,function(){return /^\d{3,12}$/.test(code)},'کد را همان‌طور که پیامک شده بنویس'))return;
+   verify.disabled=true;verify.textContent='در حال ورود…';
+   api('otp/verify',{code:code}).then(function(d){
+    clearInterval(timer);state.verified=true;
+    state.me=Object.assign({},state.me||{},{name:d.name,phone:'0'+String(d.phone).replace(/^\+98/,'')});
+    try{localStorage.setItem('ayneh-me',JSON.stringify(state.me))}catch(err){}
+    track('cta','signin');loadSession().catch(function(){}).then(function(){paintWallet(true);done(d)});
+   }).catch(function(err){verify.disabled=false;verify.textContent='ورود';toast(err.message,'error')});
+  });
+ }
+ step1();
+ return box;
+}
+function normalizeDigits(v){return String(v||'').replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d)})}
+var SIGNIN_PERKS=[['coin','سکه‌ها و عکس‌هات روی هر گوشی همراهت می‌مونه'],['lock','رمز نمی‌خواد؛ هر بار یه کد پیامکی'],['gift','۲ عکس اول رایگانه']];
+function perks(){return el('ul',{class:'signin__perks'},SIGNIN_PERKS.map(function(p){return el('li',{},[el('span',{class:'signin__perk-ico',html:p[0]==='coin'?COIN:p[0]==='gift'?GIFT:ICO.lock}),el('span',{text:p[1]})])}))}
+function openSignin(next){
+ var panel=el('div',{class:'sheet__panel signin-sheet'});
+ var head=el('div',{class:'sheet__head'},[h('h2','ورود یا ثبت‌نام'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]);
+ panel.append(head,h('p','برای ساخت عکس، با شمارهٔ موبایلت وارد شو. یه کد پیامکی برات می‌فرستیم؛ رمز لازم نیست.','muted'),signinForm(function(){closeSheet();renderHead();toast('خوش اومدی');if(next)next()}),perks());
+ openSheet(panel);
+}
+function renderAccount(){
+ ['#steps','#flow','#side','#dock','#invite','#mine'].forEach(function(q){var n=$(q);if(n)n.hidden=true});
+ var head=$('#head');head.classList.add('head--studio','head--account');
+ var bar=el('div',{class:'hero__bar'},[el('a',{class:'brand brand--studio',href:'/','aria-label':'آینه، صفحهٔ اصلی',html:MARK+'<span>آینه</span>'}),el('div',{class:'hero__tools'},[el('a',{class:'btn btn--ghost btn--sm',href:'/',html:ICO.arrow+'<span>برگشت به استودیو</span>'})])]);
+ var next=(location.search.match(/[?&]next=(\/[^&#]*)/)||[])[1]||'/';if(!/^\/(?!\/)/.test(next))next='/';
+ var card=el('section',{class:'account panel','aria-labelledby':'acctTitle'});
+ function signedIn(){
+  var me=state.me||{};
+  var w=el('div',{class:'wallet',id:'wallet'});
+  card.replaceChildren(
+   el('span',{class:'account__avatar',html:ICO.user}),
+   el('h1',{id:'acctTitle',class:'account__title',text:'سلام '+(String(me.name||'').trim().split(/\s+/)[0]||'')}),
+   el('p',{class:'account__sub'},['با شمارهٔ ',el('b',{dir:'ltr',text:fa0(me.phone||'')}),' وارد شدی.']),
+   w,
+   el('a',{class:'btn btn--primary btn--block btn--lg',href:'/',html:ICO.camera+'<span>برگشت به استودیو</span>'}),
+   el('button',{class:'btn btn--soft btn--block',type:'button',onclick:openWallet,html:'<span class="coin-pill__ico">'+COIN+'</span><span>شارژ کیف سکه</span>'}),
+   el('button',{class:'btn btn--ghost btn--block account__out',type:'button',text:'خروج از حساب',onclick:function(e){var b=e.currentTarget;b.disabled=true;api('otp/logout',{}).then(function(){state.verified=false;state.me={};try{localStorage.removeItem('ayneh-me')}catch(x){}walletData=null;toast('از حساب خارج شدی');signedOut()}).catch(function(err){b.disabled=false;toast(err.message,'error')})}})
+  );
+  paintWallet(true);
+ }
+ function signedOut(){
+  card.replaceChildren(
+   el('span',{class:'account__avatar',html:ICO.user}),
+   el('h1',{id:'acctTitle',class:'account__title',text:'ورود یا ثبت‌نام'}),
+   el('p',{class:'account__sub',text:'با شمارهٔ موبایلت وارد شو؛ اگه بار اولته، همین‌جا حسابت ساخته می‌شه.'}),
+   state.pub.otp?signinForm(function(){location.href=next}):el('p',{class:'notice notice--info',text:'ورود با شماره موبایل به‌زودی فعال می‌شود. تا آن موقع سکه‌ها و عکس‌هایت در همین مرورگر می‌مانند.'}),
+   perks()
+  );
+ }
+ head.replaceChildren(el('div',{class:'wrap'},[bar,card]));
+ var foot=$('#foot');if(foot)foot.textContent=STUDIO_PRIVACY;
+ document.title='ورود یا ثبت‌نام | آینه';
+ ensureSession().then(function(){state.verified?signedIn():signedOut()}).catch(function(){signedOut()});
+}
 function renderStudioHead(){
  var head=$('#head');head.classList.add('head--studio');
  var foot=$('#foot');if(foot)foot.textContent='نتیجه یک پیش‌نمایش پیشنهادی است و اجرای دقیق آرایشگر را تضمین نمی‌کند. '+STUDIO_PRIVACY;
  var pill=el('button',{class:'coin-pill',type:'button',onclick:openWallet,title:'کیف سکه'},[el('span',{class:'coin-pill__ico',html:COIN}),el('span',{id:'coinPill',text:'کیف سکه'})]);
- var bar=el('div',{class:'hero__bar'},[el('a',{class:'brand brand--studio',href:'/','aria-label':'آینه، صفحهٔ اصلی',html:MARK+'<span>آینه</span>'}),el('div',{class:'hero__tools'},[el('a',{class:'pro-link',href:bizHome(),text:'آرایشگر هستید؟'}),pill])]);
+ var bar=el('div',{class:'hero__bar'},[el('a',{class:'brand brand--studio',href:'/','aria-label':'آینه، صفحهٔ اصلی',html:MARK+'<span>آینه</span>'}),el('div',{class:'hero__tools'},[accountChip(),pill])]);
  var body=el('div',{class:'studio'},[
   el('h1',{class:'studio__title',text:'روی عکس خودت ببین چی بهت میاد'}),
   el('p',{class:'studio__tag',text:'مدل مو، رنگ مو، ناخن و مژه؛ قبل از اینکه بری آرایشگاه. بدون نصب، فقط با یه عکس.'}),
@@ -810,6 +942,8 @@ function renderStudioHead(){
  ]);
  head.replaceChildren(el('div',{class:'wrap'},[bar,body]));
  paintWallet(false);watchCta();
+ /* Signed in on this browser before? Ask once, so her name and gift line are right from the start. */
+ if(!state.session&&!studioAsked){studioAsked=true;loadSession().catch(function(){})}
 }
 /* Proof before the first tap: a real before/after of the chosen service (the landing's sample pair). */
 var PROOF={hair:['style','مدل مو'],color:['color','رنگ مو'],nails:['nails','ناخن'],lashes:['lashes','مژه']};
@@ -839,7 +973,7 @@ function drawWallet(d){
  /* A newcomer's pill shows what she has (her gift), never an empty «۰ سکه». */
  if(pill)pill.textContent=coins<=0&&free>0?fa(free)+' عکس هدیه':fa(coins)+' سکه';
  var rows=[];
- if(free>0)rows.push(el('div',{class:'wallet__gift'},[el('span',{class:'wallet__gift-ico',html:GIFT}),el('div',{},[el('b',{text:fa(free)+' عکس اول رایگانه'}),el('small',{text:'بدون ثبت‌نام. بعدش هر عکس '+fa(per)+' سکه ('+fa(d.image_price||50000)+' تومان).'})])]));
+ if(free>0)rows.push(el('div',{class:'wallet__gift'},[el('span',{class:'wallet__gift-ico',html:GIFT}),el('div',{},[el('b',{text:fa(free)+' عکس اول رایگانه'}),el('small',{text:(state.pub.otp&&!state.verified?'فقط با تأیید شمارهٔ موبایل؛ بدون رمز. ':'')+'بعدش هر عکس '+fa(per)+' سکه ('+fa(d.image_price||50000)+' تومان).'})])]));
  var main=el('div',{class:'wallet__main'},[
   el('span',{class:'wallet__coin',html:COIN}),
   el('div',{class:'wallet__txt'},[el('b',{text:fa(coins)+' سکه'}),el('small',{text:imgs>0?('برای '+fa(imgs)+' عکس'+(free>0?' بعد از هدیه‌ها':'')):(coins>0?fa(per-coins%per)+' سکهٔ دیگه تا عکس بعدی':'هر عکس '+fa(per)+' سکه؛ '+fa(d.image_price||50000)+' تومان')})]),
@@ -950,7 +1084,7 @@ function switchLine(to,opts){
  renderAll();
  if(!(opts&&opts.silent)&&from!==to&&opts&&opts.scroll)focusFlow();
 }
-function renderAll(){renderHead();renderSteps();renderFlow();renderSide();renderDock()}
+function renderAll(){if(accountMode()){renderAccount();return}renderHead();renderSteps();renderFlow();renderSide();renderDock()}
 function lineSwitch(){
  var bar=el('div',{class:'linesw',role:'tablist','aria-label':'خدمت'});
  LINE_LIST.forEach(function(x){
@@ -1548,7 +1682,7 @@ function downloadLink(cls,label){
 }
 function stepResult(){
  var box=el('div',{class:'panel flow'}),L=state.line;
- box.append(flowHead(state.result?({color:'خودت با رنگ جدید',nails:'ناخن‌هایت با طرح جدید',lashes:'خودت با مژهٔ جدید'}[L]||'خودت با مدل جدید'):state.busy?'دارم می‌سازم…':'نتیجه و ارسال','این تصویر یک شبیه‌سازی پیشنهادی است، نه تضمین اجرا. تصمیم نهایی با '+artist()+' است.'));
+ box.append(flowHead(state.result?({color:'خودت با رنگ جدید',nails:'ناخن‌هایت با طرح جدید',lashes:'خودت با مژهٔ جدید'}[L]||'خودت با مدل جدید'):state.busy?'دارم می‌سازم…':(studio()?'نتیجه':'نتیجه و ارسال'),'این تصویر یک شبیه‌سازی پیشنهادی است، نه تضمین اجرا. تصمیم نهایی با '+artist()+' است.'));
  var meta=L==='hair'?(state.pub.demo&&state.color?'رنگ: '+state.color:'رنگ موهایت همان می‌ماند'):L==='color'?(baseId()?'روی مدل موی جدیدت':'روی عکس اصلی‌ات'):(state.color?'رنگ: '+state.color:'رنگ: هر چه به طرح بیاید');
  box.append(el('div',{class:'summary'},[
   state.original?el('img',{src:media(state.original),alt:''}):null,
@@ -1617,6 +1751,7 @@ function fa0(v){return String(v).replace(/^\+98/,'0').replace(/\d/g,function(d){
 
 /* ---------- dock ---------- */
 function renderDock(){
+ if(accountMode()){var dk=$('#dock');if(dk)dk.hidden=true;return}
  var dock=$('#dock');
  var inner=el('div',{class:'dock__inner'});
  var hint='',primary=null;
@@ -1696,7 +1831,7 @@ function generate(){
  if(state.pub.otp&&!state.verified){
   ensureSession().then(function(){
    if(state.verified){generate();return}
-   openOtp(generate);
+   if(studio())openSignin(generate);else openOtp(generate);
   }).catch(function(e){toast(e.message,'error')});
   return;
  }
@@ -2000,6 +2135,8 @@ function applyVerified(d){
  if(!d||!d.verified)return;
  state.verified=true;
  state.me=Object.assign({},state.me||{},{name:d.name||'',phone:d.phone?'0'+String(d.phone).replace(/^\+98/,''):''});
+ /* The studio header was drawn before the session answered: show her name now. */
+ var chip=document.querySelector('.head--studio .acct-chip');if(chip&&!accountMode())chip.replaceWith(accountChip());
 }
 function needsVerify(msg){return /را تأیید کن/.test(String(msg||''))}
 function openOtp(next){
@@ -2177,6 +2314,7 @@ function shareUrl(){if(STUDIO_PREVIEW)return 'https://ayneh-salon.site/s/'+state
 function shareText(){if(studio())return 'این رو ببین! توی «آینه» می‌تونی مدل مو، رنگ، ناخن و مژهٔ جدید رو روی عکس خودت ببینی؛ ۲ عکس اولش هدیه‌ست 👇';return 'این رو ببین! توی صفحهٔ «'+state.pub.salon.name+'» می‌تونی '+offerText(1)+' جدید رو روی عکس خودت امتحان کنی؛ رایگان و بدون نصب 👇'}
 function renderInvite(){
  var box=$('#invite');if(!box||!state.pub)return;
+ if(accountMode()){box.hidden=true;return}
  var pics=el('span',{class:'invite__pics','aria-hidden':'true'});
  ['03','09','15'].forEach(function(n){var i=el('img',{src:'/catalog/'+n+'.webp',alt:'',loading:'lazy'});i.addEventListener('error',function(){i.replaceWith(el('span'))});pics.append(i)});
  var b=el('button',{class:'invite',type:'button',onclick:function(){track('share_open');openShare()}},[

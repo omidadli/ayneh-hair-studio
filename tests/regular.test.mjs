@@ -43,11 +43,10 @@ test('the customers\' studio («/» of the main domain) is the direct salon\'s o
  const res=await app.fetch(new Request(origin+'/'),e);assert.equal(res.status,200);const html=await res.text();
  assert.match(html,/<meta name="ayneh-slug" content="try">/,'the page runs on the direct salon');
  assert.match(html,/<title>آینه \| روی عکس خودت ببین چی بهت میاد<\/title>/);
- assert.ok(html.includes('<meta name="ayneh-biz" content="https://business.test.example">'),'the way to the salons\' site');
  assert.ok(html.includes('window.AynehPacks='),'the coin sheet');
  assert.doesNotMatch(html,/<iframe/,'one page, no frame');
  // The studio's words live in the page script (studio mode), the sheet's in the pack script.
- for(const t of ['روی عکس خودت ببین چی بهت میاد','عکس اول رایگانه','آرایشگر هستید؟','عکس‌های هدیه‌ات تموم شد.','شارژ کیف سکه','این عکس فقط برای خودته.','لینک آینه را برایشان بفرست؛ ۲ عکس اول برای آن‌ها هم هدیه است','مبلغ دلخواه','سکه‌ها به کیف شما اضافه شد.','کپی به ریال'])
+ for(const t of ['روی عکس خودت ببین چی بهت میاد','عکس اول رایگانه','ورود یا ثبت‌نام','دریافت کد ورود','اولین بارته که میای؛ اسمت رو هم بنویس.','خروج از حساب','عکس‌های هدیه‌ات تموم شد.','شارژ کیف سکه','این عکس فقط برای خودته.','لینک آینه را برایشان بفرست؛ ۲ عکس اول برای آن‌ها هم هدیه است','مبلغ دلخواه','سکه‌ها به کیف شما اضافه شد.','کپی به ریال'])
   assert.ok(html.includes(t),'copy: '+t);
  // what a salon buys is a «پلن» (AGENTS.md); the photo line says where the photo goes, honestly
  assert.doesNotMatch(html,/پنل آینه بگیرد|فقط برای ساخت همین نمونه/);
@@ -246,4 +245,28 @@ test('studio gifts: one connection gets at most 6 gift images a day, whatever th
   assert.equal(r,false,'already credited under the old reason');
   assert.equal(e.DB.sql.prepare("SELECT SUM(delta) n FROM customer_ledger WHERE account_id='accx'").get().n,150);
  }finally{p.restore()}
+});
+
+test('studio sign-in («ورود یا ثبت‌نام»): mobile + texted code, name only the first time; signing in elsewhere brings her coins; sign-out forgets the mobile here',async()=>{
+ const e=fixture();e.MELIPAYAMAK_TOKEN='dev-mock';
+ const page=await app.fetch(new Request(origin+'/login'),e);assert.equal(page.status,200);
+ const html=await page.text();assert.match(html,/<title>ورود یا ثبت‌نام \| آینه<\/title>/);assert.match(html,/noindex/);
+ const g=await guest(e,'try'),v='a'.repeat(32);
+ let r=await call(e,'/api/s/try/otp/send',{phone:'09121234567',signin:true},g);
+ assert.equal(r.status,200);assert.equal(r.data.need_name,true,'a new mobile is asked for a name');
+ r=await call(e,'/api/s/try/otp/send',{phone:'09121234567',first_name:'سارا',last_name:'رضایی'},g);assert.equal(r.status,200);
+ r=await call(e,'/api/s/try/otp/verify',{code:'12345'},g);assert.equal(r.status,200);assert.equal(r.data.name,'سارا رضایی');
+ // her coins (bought on this phone)
+ const acc=(await call(e,'/api/c/me?v='+v+'&ref=1',undefined,g));assert.equal(acc.status,200);
+ const id=e.DB.sql.prepare("SELECT id FROM customer_accounts WHERE phone='+989121234567'").get().id;
+ e.DB.sql.prepare("INSERT INTO customer_ledger(id,account_id,delta,reason,order_id,created_at) VALUES('x1',?,125,'topup','o1',0)").run(id);
+ // another phone: no name needed, and the name is not revealed before the code
+ const g2=await guest(e,'try'),v2='b'.repeat(32);
+ r=await call(e,'/api/s/try/otp/send',{phone:'09121234567',signin:true},g2);assert.equal(r.status,200);assert.equal(r.data.need_name,undefined);assert.doesNotMatch(JSON.stringify(r.data),/سارا/);
+ r=await call(e,'/api/s/try/otp/verify',{code:'12345'},g2);assert.equal(r.data.name,'سارا رضایی');
+ assert.equal((await call(e,'/api/c/me?v='+v2,undefined,g2)).data.own.coins,125,'her coins follow her mobile');
+ // sign out: this browser forgets her
+ assert.equal((await call(e,'/api/s/try/otp/logout',{},g2)).status,200);
+ assert.equal((await call(e,'/api/s/try/session?v='+v2,undefined,g2)).data.verified,false);
+ assert.equal((await call(e,'/api/c/me?v='+v2,undefined,g2)).data.own.coins,0);
 });

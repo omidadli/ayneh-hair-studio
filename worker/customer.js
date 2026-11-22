@@ -655,7 +655,7 @@ img[loading="lazy"].is-in{opacity:1}
 
 @media (min-width:900px){
  .studio{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);grid-template-areas:"title proof" "tag proof" "wallet proof" "cta proof";column-gap:48px;align-items:start;align-content:start}
- .studio>.studio__title{grid-area:title;font-size:44px}.studio>.studio__tag{grid-area:tag}.studio>.wallet{grid-area:wallet}.studio>.studio__cta{grid-area:cta}.studio>.album{grid-column:1/-1}
+ .studio>.studio__title{grid-area:title;font-size:44px}.studio>.studio__tag{grid-area:tag}.studio>.wallet{grid-area:wallet}.studio>.studio__cta{grid-area:cta}.studio>.album,.studio>.trend{grid-column:1/-1;margin-top:18px}
  .studio>.proof{grid-area:proof;align-self:center}.proof__pair{max-width:none}.proof__img{max-height:340px}
 }
 /* While the start button is on screen the dock would repeat it (and cover it on small phones). */
@@ -943,7 +943,7 @@ function accountPage(){var m=location.pathname.match(/^\/(login|signup|profile)\
 function accountMode(){return studio()&&!!accountPage()}
 function accountChip(){
  if(state.verified){var nm=String((state.me&&state.me.name)||'').trim().split(/\s+/)[0]||'حساب من';var a=el('a',{class:'acct-chip acct-chip--in',href:'/profile','aria-label':'حساب من: '+nm,html:ICO.user});a.append(el('span',{text:nm}));return a}
- return el('a',{class:'acct-chip',href:'/login?next=/',html:ICO.user+'<span>ورود / ثبت‌نام</span>'})
+ return el('a',{class:'acct-chip',href:'/login?next=/',html:ICO.user+'<span>ورود</span>'})
 }
 var CITIES=['تهران','مشهد','اصفهان','کرج','شیراز','تبریز','قم','اهواز','کرمانشاه','ارومیه','رشت','زاهدان','همدان','کرمان','یزد','اردبیل','بندرعباس','اراک','زنجان','سنندج','قزوین','خرم‌آباد','گرگان','ساری','بجنورد','بوشهر','بیرجند','ایلام','شهرکرد','یاسوج','سمنان','کاشان','نیشابور','سبزوار','آمل','بابل','دزفول','کیش','خارج از ایران'];
 function nextPath(){var n=(location.search.match(/[?&]next=(\/[^&#]*)/)||[])[1]||'';n=decodeURIComponent(n||'');return /^\/(?!\/)/.test(n)?n:''}
@@ -1210,7 +1210,7 @@ function drawTrend(){
  box.replaceChildren(el('div',{class:'album__head'},[el('h2',{html:'<span class="trend__ico">'+ICO.fire+'</span>ترند این هفته'}),el('span',{text:'پرطرفدارترین‌های آینه'})]),
   el('div',{class:'trend__strip'},items.map(function(it){var key=it.line+':'+it.i;
    var b=el('button',{class:'trend__item',type:'button','aria-label':it.name+' · '+LINES.label[it.line],onclick:function(){openTrend(it)}},[el('img',{src:it.img,alt:'',loading:'lazy',decoding:'async'}),el('span',{class:'trend__name',text:it.name}),el('span',{class:'trend__line',text:LINES.label[it.line]})]);
-   return el('div',{class:'trend__wrap'},[b,reactBtns(key)])})));
+   var w=el('div',{class:'trend__wrap'},[b,reactBtns(key)]);b.querySelector('img').addEventListener('error',function(){w.remove()});return w})));
 }
 function openTrend(it){
  track('cta','trend:'+it.line+':'+it.i);
@@ -1355,7 +1355,11 @@ function switchLine(to,opts){
  document.body.setAttribute('data-line',to);
  var sb=$('#steps'),y0=sb?sb.getBoundingClientRect().top:0;
  renderAll();
- if(sb&&!(opts&&opts.scroll)){var y1=sb.getBoundingClientRect().top;if(Math.abs(y1-y0)>2)window.scrollBy(0,y1-y0)}
+ if(sb&&!(opts&&opts.scroll)){
+  /* Bar stuck at the top (she was deep in the page): open the new tab at its start, under the bar. */
+  if(y0<=2){var fl=$('#flow');if(fl){var bh=sb.getBoundingClientRect().height;window.scrollTo(0,Math.max(0,fl.getBoundingClientRect().top+window.pageYOffset-bh-8))}}
+  else{var y1=sb.getBoundingClientRect().top;if(Math.abs(y1-y0)>2)window.scrollBy(0,y1-y0)}
+ }
  if(!(opts&&opts.silent)&&from!==to&&opts&&opts.scroll)focusFlow();
 }
 function renderAll(){if(accountMode()){renderAccount();return}renderHead();renderSteps();renderFlow();renderSide();renderDock()}
@@ -1599,7 +1603,8 @@ function stepModel(){
    var pic=el('img',{src:catalogImg(i),alt:'',loading:'lazy',decoding:'async'});
    var art=el('span',{class:'style-card__art'},[pic]);
    if(L==='color'){var sw=cat.swatches[i].split(',');art.classList.add('style-card__art--sw');art.style.background=sw.length>1?'linear-gradient(180deg,'+sw[0]+' 0 35%,'+sw[1]+' 100%)':sw[0];art.append(el('span',{class:'style-card__dot',style:'background:'+(sw[1]||sw[0])}))}
-   pic.addEventListener('error',function(){art.classList.add('is-missing');pic.remove()});
+   /* A look whose photo is not made yet stays hidden (hair colour still shows its swatch). */
+   pic.addEventListener('error',function(){art.classList.add('is-missing');pic.remove();if(L!=='color'&&!on){var w=art.closest('.style-wrap')||art.closest('.style-card');if(w)w.remove()}});
    var card=el('button',{class:'style-card'+(on?' is-on':''),type:'button','aria-pressed':on?'true':'false'},[
     art,
     el('span',{class:'style-card__body'},[el('span',{class:'style-card__name',text:s[0]}),el('span',{class:'style-card__tag',text:s[2]})])
@@ -2044,6 +2049,8 @@ function renderDock(){
  var dock=$('#dock');
  var inner=el('div',{class:'dock__inner'});
  var hint='',primary=null;
+ /* Studio: one action at a time — the fixed bar is only «بساز» (step 2, a look picked); photo and result actions live in the page. */
+ if(studio()&&state.step!==2){dock.hidden=true;dock.classList.remove('is-in');return}
  if(state.step===1){
   hint=state.original?'عکس آماده است':(state.line==='nails'?'برای شروع، عکس دستت را اضافه کن':'برای شروع، عکس خودت را اضافه کن');
   if(state.busy&&!state.original){hint='در حال بارگذاری عکس…';primary=el('button',{class:'btn btn--primary',type:'button',disabled:true,text:'در حال بارگذاری…'})}

@@ -65,6 +65,9 @@ a.hchip,button.hchip{cursor:pointer}a.hchip:hover,button.hchip:hover{border-colo
 .flow__sub{font-size:13.5px;color:var(--muted);margin-top:4px;max-width:58ch;line-height:1.85}
 .flow__nav{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
 .flow__nav .btn--primary{flex:1;min-width:180px}
+.dock.is-in{animation:dockIn .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes dockIn{from{transform:translateY(110%)}}
+@media (prefers-reduced-motion:reduce){.dock.is-in{animation:none}}
 
 /* ---------- step 1: the empty mirror ---------- */
 .shoot{display:grid;gap:22px}
@@ -106,6 +109,11 @@ a.hchip,button.hchip{cursor:pointer}a.hchip:hover,button.hchip:hover{border-colo
 .linesw__btn{min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:6px 8px;white-space:nowrap;border:0;border-radius:999px;background:transparent;color:var(--ink-2);font:inherit;font-size:14px;font-weight:700;cursor:pointer;transition:background .2s var(--ease),color .2s var(--ease),box-shadow .2s var(--ease)}
 .linesw__btn svg{width:22px;height:22px;padding:3px;border-radius:50%;background:linear-gradient(145deg,#fff8ed,#e5cda4);color:#165d4b;box-shadow:inset 0 1px 2px #fff,0 3px 6px rgba(66,45,22,.25)}
 .linesw__btn:hover{color:var(--ink)}
+.linesw__btn{position:relative}
+.linesw__btn.is-busy::after,.linesw__btn.is-ready::after{content:'';position:absolute;top:6px;left:8px;width:8px;height:8px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px #fff}
+.linesw__btn.is-busy::after{animation:lsPulse 1.2s ease-in-out infinite}
+@keyframes lsPulse{50%{opacity:.3}}
+@media (prefers-reduced-motion:reduce){.linesw__btn.is-busy::after{animation:none}}
 .linesw__btn.is-on{color:#fff}
 .linesw__btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .opt{margin-top:16px}.opt .lbl{margin-bottom:6px}
@@ -597,6 +605,8 @@ img[loading="lazy"].is-in{opacity:1}
 .proof__arrow{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--accent);box-shadow:0 4px 12px rgba(10,32,42,.12)}
 .proof__arrow svg{width:16px;height:16px}
 .proof figcaption{font-size:12px;color:var(--muted)}
+.compare--hero{aspect-ratio:4/5;max-height:min(46vh,460px);width:100%}
+.compare--hero img{object-fit:cover;object-position:50% 22%}
 
 .album{display:grid;gap:10px;margin-top:4px}
 .album__head{display:flex;align-items:center;gap:10px}
@@ -654,125 +664,6 @@ body.cta-on-screen #dock{transform:translateY(130%);opacity:0;pointer-events:non
 @media (prefers-reduced-motion:reduce){#dock{transition:none}}
 .btn .coin-pill__ico svg{width:20px;height:20px}
 
-/* ======================================================================================
-   STUDIO DESIGN SYSTEM (the customers' site). Editorial and flat: warm ivory paper, white
-   cards with hairline borders, ink primary actions, emerald for selection and links, gold
-   only for coins and gifts. No glass, no glow, no gradients on controls. Scoped to
-   body.is-studio so salon pages keep their own look.
-   ====================================================================================== */
-body.is-studio{
- --st-bg:#FAF8F5;--st-paper:#FFFFFF;--st-ink:#171513;--st-ink-2:#3D3833;--st-muted:#6E675F;--st-line:#E9E3DA;--st-line-2:#F1ECE5;
- --st-accent:#0D6B57;--st-accent-ink:#0A5444;--st-accent-soft:#E8F3EF;--st-gold:#B8892F;--st-gold-soft:#FAF2E1;--st-gold-line:#EBD9B2;
- --ink:var(--st-ink);--ink-2:var(--st-ink-2);--muted:var(--st-muted);--line:var(--st-line);--line-2:var(--st-line-2);
- --surface:var(--st-paper);--surface-2:#F6F2EC;--glass:var(--st-bg);--glass-2:#F2EDE6;--accent:var(--st-accent);--accent-ink:var(--st-accent-ink);--accent-soft:var(--st-accent-soft);--accent-ring:rgba(13,107,87,.22);
- --r:18px;--r-lg:24px;--lift:none;--float:0 -1px 0 var(--st-line);
- background:var(--st-bg)!important;color:var(--st-ink);
-}
-body.is-studio :is(.panel,.flow,.side,.sheet__panel,.summary,.picked,.stage,.selfie,.demo,.upload,.tips,.tip,.next-line,.result-actions,.build,.invite,.mirror){background-image:none!important;box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
-body.is-studio .panel{background:var(--st-paper)!important;border:1px solid var(--st-line)!important;border-radius:24px!important;padding:22px 18px}
-@media (min-width:720px){body.is-studio .panel{padding:28px}}
-/* type */
-body.is-studio .flow__title{font-family:var(--display);font-size:22px;font-weight:800;line-height:1.45;color:var(--st-ink)}
-body.is-studio .flow__sub,body.is-studio .muted,body.is-studio .fine-print{color:var(--st-muted)}
-/* buttons: flat; ink primary; quiet secondary */
-body.is-studio .btn{background-image:none!important;box-shadow:none!important;text-shadow:none!important;border-radius:14px;font-weight:700;transition:background-color .15s,border-color .15s,transform .1s}
-body.is-studio .btn:active{transform:scale(.985)}
-body.is-studio :is(.btn--primary,.btn--build){background:var(--st-ink)!important;background-color:var(--st-ink)!important;color:#fff!important;border-color:var(--st-ink)!important}
-body.is-studio :is(.btn--primary,.btn--build):hover{background:#2B2622!important}
-body.is-studio :is(.btn--primary,.btn--build)[disabled]{background:#CFC8BF!important;border-color:#CFC8BF!important;color:#fff!important;opacity:1!important}
-body.is-studio .btn--soft{background:var(--surface-2)!important;color:var(--st-ink)!important;border:1px solid var(--st-line)!important}
-body.is-studio .btn--ghost{background:transparent!important;color:var(--st-ink-2)!important;border:1px solid var(--st-line)!important}
-body.is-studio .btn--lg{min-height:54px;font-size:16px}
-body.is-studio .btn svg{filter:none!important}
-body.is-studio .btn::after,body.is-studio .btn::before,body.is-studio .linesw__btn::after,body.is-studio .linesw__btn::before{content:none!important;display:none!important}
-/* top bar */
-body.is-studio .head--studio{background:transparent!important;padding-top:0}
-body.is-studio .head--studio .hero__bar{position:sticky;top:0;z-index:30;margin:0 -16px 8px;padding:8px 16px;background:rgba(250,248,245,.9);-webkit-backdrop-filter:saturate(1.4) blur(12px);backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid transparent}
-body.is-studio .brand--studio{font-size:18px;letter-spacing:-.01em}
-body.is-studio .acct-chip{border:1px solid var(--st-line);background:var(--st-paper);font-size:13.5px;min-height:40px;padding:0 12px}
-body.is-studio .acct-chip--in{background:var(--st-accent-soft);border-color:transparent;color:var(--st-accent-ink)}
-body.is-studio .acct-chip svg{color:currentColor}
-body.is-studio .coin-pill{min-height:40px;border:1px solid var(--st-gold-line);background:var(--st-gold-soft);color:#6A4B12;box-shadow:none;font-size:13.5px;padding:0 12px 0 10px}
-body.is-studio .coin-pill__ico svg{width:18px;height:18px}
-/* hero */
-body.is-studio .studio{gap:14px;padding-top:4px}
-body.is-studio .studio__title{font-size:clamp(28px,7.6vw,46px);line-height:1.32;letter-spacing:-.015em;color:var(--st-ink)}
-body.is-studio .studio__tag{font-size:15.5px;line-height:1.9;color:var(--st-muted);max-width:44ch}
-body.is-studio .proof{margin:4px 0 0;gap:8px}
-body.is-studio .compare--hero{aspect-ratio:4/5;max-height:min(46vh,460px);width:100%;border-radius:24px!important;background:var(--glass-2);box-shadow:none}
-body.is-studio .compare--hero img{object-fit:cover;object-position:50% 22%}
-body.is-studio .proof figcaption{font-size:12.5px;color:var(--st-muted);text-align:center}
-body.is-studio .compare__tag{background:rgba(23,21,19,.72)!important;color:#fff!important;border:0!important;box-shadow:none!important;font-weight:700;backdrop-filter:none!important}
-body.is-studio .compare__tag--after{background:var(--st-accent)!important}
-body.is-studio .compare__grip{background:#fff!important;color:var(--st-ink)!important;box-shadow:0 2px 10px rgba(23,21,19,.22)!important;border:0!important}
-body.is-studio .compare__handle::before,body.is-studio .compare__handle::after{background:#fff!important;box-shadow:none!important}
-body.is-studio .studio__cta{min-height:56px;font-size:16.5px}
-/* gift + wallet */
-body.is-studio .wallet__gift{background:var(--st-gold-soft);border:1px solid var(--st-gold-line);border-radius:16px;padding:12px 14px;color:#5A3F0E}
-body.is-studio .wallet__gift-ico{background:#fff;color:var(--st-gold);border-radius:12px;box-shadow:none}
-body.is-studio .wallet__gift small{color:#7C5F27}
-body.is-studio .wallet__main{background:var(--st-paper);border:1px solid var(--st-line);border-radius:16px}
-body.is-studio .wallet__coin svg{width:34px;height:34px}
-/* service switch: one segmented control */
-body.is-studio .steps{background:rgba(250,248,245,.94)!important;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);box-shadow:0 1px 0 var(--st-line)!important;border:0!important}
-body.is-studio .linesw{display:grid!important;grid-template-columns:repeat(4,1fr)!important;gap:2px!important;padding:3px!important;background:#EFE9E1!important;border-radius:14px!important;box-shadow:none!important;width:100%!important}
-body.is-studio .linesw__btn{flex-direction:row!important;gap:6px!important;min-height:42px!important;padding:0 6px!important;border-radius:11px!important;background:transparent!important;background-image:none!important;box-shadow:none!important;color:var(--st-ink-2)!important;font-size:13.5px!important;font-weight:700!important}
-body.is-studio .linesw__btn svg{width:17px!important;height:17px!important;padding:0!important;border:0!important;background:none!important;box-shadow:none!important;filter:none!important;color:currentColor!important;border-radius:0!important}
-body.is-studio .linesw__btn.is-on{background:var(--st-paper)!important;color:var(--st-ink)!important;box-shadow:0 1px 2px rgba(23,21,19,.12),0 0 0 1px var(--st-line)!important}
-body.is-studio .linesw__btn.is-on svg{color:var(--st-accent)!important}
-@media (max-width:380px){body.is-studio .linesw__btn svg{display:none}}
-/* stepper: quiet */
-body.is-studio .steps__num{background:transparent!important;border:1.5px solid var(--st-line)!important;color:var(--st-muted)!important;box-shadow:none!important}
-body.is-studio .steps__item.is-on .steps__num,body.is-studio .steps__item.is-active .steps__num{background:var(--st-ink)!important;border-color:var(--st-ink)!important;color:#fff!important}
-body.is-studio .steps__item.is-done .steps__num{background:var(--st-accent)!important;border-color:var(--st-accent)!important;color:#fff!important}
-body.is-studio .steps__line{background:var(--st-line)!important}
-body.is-studio .steps__label{color:var(--st-ink-2)}
-/* icons: plain line icons, no clay */
-body.is-studio :is(.upload__icon,.custom-look__ico,.next-line__ico){background:var(--st-accent-soft)!important;border:0!important;box-shadow:none!important;color:var(--st-accent)!important}
-body.is-studio :is(.upload__icon,.custom-look__ico,.next-line__ico) svg{filter:none!important}
-/* upload + photo */
-body.is-studio .upload{background:var(--surface-2)!important;border:1.5px dashed #D8CFC3!important;border-radius:20px!important}
-body.is-studio .selfie img,body.is-studio .stage img{border-radius:20px}
-/* tabs, search, filters */
-body.is-studio .seg{background:#EFE9E1!important;border-radius:12px!important;padding:3px!important;box-shadow:none!important}
-body.is-studio .seg button{border-radius:10px!important;background:transparent!important;box-shadow:none!important;color:var(--st-ink-2)!important;font-weight:700}
-body.is-studio .seg button[aria-selected="true"],body.is-studio .seg button.is-on{background:var(--st-paper)!important;color:var(--st-ink)!important;box-shadow:0 1px 2px rgba(23,21,19,.12)!important}
-body.is-studio .look-search{background:var(--st-paper)!important;border:1px solid var(--st-line)!important;border-radius:14px!important;box-shadow:none!important}
-body.is-studio .chip{background:var(--st-paper)!important;border:1px solid var(--st-line)!important;color:var(--st-ink-2)!important;box-shadow:none!important;background-image:none!important}
-body.is-studio :is(.chip[aria-pressed="true"],.chip.is-on){background:var(--st-ink)!important;border-color:var(--st-ink)!important;color:#fff!important}
-/* style cards */
-body.is-studio .style-card{background:var(--st-paper)!important;border:1px solid var(--st-line)!important;border-radius:18px!important;box-shadow:none!important;background-image:none!important}
-body.is-studio .style-card[aria-pressed="true"],body.is-studio .style-card.is-on{border-color:var(--st-ink)!important;box-shadow:0 0 0 1.5px var(--st-ink)!important}
-body.is-studio .style-card__name{color:var(--st-ink);font-weight:800}
-body.is-studio .style-card__tag{color:var(--st-accent)}
-body.is-studio .picked,body.is-studio .summary{background:var(--surface-2)!important;border:1px solid var(--st-line)!important;border-radius:16px!important}
-/* dock: a plain white bar */
-body.is-studio .dock{background:linear-gradient(180deg,rgba(250,248,245,0),rgba(250,248,245,.96) 34%)!important;padding:10px 14px calc(10px + var(--safe-b,0px))!important}
-body.is-studio .dock__inner{background:var(--st-paper)!important;border:1px solid var(--st-line)!important;box-shadow:0 8px 28px -12px rgba(23,21,19,.25)!important;border-radius:18px!important;padding:6px!important}
-body.is-studio .dock__hint{color:var(--st-muted)!important}
-body.is-studio .dock .btn--ghost{border-color:var(--st-line)!important;color:var(--st-ink)!important;background:var(--surface-2)!important}
-/* sheets and toasts */
-body.is-studio .sheet__panel{background:var(--st-paper)!important;border-radius:26px 26px 0 0!important}
-body.is-studio .sheet__x{background:var(--surface-2)!important;box-shadow:none!important;border:0!important;border-radius:12px!important}
-body.is-studio .field input,body.is-studio .field textarea{background:var(--st-paper)!important;border:1.5px solid var(--st-line)!important;border-radius:14px!important;box-shadow:none!important}
-body.is-studio .field input:focus{border-color:var(--st-ink)!important;outline:none;box-shadow:0 0 0 3px rgba(23,21,19,.08)!important}
-body.is-studio .toast{background:var(--st-ink)!important;color:#fff!important;box-shadow:0 10px 30px -12px rgba(23,21,19,.5)!important}
-/* result */
-body.is-studio .compare{border-radius:22px!important}
-body.is-studio .mirror{border:0!important;padding:0!important;background:none!important}
-body.is-studio .rating__star.is-on{color:var(--st-gold)!important}
-body.is-studio .next-line{background:var(--st-accent-soft)!important;border:0!important;border-radius:18px!important}
-/* invite banner: same calm card */
-body.is-studio .invite{background:var(--st-paper)!important;border:1px solid var(--st-line)!important;color:var(--st-ink)!important}
-body.is-studio .invite::after{display:none}
-body.is-studio .invite *{color:inherit}
-/* album, account */
-body.is-studio .album__item img{border-radius:14px;box-shadow:none;border:1px solid var(--st-line)}
-body.is-studio .account{border-radius:26px!important}
-body.is-studio .account__avatar{background:var(--st-accent-soft);color:var(--st-accent)}
-body.is-studio .signin__perk-ico{background:var(--surface-2);color:var(--st-accent)}
-body.is-studio .foot{color:var(--st-muted)}
-body.is-studio :focus-visible{outline:2.5px solid var(--st-ink)!important;outline-offset:3px}
 `;
 
 const clientJS=String.raw`
@@ -884,8 +775,8 @@ function track(kind,meta,once){if(STUDIO_PREVIEW)return;if(once){if(tracked[kind
  if(state.pub.trial)trialBar(state.pub.trial);
  if((state.pub.demo||FROM_LANDING)&&!$('.trialbar'))ownerReturnBar();
  var lq=(location.search.match(/[?&]l=(hair|color|nails|lashes)/)||[])[1];var lm=null;try{lm=localStorage.getItem('ayneh-line-'+SLUG)}catch(e){}
- var pending=null;try{pending=sessionStorage.getItem('ayneh-job-'+SLUG)}catch(e){}
- var pm=pending&&pending.match(/^(hair|color|nails|lashes):(.+)$/);if(pm){lq=pm[1];pending=pm[2]}
+ var pendings={};['hair','color','nails','lashes'].forEach(function(k){try{var j=sessionStorage.getItem('ayneh-job-'+SLUG+'-'+k);if(j)pendings[k]=j}catch(e){}});
+ if(!lq){var pk=Object.keys(pendings);if(pk.length&&!lm)lq=pk[0]}
  /* A salon that bought one service shows only that service's lines. */
  if(state.pub.lines&&state.pub.lines.length){var keep=state.pub.lines;LINE_LIST=LINE_LIST.filter(function(x){return keep.indexOf(x[0])>=0});Object.keys(LINES.label).forEach(function(k){if(keep.indexOf(k)<0)delete LINES.label[k]});if(lq&&keep.indexOf(lq)<0)lq=null;if(lm&&keep.indexOf(lm)<0)lm=null}
  state.line=lq||(LINES.label[lm]?lm:LINE_LIST[0][0]);document.body.setAttribute('data-line',state.line);
@@ -896,7 +787,7 @@ function track(kind,meta,once){if(STUDIO_PREVIEW)return;if(once){if(tracked[kind
  state.tab=hasLineWork(state.line)?'salon':'catalog';
  renderAll();
  if(SLUG==='demo'&&/[?&]draft=1/.test(location.search)){try{var draft=await window.__AYN_DRAFT.take();if(draft&&draft.file){/* nothing is pre-chosen: after her photo she picks the look herself, then taps «بساز» */state.style=null;state.color='';if(EMBED){state.preview=URL.createObjectURL(draft.file);renderFlow();var continuePhoto=async function(){await handleFile(draft.file,'original');if(state.original){clearTimeout(state.advT);state.justUploaded=false;go(2)}};await ensureSession();if(state.verified||!state.pub.otp)continuePhoto();else openOtp(continuePhoto)}else handleFile(draft.file,'original')}}catch(e){toast('عکس را دوباره از گالری انتخاب کن','error')}}
- if(pending){state.gen=pending;state.step=3;state.busy=true;state.genT0=Date.now()-8000;renderFlow();renderDock();poll(pending,true)}
+ Object.keys(pendings).forEach(function(k){if(!LINES.label[k])return;var o=lineRef(k);o.gen=pendings[k];o.step=3;o.busy=true;o.genT0=Date.now()-8000;poll(pendings[k],true,k)});if(Object.keys(pendings).length){renderFlow();renderDock()}
  track('view',refIn?'share':'',true);
  renderInvite();
  maybeTour();
@@ -1219,7 +1110,7 @@ function openAbout(){
 /* ---------- steps ---------- */
 /* ---------- service lines: hairstyle, hair colour, nails, lashes ---------- */
 // Each line keeps its own photo, choices and result; switching is one tap and loses nothing.
-var LINE_FIELDS=['step','original','preview','ratio','reference','refTitle','style','custom','q','tab','transfer','color','opts','result','gen','genState','views','viewsIdem','idem','filter','error','justUploaded','base','genBase','resultBase','genT0'];
+var LINE_FIELDS=['busy','rating','step','original','preview','ratio','reference','refTitle','style','custom','q','tab','transfer','color','opts','result','gen','genState','views','viewsIdem','idem','filter','error','justUploaded','base','genBase','resultBase','genT0'];
 var LINE_LIST=[['hair','مدل مو','scissors'],['color','رنگ مو','drop'],['nails','ناخن','nails'],['lashes','مژه','lashes']];
 /* «مدل مو، رنگ مو، طرح ناخن یا مژه» — only the lines this salon offers. */
 var LINE_WORDS={hair:'مدل مو',color:'رنگ مو',nails:'طرح ناخن',lashes:'مژه'};
@@ -1227,11 +1118,12 @@ function offerText(ez){var w=LINE_LIST.map(function(x){return LINE_WORDS[x[0]]})
 var FACE=['hair','color','lashes'];
 var lineStore={};
 function hasLineWork(line){return (state.pub&&state.pub.portfolio||[]).some(function(p){return (p.published||p.try_on)&&(p.line||'hair')===line})}
-function lineDefaults(to){return {step:1,original:null,preview:null,ratio:'',reference:null,refTitle:'',style:null,tab:hasLineWork(to)?'salon':'catalog',transfer:'both',color:'',opts:{},result:null,gen:null,genState:null,views:null,viewsIdem:null,idem:null,filter:'همه',error:'',justUploaded:false,base:'hair',genBase:null,resultBase:null,genT0:0}}
+function lineDefaults(to){return {busy:false,rating:0,step:1,original:null,preview:null,ratio:'',reference:null,refTitle:'',style:null,tab:hasLineWork(to)?'salon':'catalog',transfer:'both',color:'',opts:{},result:null,gen:null,genState:null,views:null,viewsIdem:null,idem:null,filter:'همه',error:'',justUploaded:false,base:'hair',genBase:null,resultBase:null,genT0:0}}
 function LP(){return LINES.photo[state.line]||LINES.photo.hair}
 function lineCat(){return state.line==='hair'?null:LINES[state.line]}
 function catalogImg(i){return '/catalog/'+(state.line==='hair'?'':state.line+'/')+String(i+1).padStart(2,'0')+'.webp'}
 function lookPrefix(){return {nails:'n:',lashes:'l:',color:'r:'}[state.line]||'c:'}
+function lineRef(k){return k===state.line?state:(lineStore[k]||(lineStore[k]=lineDefaults(k)))}
 function lineData(k){if(k===state.line){var o={};LINE_FIELDS.forEach(function(f){o[f]=state[f]});return o}return lineStore[k]||null}
 // The newest hairstyle result made on this same photo: hair colour is tried on it by default.
 function hairResult(){
@@ -1242,7 +1134,6 @@ function hairResult(){
 function baseId(){var h=hairResult();return h&&state.base!=='original'?h.id:null}
 function switchLine(to,opts){
  if(to===state.line||!LINES.label[to])return;
- if(state.busy){toast('صبر کن کار فعلی تمام شود');return}
  lineStore[state.line]=lineData(state.line);
  var from=state.line,next=Object.assign({},lineStore[to]||lineDefaults(to));
  // One face photo serves hairstyle, hair colour and lashes.
@@ -1256,15 +1147,17 @@ function switchLine(to,opts){
  try{localStorage.setItem('ayneh-line-'+SLUG,to)}catch(e){}
  if(!(opts&&opts.silent))track('line',to);
  document.body.setAttribute('data-line',to);
+ var sb=$('#steps'),y0=sb?sb.getBoundingClientRect().top:0;
  renderAll();
+ if(sb&&!(opts&&opts.scroll)){var y1=sb.getBoundingClientRect().top;if(Math.abs(y1-y0)>2)window.scrollBy(0,y1-y0)}
  if(!(opts&&opts.silent)&&from!==to&&opts&&opts.scroll)focusFlow();
 }
 function renderAll(){if(accountMode()){renderAccount();return}renderHead();renderSteps();renderFlow();renderSide();renderDock()}
 function lineSwitch(){
  var bar=el('div',{class:'linesw',role:'tablist','aria-label':'خدمت'});
  LINE_LIST.forEach(function(x){
-  var on=state.line===x[0];
-  bar.append(el('button',{class:'linesw__btn'+(on?' is-on':''),type:'button',role:'tab','data-line':x[0],'aria-selected':on?'true':'false',onclick:function(){switchLine(x[0])},html:ICO[x[2]]+'<span>'+x[1]+'</span>'}));
+  var on=state.line===x[0],d=lineData(x[0]),st=d&&d.busy?' is-busy':d&&d.result&&!on?' is-ready':'';
+  bar.append(el('button',{class:'linesw__btn'+(on?' is-on':'')+st,type:'button',role:'tab','data-line':x[0],'aria-selected':on?'true':'false',onclick:function(){switchLine(x[0])},html:ICO[x[2]]+'<span>'+x[1]+'</span>'}));
  });
  return bar;
 }
@@ -1535,7 +1428,8 @@ function stepModel(){
  var can=canGenerate()||!!state.tourDemo,ready=hasChoice()||!!state.tourDemo,left=quotaLeft();
  box.append(el('div',{class:'flow__nav'},[
   el('button',{class:'btn btn--ghost',type:'button',onclick:function(){go(1)},text:'بازگشت'}),
-  el('button',{class:'btn btn--primary btn--build',type:'button',disabled:!ready,onclick:build,html:buildLabel(can)})
+  /* Studio: «بساز» lives only in the fixed bar at the bottom, which appears once a look is picked. */
+  studio()?null:el('button',{class:'btn btn--primary btn--build',type:'button',disabled:!ready,onclick:build,html:buildLabel(can)})
  ]));
  box.append(h('p',buildHint(ready,can,left),'fine-print build-hint'));
  return box;
@@ -1945,6 +1839,7 @@ function renderDock(){
   var ready=hasChoice(),can=canGenerate();
   var out=quotaLeft()===0;
   hint=out?'سهم ساخت این بخش تمام شد':ready?(can?'آماده؛ بزن بساز':'آماده'):missingReason();
+  if(studio()&&!out&&!ready){dock.hidden=true;dock.classList.remove('is-in');return}
   if(studio()&&out){hint='عکس‌هات تموم شد';primary=sendButton()}
   else primary=el('button',{class:'btn btn--primary btn--build',type:'button',disabled:!ready,onclick:build,html:can?ICO.spark+'<span>'+buildText()+'</span>':out?ICO.send+'<span>فرستادن</span>':ICO.arrow+'<span>ادامه</span>'});
  }else{
@@ -1954,7 +1849,7 @@ function renderDock(){
   else{hint='آمادهٔ ساخت';primary=el('button',{class:'btn btn--primary',type:'button',onclick:generate,html:ICO.spark+'<span>'+buildText()+'</span>'})}
  }
  inner.append(el('div',{class:'dock__hint',text:hint}),studio()?el('button',{class:'btn btn--ghost dock__wallet',type:'button',onclick:openWallet,'aria-label':'کیف سکه',html:COIN}):el('button',{class:'btn btn--ghost',type:'button',onclick:openAbout,'aria-label':'دربارهٔ سالن',html:ICO.info}),primary);
- dock.replaceChildren(inner);dock.hidden=false;
+ var wasHidden=dock.hidden;dock.replaceChildren(inner);dock.hidden=false;if(wasHidden&&studio()){dock.classList.remove('is-in');void dock.offsetWidth;dock.classList.add('is-in')}
  var cta=document.querySelector('.studio__cta span');if(cta)cta.textContent=state.original?'ادامه با همین عکس':'شروع با عکس خودم';
 }
 
@@ -1963,18 +1858,19 @@ function handleFile(file,kind){
  if(STUDIO_PREVIEW){toast('این صفحه برای پیش‌نمایش چیدمان است. برای امتحان روی عکس، دموی سالن ساناز را باز کنید.');return Promise.resolve()}
  if(!file){toast('عکسی انتخاب نشد');return}
  if(['image/jpeg','image/png','image/webp'].indexOf(file.type)<0){toast('فقط JPG، PNG یا WebP','error');return}
+ var line=state.line,L=function(){return lineRef(line)};
  state.busy=true;renderDock();
  if(kind==='original'){try{if(state.preview)URL.revokeObjectURL(state.preview);state.preview=URL.createObjectURL(file)}catch(e){state.preview=null}state.original=null;state.justUploaded=false;clearTimeout(state.advT);if(state.step!==1){state.step=1;renderSteps()}renderFlow();focusFlow()}
  return Promise.all([compress(file),ensureSession()]).then(function(r){
   return api('upload?kind='+kind,r[0],true);
  }).then(function(d){
-  if(kind==='original'){track('photo',state.line);state.original=d.id;state.ratio=compress.ratio||'';state.result=null;state.error='';state.idem=null;state.justUploaded=true;
+  if(kind==='original'){track('photo',line);L().original=d.id;L().ratio=compress.ratio||'';L().result=null;L().error='';L().idem=null;L().justUploaded=true;
    /* quiet: scrollToBuild, not focusFlow, decides where we land — on «بساز» when a look is
       already chosen (she only changed her photo), on the looks when it is not. */
-   state.advT=setTimeout(function(){if(state.step===1&&state.justUploaded){state.justArrived=true;go(2,true);scrollToBuild()}},1600)}
-  else{track('look','u');state.reference=d.id;state.refTitle='';state.style=null;state.result=null;state.error='';if(state.line==='color')state.color='';setTimeout(scrollToBuild,60)}
-  renderFlow();renderSteps();renderDock();
- }).catch(function(e){if(kind==='original'&&!state.original){state.preview=null;renderFlow()}toast(e.message,'error')}).then(function(){state.busy=false;renderDock()});
+   L().advT=setTimeout(function(){if(line===state.line&&L().step===1&&L().justUploaded){state.justArrived=true;go(2,true);scrollToBuild()}},1600)}
+  else{track('look','u');L().reference=d.id;L().refTitle='';L().style=null;L().result=null;L().error='';if(line==='color')L().color='';if(line===state.line)setTimeout(scrollToBuild,60)}
+  if(line===state.line){renderFlow();renderSteps();renderDock()}
+ }).catch(function(e){if(kind==='original'&&!L().original){L().preview=null;if(line===state.line)renderFlow()}toast(e.message,'error')}).then(function(){L().busy=false;if(line===state.line)renderDock()});
 }
 function changePhoto(){clearTimeout(state.advT);state.justUploaded=false;state.original=null;state.preview=null;state.result=null;renderFlow();renderSteps();renderDock()}
 function nearestRatio(r){var R=[['1:1',1],['4:5',.8],['3:4',.75],['2:3',.667],['9:16',.5625],['5:4',1.25],['4:3',1.333],['3:2',1.5],['16:9',1.778]];var best=R[0];R.forEach(function(x){if(Math.abs(Math.log(x[1]/r))<Math.abs(Math.log(best[1]/r)))best=x});return best[0]}
@@ -2008,7 +1904,8 @@ function compress(file){
 
 /* ---------- generation ---------- */
 function generate(){
- if(state.busy)return;
+ var line=state.line,L=function(){return lineRef(line)},paint=function(){if(line===state.line){renderFlow();renderDock()}};
+ if(L().busy)return;
  if(!canGenerate()){toast(missingReason());return}
  if(state.pub.otp&&!state.verified){
   ensureSession().then(function(){
@@ -2017,30 +1914,30 @@ function generate(){
   }).catch(function(e){toast(e.message,'error')});
   return;
  }
- state.busy=true;state.error='';state.result=null;state.genT0=Date.now();state.genBase=baseId();renderFlow();renderDock();
+ L().busy=true;L().error='';L().result=null;L().genT0=Date.now();L().genBase=baseId();paint();
  ensureSession().then(function(){
-  state.idem=state.idem||uuid();
-  var col=state.line==='hair'?(state.pub.demo?state.color:''):state.line==='color'?(typedColor()?state.color.trim():''):state.color;
+  L().idem=L().idem||uuid();
+  var o=L(),col=line==='hair'?(state.pub.demo?o.color:''):line==='color'?(o.style===null&&!o.reference&&String(o.color||'').trim().length>=2?o.color.trim():''):o.color;
   // The page's own note under «بساز» says the photo is sent for the simulation; no extra checkbox.
-  return api('generate',{apply_color:!!(state.pub.demo&&state.line==='hair'&&state.color),v:VISITOR,image_consent:true,idem:state.idem,line:state.line,opts:state.opts,ratio:state.ratio||undefined,original_id:state.original,base_id:state.line==='color'?(state.genBase||undefined):undefined,reference_id:state.reference||undefined,custom:state.custom&&!state.reference?state.custom:undefined,style:state.reference||state.custom?undefined:(state.style===null?undefined:state.style),color:col||undefined});
+  return api('generate',{apply_color:!!(state.pub.demo&&line==='hair'&&L().color),v:VISITOR,image_consent:true,idem:L().idem,line:line,opts:L().opts,ratio:L().ratio||undefined,original_id:L().original,base_id:line==='color'?(L().genBase||undefined):undefined,reference_id:L().reference||undefined,custom:L().custom&&!L().reference?L().custom:undefined,style:L().reference||L().custom?undefined:(L().style===null?undefined:L().style),color:col||undefined});
  }).then(function(job){
-  track('generate',state.reference?(state.refTitle?'salon':'upload'):'catalog');
-  spentQuota(state.line);
-  state.gen=job.id;state.genState=job.state;state.step=3;
-  try{sessionStorage.setItem('ayneh-job-'+SLUG,state.line+':'+job.id)}catch(e){}
-  renderFlow();renderDock();
-  return poll(job.id);
+  track('generate',L().reference?(L().refTitle?'salon':'upload'):'catalog');
+  spentQuota(line);
+  L().gen=job.id;L().genState=job.state;L().step=3;
+  try{sessionStorage.setItem('ayneh-job-'+SLUG+'-'+line,job.id)}catch(e){}
+  paint();
+  return poll(job.id,false,line);
  }).catch(function(e){
-  state.busy=false;
-  if(needsVerify(e.message)){state.verified=false;state.error='';renderFlow();renderDock();openOtp(generate);return}
-  if(/سهم امتحان/.test(e.message)&&state.quota&&state.quota.left)state.quota.left[state.line]=0;
+  L().busy=false;
+  if(needsVerify(e.message)){state.verified=false;L().error='';paint();openOtp(generate);return}
+  if(/سهم امتحان/.test(e.message)&&state.quota&&state.quota.left)state.quota.left[line]=0;
   /* Out of free images: offer the customer her own image packs (worker/regularpage.js). */
   if(/سهم امتحان|نمونهٔ رایگانتان تمام شد/.test(e.message)&&!state.pub.demo&&window.AynehPacks)window.AynehPacks.out();
   if(state.pub.demo&&/ثبت‌نام کنید/.test(e.message))state.demoOut=true;
   /* The salon's images are paused (credits or plan): stop offering «بساز», offer sending. */
   if(/ساخت تصویر در این سالن فعلاً متوقف است/.test(e.message))state.paused=true;
-  state.error=friendly(e.message);
-  renderFlow();renderDock();
+  L().error=friendly(e.message);
+  paint();
  });
 }
 function friendly(msg){
@@ -2059,33 +1956,34 @@ function updateProgress(){
  var at=Math.min(B.steps.length-1,Math.floor(pct/100*B.steps.length));
  Array.prototype.forEach.call(f.querySelectorAll('.build__steps li'),function(li,i){var c=i<at?'is-done':i===at?'is-on':'';if(li.className!==c){li.className=c;li.firstChild.innerHTML=i<at?ICO.check:''}});
 }
-function poll(id,resumed){
+function poll(id,resumed,line){
+ line=line||state.line;var L=function(){return lineRef(line)},paint=function(){if(line===state.line){renderFlow();renderDock()}};
  var attempts=0;
  function tick(){
   attempts++;
-  updateProgress();
+  if(line===state.line)updateProgress();
   return api('generation/'+id).then(function(d){
-   state.genState=d.state;
+   L().genState=d.state;
    if(d.state==='success'){
     track('result','',true);
     if(window.__trialLeft)window.__trialLeft();
-    state.result=d.result_id;state.resultBase=state.genBase||null;state.busy=false;state.idem=null;state.session=false;loadSession().catch(function(){});
-    try{sessionStorage.removeItem('ayneh-job-'+SLUG)}catch(e){}
-    state.rating=Number(localStorage.getItem('ayneh-rating-'+d.result_id)||0);
-    renderFlow();renderDock();toast('شبیه‌سازی آماده شد');
+    L().result=d.result_id;L().resultBase=L().genBase||null;L().busy=false;L().idem=null;state.session=false;loadSession().catch(function(){});
+    try{sessionStorage.removeItem('ayneh-job-'+SLUG+'-'+line)}catch(e){}
+    L().rating=Number(localStorage.getItem('ayneh-rating-'+d.result_id)||0);
+    paint();toast(line===state.line?'شبیه‌سازی آماده شد':LINES.label[line]+' آماده شد؛ در تب خودش ببین');renderSteps();
     return;
    }
    if(d.state==='fail'||d.state==='unknown'){
     track('gen_fail',d.state);
     /* A failed image is refunded on the server: take the real balance back from it. */
     loadSession().catch(function(){});
-    state.busy=false;state.error=d.state==='fail'?'سرویس تصویر نتوانست خروجی بسازد. می‌توانی دوباره تلاش کنی.':friendly('وضعیت نامشخص');
-    renderFlow();renderDock();return;
+    L().busy=false;L().error=d.state==='fail'?'سرویس تصویر نتوانست خروجی بسازد. می‌توانی دوباره تلاش کنی.':friendly('وضعیت نامشخص');
+    paint();return;
    }
-   if(attempts>90){state.busy=false;state.error='هنوز آماده نشده؛ با بازکردن دوبارهٔ صفحه همان درخواست پیگیری می‌شود.';renderFlow();renderDock();return}
+   if(attempts>90){L().busy=false;L().error='هنوز آماده نشده؛ با بازکردن دوبارهٔ صفحه همان درخواست پیگیری می‌شود.';paint();return}
    return sleep(Math.min(4000,1400+attempts*160)).then(tick);
   }).catch(function(){
-   if(attempts>8){state.busy=false;state.error='ارتباط با سرور قطع شد؛ بعداً دوباره سر بزن.';renderFlow();renderDock();return}
+   if(attempts>8){L().busy=false;L().error='ارتباط با سرور قطع شد؛ بعداً دوباره سر بزن.';paint();return}
    return sleep(2200).then(tick);
   });
  }

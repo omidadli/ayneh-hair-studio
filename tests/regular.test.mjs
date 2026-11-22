@@ -40,14 +40,14 @@ async function webhookPay(e,ref,amount){const key=(await call(e,'/api/owner/paym
 
 test('/studio: the customer page carries the owner\'s copy and embeds the real try-on of the direct salon',async()=>{
  const e=fixture();
- const res=await app.fetch(new Request(origin+'/studio'),e);assert.equal(res.status,200);const html=await res.text();
+ const res=await app.fetch(new Request(origin+'/'),e);assert.equal(res.status,200);const html=await res.text();
  for(const t of ['مدل جدیدت رو روی عکس خودت ببین.','بدون نصب. فقط یه سلفی لازمه.','عکس‌های هدیه‌ات تموم شد.','کیف سکه‌ات رو شارژ کن','آرایشگر یا آرایشگاه‌دار می‌شناسید؟ لینک شما را به او بدهید؛ اگر پلن آینه بگیرد، ۲۵۰ سکه هدیه می‌گیرید.','نتیجه یک نمونهٔ نمایشی است؛ برای انتخاب قبل از نوبت. عکس شما فقط برای ساخت نمونه استفاده می‌شود؛ نسخهٔ فشردهٔ آن برای ساخت تصویر به سرویس تصویر ارسال می‌شود.','مبلغ دلخواه','سکه‌ها به کیف شما اضافه شد.','کپی به ریال'])
   assert.ok(html.includes(t),'copy: '+t);
  assert.match(html,/<iframe id="trFrame" data-slug="try" src="\/s\/try\?embed=1"/);
  // what a salon buys is a «پلن» (AGENTS.md); the photo line says where the photo goes, honestly
  assert.doesNotMatch(html,/پنل آینه بگیرد|فقط برای ساخت همین نمونه/);
  const row=e.DB.sql.prepare("SELECT id,slug,owner_id FROM salons WHERE id='ayneh-direct'").get();assert.equal(row.slug,'try');assert.equal(row.owner_id,'direct');
- assert.equal((await app.fetch(new Request(origin+'/studio'),e)).status,200);assert.equal(e.DB.sql.prepare("SELECT COUNT(*) n FROM salons WHERE owner_id='direct'").get().n,1,'made once');
+ assert.equal((await app.fetch(new Request(origin+'/'),e)).status,200);assert.equal(e.DB.sql.prepare("SELECT COUNT(*) n FROM salons WHERE owner_id='direct'").get().n,1,'made once');
  const pub=await call(e,'/api/s/try/public');assert.equal(pub.data.demo,false);assert.equal(pub.data.generation,true);
  // Every salon page carries the pack sheet; the inline scripts still parse.
  const salonPage=await (await app.fetch(new Request(origin+'/s/try'),e)).text();assert.ok(salonPage.includes('window.AynehPacks='));
@@ -59,7 +59,7 @@ test('/studio: the customer page carries the owner\'s copy and embeds the real t
 test('regular customer: 2 free images in all, then coins: any top-up from 100,000 toman, 25 coins an image, confirmed by the webhook, never from a salon credit',async()=>{
  const e=fixture(),p=mockProvider();
  try{
-  await app.fetch(new Request(origin+'/studio'),e);
+  await app.fetch(new Request(origin+'/'),e);
   const g=await guest(e,'try'),original=await upload(e,'try',g),v='cd'.repeat(16);
   assert.equal((await gen(e,'try',g,original,v,'hair')).status,200,'free try 1');
   assert.equal((await gen(e,'try',g,original,v,'nails')).status,200,'free try 2');
@@ -132,7 +132,7 @@ test('referral: both sides get 10 images once the plan is paid; never twice, nev
  const e=fixture();
  const a=await planSalon(e,'essential','09120000001','Referrer Salon');
  const card=await call(e,'/api/panel/referral',undefined,{cookie:a.cookie});assert.equal(card.status,200);
- assert.match(card.data.link,/\/salons\?ref=R[2-9A-HJ-NP-Z]{7}$/);assert.equal(card.data.rewarded,0);assert.equal(card.data.cap,undefined);
+ assert.match(card.data.link,/^https:\/\/business\.test\.example\/\?ref=R[2-9A-HJ-NP-Z]{7}$/);assert.equal(card.data.rewarded,0);assert.equal(card.data.cap,undefined);
  assert.equal((await call(e,'/api/panel/referral')).status,401);
  assert.ok(panelHTML.includes('آرایشگر دیگری را معرفی کنید. هر دو ۱۰ عکس هدیه می‌گیرید.'));
  const code=card.data.link.split('ref=')[1];
@@ -171,7 +171,7 @@ test('referral: both sides get 10 images once the plan is paid; never twice, nev
 });
 
 test('referral by a regular customer: her 10 images land in her own account; her own mobile is no referral',async()=>{
- const e=fixture();await app.fetch(new Request(origin+'/studio'),e);
+ const e=fixture();await app.fetch(new Request(origin+'/'),e);
  const g=await guest(e,'try'),v='12'.repeat(16);
  const me=await call(e,'/api/c/me?v='+v+'&ref=1',undefined,g);assert.ok(me.data.referral,JSON.stringify(me.data));
  const code=me.data.referral.link.split('ref=')[1];
@@ -188,7 +188,7 @@ test('timing: a successful image stores how long it took; the owner sees it, nob
  try{
   const empty=await call(e,'/api/owner/timing',undefined,OWNER);assert.equal(empty.status,200);assert.equal(empty.data.measured,false);assert.match(empty.data.note,/هنوز هیچ تصویر واقعی/);
   assert.equal((await call(e,'/api/owner/timing')).status,401);
-  await app.fetch(new Request(origin+'/studio'),e);
+  await app.fetch(new Request(origin+'/'),e);
   const g=await guest(e,'try'),original=await upload(e,'try',g),v='34'.repeat(16);
   const job=await gen(e,'try',g,original,v);assert.equal(job.status,200);
   const done=await call(e,'/api/s/try/generation/'+job.data.id,undefined,g);assert.equal(done.data.state,'success',JSON.stringify(done));
@@ -203,7 +203,7 @@ test('timing: a successful image stores how long it took; the owner sees it, nob
 test('/try: a pack replaced by a newer one is still honoured when its exact amount arrives; paid images are not stopped by the shared daily cap',async()=>{
  const e=fixture(),p=mockProvider();
  try{
-  await app.fetch(new Request(origin+'/studio'),e);
+  await app.fetch(new Request(origin+'/'),e);
   // the direct salon is shared by every visitor: give it a tiny daily cap so other people's free images fill it
   e.DB.sql.prepare("UPDATE salons SET settings=json_set(settings,'$.daily_limit',1) WHERE id='ayneh-direct'").run();
   const g=await guest(e,'try'),original=await upload(e,'try',g),v='ab'.repeat(16);

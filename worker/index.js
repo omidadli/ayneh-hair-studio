@@ -11,7 +11,7 @@ import {favicon,baseCSS} from './design.js';
 import {sharePage} from './share.js';
 import {landingHTML,servicePages} from './landing.js';
 import {tryHTML,packsTag} from './regularpage.js';
-import {chooseHTML} from './choose.js';
+import {isBiz,bizOrigin,mainOrigin} from './hosts.js';
 import {directSalon} from './customers.js';
 import {refCookie} from './rewards.js';
 import {iphonePage} from './payapp.js';
@@ -22,7 +22,13 @@ const notFound='<!doctype html><html lang="fa" dir="rtl"><head><meta charset="ut
 // Link previews (Telegram, WhatsApp, Instagram, iMessage) read these tags, so each salon page
 // carries its own name, description and cover instead of the generic Ayneh ones.
 const attr=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const RESERVED_SUBS=new Set(['www','api','admin','panel','pay','app','mail','ftp','cdn','static','assets']);
+const RESERVED_SUBS=new Set(['www','api','admin','panel','pay','app','mail','ftp','cdn','static','assets','business']);
+/* Two sides of one worker (owner's decision, Nov 2026): the customers' site is the main domain
+   (ayneh-salon.site), the salons' site is business.<main> (business.ayneh-salon.site). Both are
+   served here; the API, panel, owner console and payment app answer on both, so no login, shared
+   link or webhook breaks. Pages of the other side redirect there (301) with their query intact. */
+const moved=(to)=>new Response(null,{status:301,headers:{Location:to,'Cache-Control':'public,max-age=3600'}});
+
 function subdomainOf(u,env){
  const host=u.hostname.toLowerCase();
  const roots=['ayneh-salon.site'];
@@ -70,7 +76,7 @@ export default {
   // /pay is the checkout's own address (shared links and the QR on a receipt); the landing
   // page carries the same sheet inline, so both land on the same server-side order.
   if(/^\/panel\/?$/.test(u.pathname))return new Response(panelHTML,{headers:{...htmlHeaders,'X-Robots-Tag':'noindex'}});
-  if(/^\/pay\/?$/.test(u.pathname))return new Response(servicePages.hair.replaceAll('__ORIGIN__',env.APP_ORIGIN||u.origin).replaceAll('__CANON__','/hair'),{headers:{...htmlHeaders,'Cache-Control':'no-store','X-Robots-Tag':'noindex'}});
+  if(/^\/pay\/?$/.test(u.pathname)&&isBiz(u))return new Response(servicePages.hair.replaceAll('__ORIGIN__',bizOrigin(u,env)).replaceAll('__MAIN__',mainOrigin(u,env)).replaceAll('__CANON__','/hair'),{headers:{...htmlHeaders,'Cache-Control':'no-store','X-Robots-Tag':'noindex'}});
   if(u.pathname==='/salon-preview')return new Response(customerHTML,{headers:{...htmlHeaders,'X-Frame-Options':'SAMEORIGIN','X-Robots-Tag':'noindex','Content-Security-Policy':htmlHeaders['Content-Security-Policy'].replace("frame-ancestors 'none'","frame-ancestors 'self'")}});
   /* The landing page is the one thing the owner keeps reloading while we work on it, and a
      five-minute max-age with an hour of stale-while-revalidate meant a phone could show a
@@ -78,21 +84,32 @@ export default {
      an asset: let the browser revalidate it every time, cheaply (304 via ETag below). */
   /* ?ref=CODE on a public page keeps the referral in a first-party cookie (worker/rewards.js). */
   // Search engines: the public pages only; panels, the owner console, the API and salon pages stay out.
-  if(u.pathname==='/robots.txt')return new Response('User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /panel\nDisallow: /pay\nDisallow: /new\nDisallow: /s/\n\nSitemap: '+(env.APP_ORIGIN||u.origin)+'/sitemap.xml\n',{headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'public,max-age=3600'}});
-  if(u.pathname==='/sitemap.xml'){const o=env.APP_ORIGIN||u.origin;return new Response('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+['/','/studio','/salons','/hair','/color','/nails','/lashes','/salon-panel','/sample'].map(p=>'<url><loc>'+o+p+'</loc></url>').join('\n')+'\n</urlset>\n',{headers:{'Content-Type':'application/xml; charset=utf-8','Cache-Control':'public,max-age=3600'}})}
-  /* «/» only asks «customer or salon?» (owner's decision); the salon home lives at /salons. */
-  if(u.pathname==='/')return new Response(chooseHTML.replaceAll('__ORIGIN__',env.APP_ORIGIN||u.origin),{headers:{...htmlHeaders,'Cache-Control':'no-cache',...refCookie(u,request)}});
-  if(/^\/salons\/?$/.test(u.pathname))return new Response(landingHTML.replaceAll('__ORIGIN__',env.APP_ORIGIN||u.origin).replaceAll('__CANON__','/salons'),{headers:{...htmlHeaders,'Cache-Control':'no-cache',...refCookie(u,request)}});
-  /* One page per service: /hair (style and colour), /nails, /lashes. Same headers as the home page. */
+  const biz=isBiz(u),M=mainOrigin(u,env),B=bizOrigin(u,env);
+  const page=(html,canon,extra={})=>new Response(html.replaceAll('__ORIGIN__',B).replaceAll('__MAIN__',M).replaceAll('__CANON__',canon),{headers:{...htmlHeaders,'Cache-Control':'no-cache',...refCookie(u,request),...extra}});
+  /* Search engines: each side lists its own public pages; panels, the console, the API and salon pages stay out. */
+  if(u.pathname==='/robots.txt')return new Response('User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /panel\nDisallow: /pay\nDisallow: /new\nDisallow: /s/\nDisallow: /app\n\nSitemap: '+(biz?B:M)+'/sitemap.xml\n',{headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'public,max-age=3600'}});
+  if(u.pathname==='/sitemap.xml'){const o=biz?B:M,list=biz?['/','/hair','/color','/nails','/lashes','/salon-panel','/sample']:['/'];return new Response('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+list.map(p=>'<url><loc>'+o+p+'</loc></url>').join('\n')+'\n</urlset>\n',{headers:{'Content-Type':'application/xml; charset=utf-8','Cache-Control':'public,max-age=3600'}});}
   const svc=u.pathname.match(/^\/(hair|color|nails|lashes|salon-panel|sample)\/?$/);
-  if(svc)return new Response(servicePages[svc[1]==='salon-panel'?'salon':svc[1]].replaceAll('__ORIGIN__',env.APP_ORIGIN||u.origin).replaceAll('__CANON__','/'+svc[1]),{headers:{...htmlHeaders,'Cache-Control':'no-cache',...refCookie(u,request)}});
-  /* The regular customer's page: no salon link, 3 free images, then her own packs. */
-  if(/^\/try\/?$/.test(u.pathname))return new Response(null,{status:301,headers:{Location:'/studio'+u.search}});
-  if(/^\/studio\/?$/.test(u.pathname)){must(env.DB,'پایگاه داده هنوز آماده نیست',503);const d=await directSalon(env.DB);return new Response(tryHTML(d.slug),{headers:{...htmlHeaders,...refCookie(u,request)}});}
+  if(biz){
+   /* business.: the salon home, the service pages and the plan checkout. */
+   if(u.pathname==='/')return page(landingHTML,'/');
+   if(/^\/salons\/?$/.test(u.pathname))return moved('/'+u.search);
+   if(svc)return page(servicePages[svc[1]==='salon-panel'?'salon':svc[1]],'/'+svc[1]);
+   if(u.pathname==='/new')return page(landingHTML,'/',{'Cache-Control':'no-store','X-Robots-Tag':'noindex'});
+   /* The customer side lives on the main domain; a salon page embedded on these pages (?embed=1) stays. */
+   if(/^\/(?:studio|try)\/?$/.test(u.pathname))return moved(M+'/'+u.search);
+   if(/^\/(?:s|i)\//.test(u.pathname)&&!/[?&]embed=1(?:&|$)/.test(u.search))return moved(M+u.pathname+u.search);
+  }else{
+   /* The main domain is the customers' site: «/» is their studio. */
+   if(u.pathname==='/'){must(env.DB,'پایگاه داده هنوز آماده نیست',503);const d=await directSalon(env.DB);return page(tryHTML(d.slug),'/');}
+   if(/^\/(?:studio|try)\/?$/.test(u.pathname))return moved('/'+u.search);
+   /* Salon pages moved to business.; old links, ads and ?ref= links keep working. */
+   if(/^\/salons\/?$/.test(u.pathname))return moved(B+'/'+u.search);
+   if(svc||u.pathname==='/new'||/^\/pay\/?$/.test(u.pathname))return moved(B+u.pathname+u.search);
+  }
   /* Hit when a preview is holding an old copy and no amount of reloading helps: a URL that
      has never existed cannot be cached, so /new serves the current build under a fresh path.
      It carries no robots policy change — it is the same page, just honest about being new. */
-  if(u.pathname==='/new')return new Response(landingHTML.replaceAll('__ORIGIN__',env.APP_ORIGIN||u.origin).replaceAll('__CANON__','/salons'),{headers:{...htmlHeaders,'Cache-Control':'no-store','X-Robots-Tag':'noindex'}});
   /* The owner's Android payment app (android/): the APK is a static file built by deploy.yml
      (public/app/ayneh-pay.apk, served before the worker); this is its download page. */
   if(/^\/app\/i\/?$/.test(u.pathname))return new Response(iphonePage,{headers:{...htmlHeaders,'X-Robots-Tag':'noindex','Referrer-Policy':'no-referrer'}});

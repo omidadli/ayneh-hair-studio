@@ -13,6 +13,7 @@
 import {must, uid, limited} from './domain.js';
 import {smsReady} from './sms.js';
 import {publicOrder, closeExpired, orderById, panelSalon, hashKey, ORDER_MINUTES, pickCard} from './orders.js';
+import {bizOrigin} from './hosts.js';
 import {CUSTOMER_IMAGE_PRICE, CUSTOMER_FREE_IMAGES, REFERRAL_IMAGES, IMAGE_COINS, COIN_TOMAN, TOPUP_MIN, TOPUP_MAX, TOPUP_PRESETS, TOPUP_BONUS, coinsFor} from './customerprices.js';
 import {accountFor, anySession, customerBalance, directSalon, directUsed} from './customers.js';
 import {codeFor, referralStats} from './rewards.js';
@@ -45,7 +46,7 @@ export async function regularApi(req, env, u, path, {owner, clientIp}) {
     let referral = null;
     if (acc && u.searchParams.get('ref') === '1') {
       const code = await codeFor(db, 'customer', acc.id);
-      referral = {link: (env.APP_ORIGIN || u.origin) + '/salons?ref=' + code, ...await referralStats(db, 'customer', acc.id)};
+      referral = {link: bizOrigin(u, env) + '/?ref=' + code, ...await referralStats(db, 'customer', acc.id)};
     }
     return J({account: !!acc, verify: smsReady(env) && !s?.verified_phone, free: {per: CUSTOMER_FREE_IMAGES, left: free, coins: free * IMAGE_COINS}, own: bal,
       price: CUSTOMER_IMAGE_PRICE, ...economy(), referral});
@@ -90,7 +91,7 @@ export async function regularApi(req, env, u, path, {owner, clientIp}) {
   if (path === '/api/panel/referral' && req.method === 'GET') {
     const {salon} = await panelSalon(req, db);
     const code = await codeFor(db, 'salon', salon.id);
-    return J({link: (env.APP_ORIGIN || u.origin) + '/salons?ref=' + code, ...await referralStats(db, 'salon', salon.id), images: REFERRAL_IMAGES});
+    return J({link: bizOrigin(u, env) + '/?ref=' + code, ...await referralStats(db, 'salon', salon.id), images: REFERRAL_IMAGES});
   }
   if (path === '/api/owner/timing' && req.method === 'GET') {
     await owner(req, env);

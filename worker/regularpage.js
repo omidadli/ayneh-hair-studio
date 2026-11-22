@@ -212,6 +212,8 @@ const tryJS = String.raw`
  window.AynehTry={out:function(){showPacks(true)}};
  /* Service cards pick the line inside the try-on below (its own ?l= switch). */
  var cur='';try{cur=localStorage.getItem('ayneh-line-'+SLUG)||''}catch(e){}
+ /* ?l=hair|color|nails|lashes (old /try links, ads) opens that service. */
+ var want=(location.search.match(/[?&]l=(hair|color|nails|lashes)(?:&|$)/)||[])[1];if(want){cur=want;frame.src='/s/'+SLUG+'?embed=1&l='+want}
  document.querySelectorAll('.tr-svc button').forEach(function(b){
   if(b.dataset.line===cur)b.setAttribute('aria-pressed','true');
   b.addEventListener('click',function(){document.querySelectorAll('.tr-svc button').forEach(function(x){x.setAttribute('aria-pressed',String(x===b))});
@@ -249,11 +251,11 @@ const SERVICES = [['hair', 'مدل مو', 'demo-style-after.webp'], ['color', '�
    customer page, embedded (every server rule still applies); around it her coins, the four
    services, the top-up sheet and her referral link. */
 export function tryHTML(slug) {
-  return '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#FCF3EB"><link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/site.webmanifest"><link rel="canonical" href="/studio">'
+  return '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#FCF3EB"><link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/site.webmanifest"><link rel="canonical" href="__MAIN__/">'
     + '<title>استودیوی آینه | مدل جدیدت رو روی عکس خودت ببین</title><meta name="description" content="مدل مو، رنگ مو، ناخن و مژه را روی عکس خودتان ببینید. بدون نصب. ۲ عکس اول هدیه است.">'
     + '<style>' + baseCSS + packsCSS + tryCSS + '</style></head><body>'
     + '<main class="tr">'
-    + '<div class="tr-bar"><a class="tr-brand" href="/"><span aria-hidden="true">' + markSVG + '</span>آینه</a><span class="tr-bar__end"><a class="tr-pro" href="/salons">آرایشگر هستید؟</a><button id="trCoinsBtn" class="tr-pill" type="button" data-coin aria-label="کیف سکه"><span id="trCoins">۰ سکه</span></button></span></div>'
+    + '<div class="tr-bar"><a class="tr-brand" href="/"><span aria-hidden="true">' + markSVG + '</span>آینه</a><span class="tr-bar__end"><a class="tr-pro" href="__ORIGIN__/">آرایشگر هستید؟</a><button id="trCoinsBtn" class="tr-pill" type="button" data-coin aria-label="کیف سکه"><span id="trCoins">۰ سکه</span></button></span></div>'
     + '<section class="tr-hero"><h1>مدل جدیدت رو روی عکس خودت ببین.</h1><p id="trLeft" aria-live="polite">بدون نصب. فقط یه سلفی لازمه.</p><span id="trGift" class="tr-gift" data-coin hidden><span id="trGiftText"></span></span></section>'
     + '<section class="tr-wallet" aria-label="کیف سکه"><span data-coin></span><b id="trWalletCoins">۰ سکه</b><button id="trTop" class="btn btn--sm" type="button">شارژ کیف</button><small id="trWalletSub"></small><span class="tr-bar2" aria-hidden="true"><i id="trBar"></i></span><span id="trNext" class="tr-next" aria-live="polite"></span></section>'
     + '<section><h2 class="tr-h2">امروز کدوم رو امتحان کنیم؟</h2></section>'

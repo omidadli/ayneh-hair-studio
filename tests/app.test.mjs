@@ -5,6 +5,7 @@ import {brandMark as generatedMark,favicon as faviconMark} from '../worker/brand
 const brand=()=>({brandMark:generatedMark,faviconMark});import {tick} from '../worker/server.js';import {styles} from '../worker/legacy.js';
 
 const origin='https://test.example';
+const BIZ='https://business.test.example'; // the salons' site (owner's decision, Nov 2026)
 const migrations=readdirSync(new URL('../drizzle/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort();
 function fixture(){const DB=database();for(const f of migrations)DB.sql.exec(readFileSync(new URL('../drizzle/'+f,import.meta.url),'utf8'));return {DB,BUCKET:memoryBucket(),OWNER_EMAIL:'owner@test',JOB_TOKEN:'job-test',TRUST_PLATFORM_IDENTITY:'true'};}
 const OWNER={user:'owner-a',email:'owner@test'};
@@ -795,23 +796,23 @@ test('without SMS invites the bot offers messenger buttons and /i/ is a send pag
  }finally{tg.restore()}});
 
 // ---------- landing page and salon inquiries ----------
-test('landing page is public at /salons and the owner console stays at /admin',async()=>{const e=tgEnv(fixture());
- const r=await app.fetch(new Request(origin+'/salons'),e);assert.equal(r.status,200);const html=await r.text();
+test('landing page is public at business./ and the owner console stays at /admin',async()=>{const e=tgEnv(fixture());
+ const r=await app.fetch(new Request(BIZ+'/'),e);assert.equal(r.status,200);const html=await r.text();
  assert.match(html,/id="choose"/);assert.match(html,/<title>آینه \| مشتری قبل از نوبت، مدل رو روی عکس خودش می‌بینه<\/title>/);assert.doesNotMatch(html,/noindex/);
  new Function(html.match(/<script>([\s\S]*?)<\/script>/g).map(s=>s.replace(/<\/?script>/g,'')).join('\n'));
  // one page per service, each with its own studio, plans and checkout, and scripts that parse
  for(const key of ['hair','color','nails','lashes']){
-  for(const path of ['/'+key,'/'+key+'/']){const s=await app.fetch(new Request(origin+path),e);assert.equal(s.status,200,path)}
-  const page=await (await app.fetch(new Request(origin+'/'+key),e)).text();
+  for(const path of ['/'+key,'/'+key+'/']){const s=await app.fetch(new Request(BIZ+path),e);assert.equal(s.status,200,path)}
+  const page=await (await app.fetch(new Request(BIZ+'/'+key),e)).text();
   assert.match(page,/id="builderLive"/,key+' carries the page builder');assert.match(page,/id="services"/);assert.match(page,/id="payForm"/);
   assert.match(page,new RegExp('<body data-service="'+key+'">'),key+' tells the checkout its service');
   new Function(page.match(/<script>([\s\S]*?)<\/script>/g).map(s=>s.replace(/<\/?script>/g,'')).join('\n'));
  }
  // the salon-panel page and the demo page are real routes too, on the same headers
  for(const [path,marker] of [['/salon-panel','data-service="salon"'],['/sample','ساخت نمونه']]){
-  const r2=await app.fetch(new Request(origin+path),e);assert.equal(r2.status,200,path);assert.ok((await r2.text()).includes(marker),path+' serves its own page');
+  const r2=await app.fetch(new Request(BIZ+path),e);assert.equal(r2.status,200,path);assert.ok((await r2.text()).includes(marker),path+' serves its own page');
  }
- assert.equal((await app.fetch(new Request(origin+'/hairs'),e)).status,404,'only the listed page paths exist');
+ assert.equal((await app.fetch(new Request(BIZ+'/hairs'),e)).status,404,'only the listed page paths exist');
  assert.equal((await app.fetch(new Request(origin+'/admin'),e)).status,200);});
 
 test('free trial salon: built from the landing form, one per mobile, 5 images and 10 hours enforced by the server',async()=>{const e=tgEnv(fixture());e.KIE_API_KEY='mock';const tg=mockTelegram();const previous=globalThis.fetch;let tasks=0;
@@ -835,7 +836,7 @@ test('free trial salon: built from the landing form, one per mobile, 5 images an
   const done=await call(e,'/api/s/'+slug+'/public');assert.equal(done.status,200);assert.equal(done.data.trial.expired,true);
  }finally{globalThis.fetch=previous;tg.restore()}});
 
-test('landing carries an absolute share image and revalidates instead of going stale',async()=>{const e=fixture();const r=await app.fetch(new Request(origin+'/salons'),e);const html=await r.text();
+test('landing carries an absolute share image and revalidates instead of going stale',async()=>{const e=fixture();const r=await app.fetch(new Request(BIZ+'/'),e);const html=await r.text();
  // Cacheable was the reason the owner kept seeing an old build: max-age=300 plus an hour of
  // stale-while-revalidate meant a reload could serve a page from an hour ago.
  assert.match(r.headers.get('cache-control'),/no-cache/);
@@ -843,7 +844,7 @@ test('landing carries an absolute share image and revalidates instead of going s
  // And the served page names its build, so "is this the new one?" has an answer that does
  // not need devtools. The stamp is a meta tag because the minifier strips comments.
  assert.match(html,/<meta name="ayneh-build" content="[a-f0-9]{12}">/,'the page names its build');
- assert.match(html,new RegExp('og:image" content="'+origin+'/landing/og.jpg"'));assert.doesNotMatch(html,/__ORIGIN__/);assert.ok(readFileSync(new URL('../public/landing/og.jpg',import.meta.url)).length>10000)});
+ assert.match(html,new RegExp('og:image" content="'+BIZ+'/landing/og.jpg"'));assert.doesNotMatch(html,/__ORIGIN__/);assert.ok(readFileSync(new URL('../public/landing/og.jpg',import.meta.url)).length>10000)});
 
 test('demo salon behind the landing: no sign-up, 1 image per visitor, a coarse network cap, no 360 view, look handed over by the landing',async()=>{
  const e=tgEnv(fixture());e.KIE_API_KEY='mock';const s={slug:'demo'};
@@ -1155,7 +1156,7 @@ test('copy plan: header has the logo, three links and one fixed «مشاهده �
  assert.match(header,/class="brand__mark"/);assert.match(header,/class="brand__word">آینه</);
  const nav=(header.match(/<nav class="nav"[\s\S]*?<\/nav>/)||[])[0];
  assert.equal((nav.match(/<a /g)||[]).length,4,'three menu items and the way to the customer side');
- for(const item of ['#choose">خدمات','#services">تعرفه‌ها','#faq">سؤالات','/studio">مشتری هستید؟'])assert.ok(nav.includes(item),'home nav '+item);
+ for(const item of ['#choose">خدمات','#services">تعرفه‌ها','#faq">سؤالات','__MAIN__/">مشتری هستید؟'])assert.ok(nav.includes(item),'home nav '+item);
  const actions=(header.match(/<div class="header-cta">[\s\S]*?<\/div>/)||[])[0]||'';
  assert.doesNotMatch(actions,/class="btn--login"/,'the header login button was removed by the user');
  assert.match(actions,/class="btn" href="#choose">مشاهده خدمات</,'the fixed button links to the services section');
@@ -1880,7 +1881,7 @@ test('step 25 pages: /panel and /pay are real routes, the panel page parses, and
    assert.doesNotMatch(html,/[0-9۰-۹]{16}/,'no card number is ever baked into the page');
   }
   const e=fixture();
-  const pay=await app.fetch(new Request(origin+'/pay'),e);
+  const pay=await app.fetch(new Request(BIZ+'/pay'),e);
   assert.equal(pay.status,200);assert.match(await pay.text(),/id="payForm"/,'/pay serves a page with the checkout');
   assert.match(panelHTML,/\/api\/panel\/topup/,'the panel can buy more images');
 });
@@ -2914,19 +2915,21 @@ test('result: Instagram story keeps the result untouched and signs it with the r
 });
 test('search engines: canonical per page, robots.txt, sitemap.xml and organisation data',async()=>{
  const e=fixture();
- assert.ok((await (await app.fetch(new Request(origin+'/'),e)).text()).includes('<link rel="canonical" href="'+origin+'/">'),'canonical / (the chooser)');
- for(const p of ['/salons','/hair','/color','/nails','/lashes','/salon-panel','/sample']){
-  const html=await (await app.fetch(new Request(origin+p),e)).text();
-  assert.ok(html.includes('<link rel="canonical" href="'+origin+p+'">'),'canonical '+p);
+ assert.ok((await (await app.fetch(new Request(origin+'/'),e)).text()).includes('<link rel="canonical" href="'+origin+'/">'),'canonical / (the customers\' studio)');
+ for(const p of ['/','/hair','/color','/nails','/lashes','/salon-panel','/sample']){
+  const html=await (await app.fetch(new Request(BIZ+p),e)).text();
+  assert.ok(html.includes('<link rel="canonical" href="'+BIZ+p+'">'),'canonical '+p);
   assert.doesNotMatch(html,/__CANON__|__ORIGIN__/,'no placeholder left on '+p);
   assert.ok(html.includes('"@type":"Organization"'),'organisation data on '+p);
  }
- assert.doesNotMatch(await (await app.fetch(new Request(origin+'/pay'),e)).text(),/__CANON__/);
- const robots=await (await app.fetch(new Request(origin+'/robots.txt'),e)).text();
- assert.match(robots,/Disallow: \/admin/);assert.match(robots,/Disallow: \/api\//);assert.ok(robots.includes('Sitemap: '+origin+'/sitemap.xml'));
- const map=await (await app.fetch(new Request(origin+'/sitemap.xml'),e)).text();
- for(const p of ['/','/studio','/salons','/hair','/salon-panel'])assert.ok(map.includes('<loc>'+origin+p+'</loc>'),'sitemap '+p);
- assert.doesNotMatch(map,/admin|example\/panel|\/s\//);
+ assert.doesNotMatch(await (await app.fetch(new Request(BIZ+'/pay'),e)).text(),/__CANON__/);
+ for(const o of [origin,BIZ]){
+  const robots=await (await app.fetch(new Request(o+'/robots.txt'),e)).text();
+  assert.match(robots,/Disallow: \/admin/);assert.match(robots,/Disallow: \/api\//);assert.ok(robots.includes('Sitemap: '+o+'/sitemap.xml'));
+  const map=await (await app.fetch(new Request(o+'/sitemap.xml'),e)).text();
+  for(const p of o===BIZ?['/','/hair','/salon-panel']:['/'])assert.ok(map.includes('<loc>'+o+p+'</loc>'),'sitemap '+o+p);
+  assert.doesNotMatch(map,/admin|example\/panel|\/s\/|studio|salons/);
+ }
 });
 
 test('no page calls the simulation «تقریبی»: the sample label stays, the vague word is gone',()=>{
@@ -3286,23 +3289,30 @@ test('every plan on sale is confirmed by the bank notification with production a
   } finally { amountMode.roundFirst = was; }
 });
 
-test('«/» only asks customer or salon; /salons is the salon home; /try moved to /studio', async () => {
+test('two sites: the main domain is the customers\' studio, business. is the salons\' site; old addresses redirect with their query', async () => {
   const e = fixture();
-  const r = await app.fetch(new Request(origin + '/?ref=R2345678'), e);
-  assert.equal(r.status, 200);
-  const html = await r.text();
-  assert.match(html, /سلام! شما کدومید؟/);
-  assert.ok(html.includes('href="/studio"') && html.includes('href="/salons"'), 'two choices');
-  assert.doesNotMatch(html, /id="services"|data-buy=/, 'nothing is sold on the chooser');
-  assert.doesNotMatch(html, /__ORIGIN__/);
-  new Function(html.match(/<script>([\s\S]*?)<\/script>/)[1]);
-  assert.match(r.headers.get('set-cookie') || '', /ref/i, 'a referral link still counts through the chooser');
-  const salons = await (await app.fetch(new Request(origin + '/salons'), e)).text();
-  assert.match(salons, /id="services"/);
-  assert.doesNotMatch(salons, /href="\/"/, 'business pages link home to /salons, never to the chooser');
-  const old = await app.fetch(new Request(origin + '/try?x=1', {redirect: 'manual'}), e);
-  assert.equal(old.status, 301);assert.equal(old.headers.get('location'), '/studio?x=1');
-  const studio = await (await app.fetch(new Request(origin + '/studio'), e)).text();
-  assert.match(studio, /مدل جدیدت رو روی عکس خودت ببین/);assert.match(studio, /href="\/salons"/);
-  for (const l of ['hair', 'color', 'nails', 'lashes']) assert.ok(studio.includes('data-line="' + l + '"'), 'service card ' + l);
+  const home = await app.fetch(new Request(origin + '/?ref=R2345678'), e);
+  assert.equal(home.status, 200);
+  const html = await home.text();
+  assert.match(html, /مدل جدیدت رو روی عکس خودت ببین/);
+  assert.ok(html.includes('href="' + BIZ + '/"'), 'a way to the salons\' site');
+  assert.ok(html.includes('<link rel="canonical" href="' + origin + '/">'));
+  assert.doesNotMatch(html, /__ORIGIN__|__MAIN__|__CANON__/);
+  for (const l of ['hair', 'color', 'nails', 'lashes']) assert.ok(html.includes('data-line="' + l + '"'), 'service card ' + l);
+  const go = async (u) => { const r = await app.fetch(new Request(u, {redirect: 'manual'}), e); return [r.status, r.headers.get('location')]; };
+  assert.deepEqual(await go(origin + '/studio?l=nails'), [301, '/?l=nails']);
+  assert.deepEqual(await go(origin + '/try?l=hair'), [301, '/?l=hair']);
+  assert.deepEqual(await go(origin + '/salons?ref=R2345678'), [301, BIZ + '/?ref=R2345678']);
+  assert.deepEqual(await go(origin + '/hair?x=1'), [301, BIZ + '/hair?x=1']);
+  assert.deepEqual(await go(origin + '/pay?o=abc'), [301, BIZ + '/pay?o=abc'], 'payment links already sent keep working');
+  assert.deepEqual(await go(BIZ + '/salons'), [301, '/']);
+  assert.deepEqual(await go(BIZ + '/studio'), [301, origin + '/']);
+  assert.deepEqual(await go(BIZ + '/s/try'), [301, origin + '/s/try'], 'a salon\'s customer page belongs to the main domain');
+  assert.equal((await app.fetch(new Request(BIZ + '/s/demo?embed=1'), e)).status, 200, 'the demo embedded on the salons\' site stays there');
+  const biz = await app.fetch(new Request(BIZ + '/?ref=R2345678'), e);
+  assert.equal(biz.status, 200);assert.match(biz.headers.get('set-cookie') || '', /ref/i, 'a referral link counts on the salons\' site');
+  const bhtml = await biz.text();
+  assert.match(bhtml, /id="services"/);assert.ok(bhtml.includes('href="' + origin + '/">مشتری هستید؟'), 'the way back to the customers\' site');
+  assert.doesNotMatch(bhtml, /__MAIN__|__ORIGIN__|href="\/salons"/);
+  for (const p of ['/panel', '/admin']) for (const o of [origin, BIZ]) assert.equal((await app.fetch(new Request(o + p), e)).status, 200, o + p + ' keeps working on both');
 });

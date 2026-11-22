@@ -645,8 +645,8 @@ img[loading="lazy"].is-in{opacity:1}
 
 @media (min-width:900px){
  .studio{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);grid-template-areas:"title proof" "tag proof" "wallet proof" "cta proof";column-gap:48px;align-items:start;align-content:start}
- .studio__title{grid-area:title;font-size:44px}.studio__tag{grid-area:tag}.wallet{grid-area:wallet}.studio__cta{grid-area:cta}
- .proof{grid-area:proof;align-self:center}.proof__pair{max-width:none}.proof__img{max-height:340px}
+ .studio>.studio__title{grid-area:title;font-size:44px}.studio>.studio__tag{grid-area:tag}.studio>.wallet{grid-area:wallet}.studio>.studio__cta{grid-area:cta}.studio>.album{grid-column:1/-1}
+ .studio>.proof{grid-area:proof;align-self:center}.proof__pair{max-width:none}.proof__img{max-height:340px}
 }
 /* While the start button is on screen the dock would repeat it (and cover it on small phones). */
 body.cta-on-screen #dock{transform:translateY(130%);opacity:0;pointer-events:none}

@@ -27,7 +27,7 @@ export const STYLE_DETAILS={
  'Messy top bun':'a messy top bun (مدل گوجه‌ای) high on the crown, loose and voluminous, with a few soft strands framing the face',
  'Low bun updo':'an elegant low bun at the nape, smooth sides, a few soft face-framing tendrils',
  'High ponytail':'a sleek high ponytail at the crown, smooth pulled-back sides, long flowing tail',
- 'Bixie cut':'a bixie cut: a short tousled cut between a pixie and a bob, ear-to-chin length with soft choppy layers and wispy pieces around the face',
+ 'Short shaggy bob':'a short shaggy bob: a short tousled cut, ear-to-chin length with soft choppy layers and wispy pieces around the face',
  'French bob':'a French bob: a blunt jaw-length bob with soft movement and short eyebrow-skimming bangs',
  'Italian bob':'an Italian bob: a thick, full chin-to-jaw length bob with soft rounded voluminous ends that flip slightly, glossy',
  'Layered bob':'a layered bob: chin length with visible soft layers through the ends for movement and volume, side part',

@@ -12,6 +12,7 @@ import {sharePage} from './share.js';
 import {landingHTML,servicePages} from './landing.js';
 import {packsTag} from './regularpage.js';
 import {isBiz,bizOrigin,mainOrigin} from './hosts.js';
+import {CODE_RE} from './rewards.js';
 import {directSalon} from './customers.js';
 import {refCookie} from './rewards.js';
 import {iphonePage} from './payapp.js';
@@ -79,12 +80,12 @@ export default {
   if(u.pathname.startsWith('/fonts/')){const f=fontResponse(u.pathname.slice(7));if(f)return f;}
   const sub=subdomainOf(u,env);
   if(sub){
-   if(/^\/(?:admin|panel)\/?$/.test(u.pathname))return new Response(panelHTML.replace('</head>','<meta name="ayneh-user" content="'+attr(sub)+'"></head>'),{headers:{...htmlHeaders,'X-Robots-Tag':'noindex'}});
+   if(/^\/(?:admin|panel)\/?$/.test(u.pathname))return new Response(panelHTML.replace('</head>','<meta name="ayneh-user" content="'+attr(sub)+'"><meta name="ayneh-biz" content="'+attr(bizOrigin(u,env))+'"></head>'),{headers:{...htmlHeaders,'X-Robots-Tag':'noindex'}});
    if(u.pathname==='/'||u.pathname===''){const html=await salonPage(u,env,sub);return html?new Response(html,{headers:{...htmlHeaders,'X-Frame-Options':'SAMEORIGIN','Content-Security-Policy':htmlHeaders['Content-Security-Policy'].replace("frame-ancestors 'none'","frame-ancestors 'self'")}}):new Response(notFound,{status:404,headers:htmlHeaders});}
   }
   // /pay is the checkout's own address (shared links and the QR on a receipt); the landing
   // page carries the same sheet inline, so both land on the same server-side order.
-  if(/^\/panel\/?$/.test(u.pathname))return new Response(panelHTML,{headers:{...htmlHeaders,'X-Robots-Tag':'noindex'}});
+  if(/^\/panel\/?$/.test(u.pathname))return new Response(panelHTML.replace('</head>','<meta name="ayneh-biz" content="'+attr(bizOrigin(u,env))+'"></head>'),{headers:{...htmlHeaders,'X-Robots-Tag':'noindex'}});
   if(/^\/pay\/?$/.test(u.pathname)&&isBiz(u))return new Response(servicePages.hair.replaceAll('__ORIGIN__',bizOrigin(u,env)).replaceAll('__MAIN__',mainOrigin(u,env)).replaceAll('__CANON__','/hair'),{headers:{...htmlHeaders,'Cache-Control':'no-store','X-Robots-Tag':'noindex'}});
   if(u.pathname==='/salon-preview')return new Response(customerHTML,{headers:{...htmlHeaders,'X-Frame-Options':'SAMEORIGIN','X-Robots-Tag':'noindex','Content-Security-Policy':htmlHeaders['Content-Security-Policy'].replace("frame-ancestors 'none'","frame-ancestors 'self'")}});
   /* The landing page is the one thing the owner keeps reloading while we work on it, and a
@@ -109,6 +110,9 @@ export default {
    if(/^\/(?:studio|try)\/?$/.test(u.pathname))return moved(M+'/'+u.search);
    if(/^\/(?:s|i)\//.test(u.pathname)&&!/[?&]embed=1(?:&|$)/.test(u.search))return moved(M+u.pathname+u.search);
   }else{
+   /* Plan referral links (?ref=R…) handed out before the split point here: they belong to the salons' site,
+      where plans are bought and where the referral cookie must be set. */
+   if(u.pathname==='/'&&CODE_RE.test(String(u.searchParams.get('ref')||'').toUpperCase()))return moved(B+'/'+u.search);
    /* The main domain is the customers' site: «/» is their studio. */
    if(u.pathname==='/'){must(env.DB,'پایگاه داده هنوز آماده نیست',503);const d=await directSalon(env.DB);const html=await studioPage(u,env,d.slug);return new Response(html,{headers:{...htmlHeaders,'Cache-Control':'no-cache',...refCookie(u,request)}});}
    if(/^\/(?:studio|try)\/?$/.test(u.pathname))return moved('/'+u.search);

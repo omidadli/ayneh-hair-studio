@@ -59,6 +59,7 @@ const RATIOS=['1:1','2:3','3:2','3:4','4:3','4:5','5:4','9:16','16:9'];
 // verified, this mobile. Failed images do not count; the 360 view counts as a hairstyle image.
 // Images a salon page may make per day across all its customers (owner setting; 0 = no cap).
 export const DAILY_LIMIT=50;
+export const DIRECT_GIFT_PER_IP=6; // gift images per connection per day on the customers' studio
 const dailyLimit=cfg=>Number.isInteger(cfg?.daily_limit)?cfg.daily_limit:DAILY_LIMIT;
 // The 360 view: the front is her own result photo; only her left profile, the back of her head and
 // her right profile are made, three large tiles in one row, so no face is redrawn from the front.
@@ -510,6 +511,9 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   // The salon's daily cap guards its own free images; an image the customer paid for from her own pack
   // (paidBy) is hers and is never blocked by other visitors' free images (e.g. on the shared /try salon).
   // When the cap stops a free image and she has images of her own, one of hers is used instead.
+  /* Gift images of the customers' studio cost the owner real money (~20,000 toman each): one
+     connection cannot drain the day's shared gift pool by opening new private windows. */
+  if(isDirect(salon)&&!free&&!paidBy){try{await limited(db,'direct-gift:'+clientIp(req)+':'+new Date().toISOString().slice(0,10),DIRECT_GIFT_PER_IP)}catch(e){if(!(e instanceof Problem)||e.status!==429)throw e;paidBy=await ownImage(db,env,s,visitor);if(!paidBy)throw new Problem(429,'عکس‌های هدیهٔ امروز از این اینترنت تمام شده؛ برای عکس بیشتر کیف سکه‌ات رو شارژ کن.')}}
   if(dailyLimit(cfg)>0&&!free&&!paidBy){try{await limited(db,'generation:'+salon.id+':'+new Date().toISOString().slice(0,10),dailyLimit(cfg))}catch(e){if(!(e instanceof Problem)||e.status!==429||trial||demo)throw e;paidBy=await ownImage(db,env,s,visitor);if(!paidBy)throw e}}
   if(!free)await spendTrialImage(db,trial);
   const id=uid(),now=Date.now();

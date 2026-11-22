@@ -3291,8 +3291,8 @@ test('every plan on sale is confirmed by the bank notification with production a
 
 test('two sites: the main domain is the customers\' studio, business. is the salons\' site; old addresses redirect with their query', async () => {
   const e = fixture();
-  const home = await app.fetch(new Request(origin + '/?ref=R2345678'), e);
-  assert.equal(home.status, 200);
+  const home = await app.fetch(new Request(origin + '/?r=abc'), e);
+  assert.equal(home.status, 200, 'a customer share link (?r=) stays on the studio');
   const html = await home.text();
   assert.match(html, /مدل بعدی‌ات رو روی عکس خودت ببین/);
   assert.ok(html.includes('<meta name="ayneh-biz" content="' + BIZ + '">'), 'a way to the salons\' site');
@@ -3301,6 +3301,7 @@ test('two sites: the main domain is the customers\' studio, business. is the sal
   const go = async (u) => { const r = await app.fetch(new Request(u, {redirect: 'manual'}), e); return [r.status, r.headers.get('location')]; };
   assert.deepEqual(await go(origin + '/studio?l=nails'), [301, '/?l=nails']);
   assert.deepEqual(await go(origin + '/try?l=hair'), [301, '/?l=hair']);
+  assert.deepEqual(await go(origin + '/?ref=R2345678'), [301, BIZ + '/?ref=R2345678'], 'plan referral links handed out before the split reach the salons\' site');
   assert.deepEqual(await go(origin + '/salons?ref=R2345678'), [301, BIZ + '/?ref=R2345678']);
   assert.deepEqual(await go(origin + '/hair?x=1'), [301, BIZ + '/hair?x=1']);
   assert.deepEqual(await go(origin + '/pay?o=abc'), [301, BIZ + '/pay?o=abc'], 'payment links already sent keep working');

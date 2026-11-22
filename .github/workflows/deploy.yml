@@ -28,13 +28,6 @@ jobs:
           else
             echo "ready=true" >> "$GITHUB_OUTPUT"
           fi
-      - name: Apply D1 migrations
-        if: steps.config.outputs.ready == 'true'
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: d1 migrations apply DB --remote
       # The owner's Android payment app «آینه‌پی» (android/) ships with the site as a static file
       # (public/app/ayneh-pay.apk; download page /app). Its signing key is made once and kept in
       # D1 (table ci_store, never in git), so every build installs as an update. A failed app
@@ -78,6 +71,15 @@ jobs:
           printf '1.0.%s' "$VERSION_CODE" > public/app/version.txt
           rm -f android/app/release.jks /tmp/ks.pass /tmp/ks.json
           ls -la public/app
+      # The APK builds first: migrations and the worker deploy run back to back, so the old
+      # worker never reads a migrated database (a minutes-long gap once let it misread coins).
+      - name: Apply D1 migrations
+        if: steps.config.outputs.ready == 'true'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: d1 migrations apply DB --remote
       - name: Deploy worker
         id: deploy
         if: steps.config.outputs.ready == 'true'

@@ -146,7 +146,7 @@ function gate(msg){
  [uIn,pIn,kIn].forEach(function(inp){inp.addEventListener('keydown',function(e){if(e.key==='Enter')go.click()})});
  var err=el('p',{class:'notice notice--warn',hidden:true});
  $('#app').replaceChildren(el('section',{class:'pn'},[
-  el('div',{class:'pn-bar'},[el('a',{class:'pn-brand',href:(location.hostname.indexOf('business.')===0?'/':location.protocol+'//business.'+location.host.replace(/^www\./,'')+'/')},[el('span',{html:MARK}),'آینه'])]),
+  el('div',{class:'pn-bar'},[el('a',{class:'pn-brand',href:(function(){var m=document.querySelector('meta[name="ayneh-biz"]');return m&&m.content?m.content+'/':'/'})()},[el('span',{html:MARK}),'آینه'])]),
   el('div',{class:'pn-card pn-start'},[
    h('h1','ورود به پنل مدیریت سالن'),
    h('p','با نام کاربری و رمز عبوری که بعد از خرید گرفتید وارد شوید (یا با کلید دسترسی AY).'),
@@ -503,7 +503,7 @@ function dash(d){
  var shareBtn=el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'کپی / اشتراک',onclick:function(e){shareLink(d,e.target)}});
  $('#app').replaceChildren(el('section',{class:'pn'},[
   el('div',{class:'pn-bar'},[
-   el('a',{class:'pn-brand',href:(location.hostname.indexOf('business.')===0?'/':location.protocol+'//business.'+location.host.replace(/^www\./,'')+'/')},[el('span',{html:MARK}),'آینه']),
+   el('a',{class:'pn-brand',href:(function(){var m=document.querySelector('meta[name="ayneh-biz"]');return m&&m.content?m.content+'/':'/'})()},[el('span',{html:MARK}),'آینه']),
    el('div',{style:'display:flex;gap:8px;align-items:center'},[h('span',d.salon.name+' · پلن '+d.plan,'pn-who'),el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'خروج',onclick:function(){api('/api/panel/logout',{}).then(function(){location.href='/panel'})}})])
   ]),
   el('div',{class:'pn-card pn-hero'},[

@@ -129,8 +129,9 @@ export async function quotaView(db, env, salon, s, visitor, quota) {
    UNIQUE(account_id, reason, order_id) makes a retried webhook or a double click harmless. */
 export async function confirmCustomerPack(db, env, row) {
   must(row.customer_id, 'حساب این سفارش پیدا نشد.', 409);
-  const r = await run(db, 'INSERT OR IGNORE INTO customer_ledger(id,account_id,delta,reason,order_id,created_at) VALUES(?,?,?,?,?,?)',
-    uid(), row.customer_id, Math.trunc(Number(row.credits || 0)), 'topup', row.id, Date.now());
+  /* Once per order whatever the reason name: orders credited before Nov 2026 carry reason 'pack'. */
+  const r = await run(db, "INSERT INTO customer_ledger(id,account_id,delta,reason,order_id,created_at) SELECT ?,?,?,'topup',?,? WHERE NOT EXISTS (SELECT 1 FROM customer_ledger WHERE order_id=? AND reason IN ('pack','topup'))",
+    uid(), row.customer_id, Math.trunc(Number(row.credits || 0)), row.id, Date.now(), row.id);
   const claimed = r.meta.changes > 0;
   if (claimed) {
     /* The owner hears about it without the customer's mobile (she is not Ayneh's salon buyer). */

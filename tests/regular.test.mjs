@@ -73,13 +73,13 @@ test('regular customer: 2 free images in all, then coins: any top-up from 100,00
   let sess=await call(e,'/api/s/try/session?v='+v,undefined,g);assert.equal(sess.data.quota.free,0);assert.deepEqual(Object.values(sess.data.quota.left),[0,0,0,0]);
   let me=await call(e,'/api/c/me?v='+v,undefined,g);
   assert.equal(me.data.free.left,0);assert.equal(me.data.own.coins,0);assert.equal(me.data.price,50000);assert.equal(me.data.image_coins,25);assert.equal(me.data.min,100000);
-  assert.deepEqual(me.data.topups.map(t=>[t.toman,t.coins]),[[100000,50],[200000,110],[500000,300]]);
-  assert.deepEqual([coinsFor(100000).coins,coinsFor(150000).coins,coinsFor(200000).coins,coinsFor(500000).coins,coinsFor(1000000).coins],[50,75,110,300,600]);
+  assert.deepEqual(me.data.topups.map(t=>[t.toman,t.coins]),[[100000,50],[200000,125],[400000,250]]);
+  assert.deepEqual([coinsFor(100000).coins,coinsFor(150000).coins,coinsFor(200000).coins,coinsFor(500000).coins,coinsFor(1000000).coins],[50,75,125,300,625],'whole images: 1 gift image per full 200,000 toman');
   // Out of range, not whole thousands or not a number: refused; the browser never sets the amount or the coins.
-  for(const toman of [0,99000,50000,100500,10001000,'x',-100000])assert.equal((await call(e,'/api/c/order',{toman,v},g)).status,400,String(toman));
+  for(const toman of [0,99000,50000,100500,120000,101000,10050000,'x',-100000])assert.equal((await call(e,'/api/c/order',{toman,v},g)).status,400,String(toman));
   const small=await call(e,'/api/c/order',{toman:100000,v,amount:1,coins:9999},g);assert.equal(small.status,200,JSON.stringify(small));
   assert.ok(small.data.amount<=100000&&small.data.amount>=99001,'100,000 toman, made unique just below');assert.equal(small.data.coins,50);assert.equal(small.data.kind,'customer_pack');assert.match(small.data.ref,/^AY[2-9A-HJ-NP-Z]{6}$/);
-  const more=await call(e,'/api/c/order',{toman:200000,v},g);assert.equal(more.data.coins,110,'200,000 toman: 100 coins + 10% gift');
+  const more=await call(e,'/api/c/order',{toman:200000,v},g);assert.equal(more.data.coins,125,'200,000 toman: 4 images + 1 gift image');
   assert.equal((await call(e,'/api/c/order/'+small.data.id)).data.status,'cancelled','a new top-up replaces her open one');
   assert.equal((await call(e,'/api/c/me?v='+v,undefined,g)).data.own.coins,0,'nothing before payment');
   assert.equal((await call(e,'/api/panel/login',{key:'AY-'+'2'.repeat(9)})).status,401);
@@ -87,27 +87,28 @@ test('regular customer: 2 free images in all, then coins: any top-up from 100,00
   assert.equal((await webhookPay(e,more.data.ref,1000)).status,409);
   const paid=await webhookPay(e,more.data.ref,more.data.amount);assert.equal(paid.status,200);
   assert.equal((await call(e,'/api/c/order/'+more.data.id)).data.status,'paid');
-  me=await call(e,'/api/c/me?v='+v,undefined,g);assert.equal(me.data.own.coins,110,'سکه‌ها به کیف شما اضافه شد');assert.equal(me.data.own.left,4,'110 coins = 4 images');
+  me=await call(e,'/api/c/me?v='+v,undefined,g);assert.equal(me.data.own.coins,125,'سکه‌ها به کیف شما اضافه شد');assert.equal(me.data.own.left,5,'125 coins = 5 images');
   await confirm(e,more.data.id);assert.equal((await webhookPay(e,more.data.ref,more.data.amount)).status,200);
-  assert.equal((await call(e,'/api/c/me?v='+v,undefined,g)).data.own.coins,110,'a second confirmation grants nothing');
+  assert.equal((await call(e,'/api/c/me?v='+v,undefined,g)).data.own.coins,125,'a second confirmation grants nothing');
   // Each image takes 25 coins; a failed one gives them back.
   const next=await gen(e,'try',g,original,v,'hair');assert.equal(next.status,200,JSON.stringify(next));
   const acc=e.DB.sql.prepare('SELECT id FROM customer_accounts WHERE visitor=?').get(v).id;
   assert.equal(e.DB.sql.prepare('SELECT paid_by FROM generations WHERE id=?').get(next.data.id).paid_by,acc);
-  assert.equal((await call(e,'/api/c/me?v='+v,undefined,g)).data.own.coins,85);
+  assert.equal((await call(e,'/api/c/me?v='+v,undefined,g)).data.own.coins,100);
   e.DB.sql.prepare("UPDATE generations SET state='fail' WHERE id=?").run(next.data.id);
-  assert.equal((await call(e,'/api/c/me?v='+v,undefined,g)).data.own.coins,110);
-  sess=await call(e,'/api/s/try/session?v='+v,undefined,g);assert.equal(sess.data.quota.left.hair,4);
-  // 10 coins left over never make an image: 110 → 4 images, then 10 coins and a refusal.
-  for(let i=0;i<4;i++)assert.equal((await gen(e,'try',g,original,v,'lashes')).status,200,'image '+(i+1));
-  me=await call(e,'/api/c/me?v='+v,undefined,g);assert.equal(me.data.own.coins,10);assert.equal(me.data.own.left,0);
+  assert.equal((await call(e,'/api/c/me?v='+v,undefined,g)).data.own.coins,125);
+  sess=await call(e,'/api/s/try/session?v='+v,undefined,g);assert.equal(sess.data.quota.left.hair,5);
+  // Whole images: 125 coins → 5 images, then nothing is left over and the next is refused.
+  for(let i=0;i<5;i++)assert.equal((await gen(e,'try',g,original,v,'lashes')).status,200,'image '+(i+1));
+  me=await call(e,'/api/c/me?v='+v,undefined,g);assert.equal(me.data.own.coins,0);assert.equal(me.data.own.left,0);
   assert.equal((await gen(e,'try',g,original,v,'lashes')).status,429);
   const list=(await call(e,'/api/owner/orders',undefined,OWNER)).data.orders.find(o=>o.id===more.data.id);
-  assert.equal(list.plan,'شارژ ۱۱۰ سکهٔ مشتری');assert.equal(list.kind,'customer_pack');
+  assert.equal(list.plan,'شارژ ۱۲۵ سکهٔ مشتری');assert.equal(list.kind,'customer_pack');
  }finally{p.restore()}
 });
 
-test('coins migration: every earlier customer image becomes 25 coins',()=>{
+test('coins migration: every earlier customer image becomes 25 coins, in the ledger and in open orders',()=>{
+ assert.match(readFileSync(new URL('../drizzle/0027_customer_pack_coins.sql',import.meta.url),'utf8'),/UPDATE orders SET credits = credits \* 25 WHERE kind = 'customer_pack' AND status <> 'paid'/);
  const sql=readFileSync(new URL('../drizzle/0026_customer_coins.sql',import.meta.url),'utf8');
  assert.match(sql,/UPDATE customer_ledger SET delta = delta \* 25/);
  assert.equal(IMAGE_COINS,25);assert.equal(CUSTOMER_IMAGE_PRICE,50000);
@@ -120,9 +121,9 @@ test('salon page: past the 3 images per service the customer buys her own pack; 
   const g=await guest(e,salon.slug),original=await upload(e,salon.slug,g),v='ef'.repeat(16);
   for(let i=0;i<3;i++)assert.equal((await gen(e,salon.slug,g,original,v)).status,200);
   const out=await gen(e,salon.slug,g,original,v);assert.equal(out.status,429);assert.match(out.data.error,/سهم امتحان «مدل مو»/);
-  const order=await call(e,'/api/c/order',{toman:300000,v},g);assert.equal(order.status,200,JSON.stringify(order));assert.equal(order.data.coins,165);
+  const order=await call(e,'/api/c/order',{toman:300000,v},g);assert.equal(order.status,200,JSON.stringify(order));assert.equal(order.data.coins,175,'300,000 toman: 6 images + 1 gift');
   await confirm(e,order.data.id);
-  const sess=await call(e,'/api/s/'+salon.slug+'/session?v='+v,undefined,g);assert.equal(sess.data.quota.left.hair,6);assert.equal(sess.data.quota.left.nails,9,'3 free + 6 own');
+  const sess=await call(e,'/api/s/'+salon.slug+'/session?v='+v,undefined,g);assert.equal(sess.data.quota.left.hair,7);assert.equal(sess.data.quota.left.nails,10,'3 free + 7 own');
   const usedBefore=(await (await app.fetch(new Request(origin+'/api/panel/me',{headers:{cookie:salon.cookie}}),e)).json()).credits.used;
   assert.equal((await gen(e,salon.slug,g,original,v)).status,200,'her own image');
   const after=(await (await app.fetch(new Request(origin+'/api/panel/me',{headers:{cookie:salon.cookie}}),e)).json()).credits;
@@ -142,8 +143,8 @@ test('referral: both sides get 10 images once the plan is paid; never twice, nev
  assert.ok(panelHTML.includes('آرایشگر دیگری را معرفی کنید. هر دو ۱۰ عکس هدیه می‌گیرید.'));
  const code=card.data.link.split('ref=')[1];
  // The link sets a first-party cookie; the first valid link wins; junk is ignored.
- const land=await app.fetch(new Request(origin+'/?ref='+code),e);assert.match(land.headers.get('set-cookie'),new RegExp('^ayneh_ref='+code+'; HttpOnly; Secure; SameSite=Lax'));
- assert.equal((await app.fetch(new Request(origin+'/hair?ref=RXXXXXXX',{headers:{cookie:'ayneh_ref='+code}}),e)).headers.get('set-cookie'),null);
+ const land=await app.fetch(new Request('https://business.test.example/?ref='+code),e);assert.match(land.headers.get('set-cookie'),new RegExp('^ayneh_ref='+code+'; HttpOnly; Secure; SameSite=Lax'));
+ assert.equal((await app.fetch(new Request('https://business.test.example/hair?ref=RXXXXXXX',{headers:{cookie:'ayneh_ref='+code}}),e)).headers.get('set-cookie'),null);
  assert.equal((await app.fetch(new Request(origin+'/nails?ref=<x>'),e)).headers.get('set-cookie'),null);
  const ref={cookie:'ayneh_ref='+code};
  const before=credits(e,a.id);
@@ -218,12 +219,31 @@ test('/try: a pack replaced by a newer one is still honoured when its exact amou
   const six=await call(e,'/api/c/order',{toman:300000,v},g),nine=await call(e,'/api/c/order',{toman:450000,v},g);
   assert.equal((await call(e,'/api/c/order/'+six.data.id)).data.status,'cancelled');
   assert.equal((await webhookPay(e,six.data.ref,six.data.amount)).status,200,'the exact amount of the replaced top-up confirms it');
-  assert.equal((await call(e,'/api/c/me?v='+v,undefined,g)).data.own.left,6);
+  assert.equal((await call(e,'/api/c/me?v='+v,undefined,g)).data.own.left,7);
   // her own images ignore the salon's daily cap (they are hers, not the salon's free images)
   const own=await gen(e,'try',g,original,v,'lashes');assert.equal(own.status,200,JSON.stringify(own.data));
   const acc=e.DB.sql.prepare('SELECT id FROM customer_accounts WHERE visitor=?').get(v).id;
   assert.equal(e.DB.sql.prepare('SELECT paid_by FROM generations WHERE id=?').get(own.data.id).paid_by,acc,'paid_by is on the row from the start');
-  assert.equal((await call(e,'/api/c/me?v='+v,undefined,g)).data.own.left,5,'one of her six');
+  assert.equal((await call(e,'/api/c/me?v='+v,undefined,g)).data.own.left,6,'one of her seven');
   assert.equal(nine.data.status,'open');
+ }finally{p.restore()}
+});
+
+test('studio gifts: one connection gets at most 6 gift images a day, whatever the private windows; a re-confirmed old pack is never credited twice',async()=>{
+ const e=fixture(),p=mockProvider();
+ try{
+  await app.fetch(new Request(origin+'/'),e);
+  let made=0,last=null;
+  for(let i=0;i<4;i++){const g=await guest(e,'try'),original=await upload(e,'try',g),v=String(i).repeat(32);
+   for(let k=0;k<2;k++){last=await gen(e,'try',g,original,v,k?'nails':'hair');if(last.status===200)made++;}}
+  assert.equal(made,6,'three new visitors on one connection: six gifts');
+  assert.equal(last.status,429);assert.match(last.data.error,/عکس‌های هدیهٔ امروز از این اینترنت تمام شده/);
+  // An order credited before coins (reason 'pack') confirmed again: nothing new.
+  const acc=e.DB.sql.prepare("INSERT INTO customer_accounts(id,visitor,created_at) VALUES('accx','"+'f'.repeat(32)+"',0) RETURNING id").get();
+  e.DB.sql.prepare("INSERT INTO customer_ledger(id,account_id,delta,reason,order_id,created_at) VALUES('l1','accx',150,'pack','ordx',0)").run();
+  const {confirmCustomerPack}=await import('../worker/customers.js');
+  const r=await confirmCustomerPack(e.DB,{},{customer_id:'accx',credits:150,id:'ordx',ref:'AYXXXXXX',amount:3000000});
+  assert.equal(r,false,'already credited under the old reason');
+  assert.equal(e.DB.sql.prepare("SELECT SUM(delta) n FROM customer_ledger WHERE account_id='accx'").get().n,150);
  }finally{p.restore()}
 });

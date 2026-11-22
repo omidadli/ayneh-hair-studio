@@ -27,14 +27,31 @@ const packsCSS = String.raw`
 .ap-x{border:0;background:transparent;font-size:26px;line-height:1;color:var(--ink);cursor:pointer;min-width:var(--tap);min-height:var(--tap)}
 .ap [hidden]{display:none!important}
 .ap-pack{position:relative}
-.ap-pack b{display:inline-flex;align-items:center;gap:6px}
+.ap-pack b{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .ap-coin{display:inline-flex;width:20px;height:20px}.ap-coin svg{width:100%;height:100%}
 .ap-pack--gift{border-color:#E9B949}
+.ap-pack--best{box-shadow:0 0 0 2px #E9B949 inset}
 .ap-gift{position:absolute;top:-10px;inset-inline-end:10px;font-style:normal;font-size:11.5px;font-weight:800;padding:2px 9px;border-radius:999px;background:#F4E6CC;color:#6B4A0E;border:1px solid #E9B949}
 .ap-unit{font-size:13px;color:var(--muted)}
 .ap-more input{width:96px}
 @media (max-width:520px){.ap-packs{grid-template-columns:1fr;gap:14px}.ap-pack{grid-template-columns:1fr auto;align-items:center;column-gap:10px}.ap-pack span{text-align:end}}
 .ap-copy{display:flex;flex-wrap:wrap;gap:8px}
+.ap-paysum{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 16px;border-radius:var(--r);background:#FBF0D9;border:1px solid #EAD39D;color:#5B3F0C}
+.ap-paysum span{display:inline-flex;align-items:center;gap:6px;font-weight:800}
+.ap-paysum b{font-size:19px}
+.ap-steps{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:s}
+.ap-steps li{position:relative;display:grid;gap:8px;padding:12px 14px 12px 14px;padding-inline-start:46px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface,#fff)}
+.ap-steps li::before{counter-increment:s;content:counter(s);position:absolute;inset-inline-start:12px;top:12px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--accent,#0f5e4d);color:#fff;font-size:13px;font-weight:800}
+.ap-cardrow,.ap-amount{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.ap-amount span{font-size:18px;font-weight:800;color:var(--ink)}
+.ap-amount--alt span{font-size:14px;font-weight:600;color:var(--muted)}
+.ap-wait{display:flex;align-items:center;gap:8px;font-weight:700;color:var(--ink)}
+.ap-spin{width:16px;height:16px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent,#0f5e4d);animation:apspin .9s linear infinite}
+@keyframes apspin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.ap-spin{animation:none}}
+.ap-row--ref{font-size:13px}
+.ap-done{display:grid;justify-items:center;gap:6px;text-align:center;padding:18px 12px;border-radius:var(--r);background:#E9F6F0}
+.ap-done .ap-coin{width:44px;height:44px}.ap-done b{font-size:17px}.ap-done span{font-size:13.5px;color:var(--muted)}
 .ap-ref{display:grid;gap:8px;padding:12px 14px;border-radius:var(--r);background:var(--surface-2,#f6f1ea);font-size:13.5px}
 .ap-ref code{direction:ltr;text-align:start;font:12.5px ui-monospace,Menlo,monospace;word-break:break-all;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 /* The same glass material as the rest of the site, for every control in the sheet: two
@@ -88,42 +105,45 @@ export const packsJS = String.raw`
    err.hidden=true;if(btn)btn.disabled=true;
    api('/api/c/order',{toman:toman,v:visitor()}).then(function(o){try{localStorage.setItem(KEY,o.id)}catch(e){}pay(o)}).catch(function(x){fail(x.message);if(btn)btn.disabled=false});
   }
-  /* Coins for an amount, the same rule as the server (customerprices.js coinsFor); display only. */
-  function coins(d,t){var base=Math.floor(t/d.coin_toman),pct=0;for(var i=0;i<d.bonus.length;i++)if(t>=d.bonus[i][0]){pct=d.bonus[i][1];break}return {coins:base+Math.floor(base*pct/100),pct:pct}}
+  /* Images for an amount, the same rule as the server (customerprices.js coinsFor); display only. */
+  function worth(d,t){var img=Math.floor(t/d.image_price),gift=Math.floor(t/d.gift_every);return {images:img+gift,gift:gift,coins:(img+gift)*d.image_coins}}
   function list(d){
-   var packs=el('div',{class:'ap-packs'},d.topups.map(function(p){var b=el('button',{class:'ap-pack'+(p.pct?' ap-pack--gift':''),type:'button',onclick:function(){choose(p.toman,b)}},[
-     p.pct?el('i',{class:'ap-gift',text:fa(p.pct)+'٪ سکهٔ هدیه'}):null,
-     el('b',{},[coinSVG(),document.createTextNode(fa(p.coins)+' سکه')]),
-     el('span',{text:fa(p.toman/1000)+' هزار تومان · '+fa(Math.floor(p.coins/d.image_coins))+' عکس'})]);return b}));
-   var n=el('input',{type:'number',min:String(d.min/1000),max:String(d.max/1000),step:'10',value:String(d.min/1000*3),inputmode:'numeric','aria-label':'مبلغ شارژ به هزار تومان'});
+   var best=d.topups.length>1?d.topups[1].toman:0;
+   var packs=el('div',{class:'ap-packs'},d.topups.map(function(p){var w=worth(d,p.toman);var b=el('button',{class:'ap-pack'+(w.gift?' ap-pack--gift':'')+(p.toman===best?' ap-pack--best':''),type:'button',onclick:function(){choose(p.toman,b)}},[
+     w.gift?el('i',{class:'ap-gift',text:fa(w.gift)+' عکس هدیه'}):null,
+     el('b',{},[coinSVG(),document.createTextNode(fa(w.images)+' عکس')]),
+     el('span',{text:fa(p.toman/1000)+' هزار تومان · '+fa(w.coins)+' سکه'+(w.gift?' · هر عکس '+fa(Math.round(p.toman/w.images/1000))+' هزار':'')})]);return b}));
+   var step=d.step/1000,n=el('input',{type:'number',min:String(d.min/1000),max:String(d.max/1000),step:String(step),value:String(d.min/1000*3),inputmode:'numeric','aria-label':'مبلغ شارژ به هزار تومان'});
    var total=el('output',{});
    var val=function(){return Math.floor(Number(n.value)||0)*1000};
-   var upd=function(){var t=val();if(t<d.min||t>d.max){total.textContent='بین '+fa(d.min/1000)+' تا '+fa(d.max/1000)+' هزار تومان';return}var c=coins(d,t);total.textContent=fa(c.coins)+' سکه'+(c.pct?' (با '+fa(c.pct)+'٪ هدیه)':'')+' · '+fa(Math.floor(c.coins/d.image_coins))+' عکس'};n.addEventListener('input',upd);upd();
-   var more=el('div',{class:'ap-more'},[el('label',{},['مبلغ دلخواه',n,el('span',{class:'ap-unit',text:'هزار تومان'})]),total,el('button',{class:'btn btn--primary btn--sm',type:'button',text:'شارژ',onclick:function(e){var t=val();if(t<d.min||t>d.max){fail('مبلغ را بین '+fa(d.min/1000)+' تا '+fa(d.max/1000)+' هزار تومان بنویسید.');return}choose(t,e.target)}})]);
-   box.replaceChildren(el('div',{class:'ap'},[packs,more,el('p',{class:'ap-note',text:'هر عکس '+fa(d.image_coins)+' سکه ('+fa(d.image_price)+' تومان). کمترین شارژ '+fa(d.min/1000)+' هزار تومان است. سکه‌ای که می‌خرید هیچ‌وقت منقضی نمی‌شود و اگر ساخت عکسی خراب شود، سکه‌اش برمی‌گردد.'}),err,opts.referral&&d.referral?el('div',{class:'ap-ref'},[el('p',{text:'آرایشگر یا آرایشگاه‌دار می‌شناسید؟ لینک خودتان را به او بدهید؛ اگر پلن آینه بگیرد، '+fa(d.referral.images*d.image_coins)+' سکه هدیه می‌گیرید.'}),el('code',{text:d.referral.link}),copyBtn('کپی لینک',d.referral.link)]):null]));
+   var ok=function(t){return t>=d.min&&t<=d.max&&t%d.step===0};
+   var upd=function(){var t=val();if(!ok(t)){total.textContent='مضربی از '+fa(step)+' هزار تومان، از '+fa(d.min/1000)+' تا '+fa(d.max/1000)+' هزار';return}var w=worth(d,t);total.textContent=fa(w.images)+' عکس'+(w.gift?' (با '+fa(w.gift)+' عکس هدیه)':'')+' · '+fa(w.coins)+' سکه'};n.addEventListener('input',upd);upd();
+   var more=el('div',{class:'ap-more'},[el('label',{},['مبلغ دلخواه',n,el('span',{class:'ap-unit',text:'هزار تومان'})]),total,el('button',{class:'btn btn--primary btn--sm',type:'button',text:'شارژ',onclick:function(e){var t=val();if(!ok(t)){fail('مبلغ را مضربی از '+fa(step)+' هزار تومان (قیمت یک عکس)، بین '+fa(d.min/1000)+' تا '+fa(d.max/1000)+' هزار تومان بنویسید.');return}choose(t,e.target)}})]);
+   box.replaceChildren(el('div',{class:'ap'},[packs,more,el('p',{class:'ap-note',text:'هر عکس '+fa(d.image_coins)+' سکه ('+fa(d.image_price)+' تومان). به ازای هر '+fa(d.gift_every/1000)+' هزار تومان شارژ، ۱ عکس هدیه می‌گیرید. سکه‌ای که می‌خرید هیچ‌وقت منقضی نمی‌شود و اگر ساخت عکسی خراب شود، سکه‌اش برمی‌گردد.'}),err,opts.referral&&d.referral?el('div',{class:'ap-ref'},[el('p',{text:'آرایشگر یا آرایشگاه‌دار می‌شناسید؟ لینک خودتان را به او بدهید؛ اگر پلن آینه بگیرد، '+fa(d.referral.images*d.image_coins)+' سکه هدیه می‌گیرید.'}),el('code',{text:d.referral.link}),copyBtn('کپی لینک',d.referral.link)]):null]));
   }
   function pay(o){
-   if(o.status==='paid'){done();return}
+   if(o.status==='paid'){done(o.coins||o.count);return}
    if(o.status==='expired'||o.status==='cancelled'){try{localStorage.removeItem(KEY)}catch(e){}start();return}
    var left=el('span',{}),msg=el('p',{class:'ap-note'});
    var back=el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'تغییر مبلغ شارژ',onclick:function(){try{localStorage.removeItem(KEY)}catch(e){}stop();start()}});
-   function show(){msg.textContent='مبلغ را دقیقاً به این کارت واریز کنید. پرداخت شما خودکار تأیید می‌شود و سکه‌ها همان لحظه به کیف شما اضافه می‌شود؛ همین صفحه را باز نگه دارید.'}
+   function show(){msg.textContent='پرداخت خودکار و معمولاً چند ثانیه بعد از واریز تأیید می‌شود و سکه‌ها همان لحظه به کیفتان اضافه می‌شود. اگر تا ۱۰ دقیقه تأیید نشد، کد پیگیری را برای پشتیبانی آینه بفرستید.'}
    var t=setInterval(function(){var s=Math.max(0,Math.round((o.expires_at-Date.now())/1000));left.textContent=o.status==='open'?(Math.floor(s/60)+':'+String(s%60).padStart(2,'0')):'';},1000);
-   var p=setInterval(function(){api('/api/c/order/'+o.id).then(function(r){o=Object.assign(o,r);if(r.status==='paid'){stop();done()}else if(r.status==='expired'||r.status==='cancelled'){stop();try{localStorage.removeItem(KEY)}catch(e){}fail('مهلت این سفارش تمام شد؛ اگر واریز کرده‌اید با کد پیگیری به پشتیبانی خبر بدهید.');start(true)}else show()}).catch(function(){})},5000);
+   var p=setInterval(function(){api('/api/c/order/'+o.id).then(function(r){o=Object.assign(o,r);if(r.status==='paid'){stop();done(o.coins||o.count)}else if(r.status==='expired'||r.status==='cancelled'){stop();try{localStorage.removeItem(KEY)}catch(e){}fail('مهلت این سفارش تمام شد؛ اگر واریز کرده‌اید با کد پیگیری به پشتیبانی خبر بدهید.');start(true)}else show()}).catch(function(){})},5000);
    function stop(){clearInterval(t);clearInterval(p)}
+   /* Order of a bank app: the card, then the exact amount, then wait here. Every number has its own copy button. */
+   var card=o.card?o.card.replace(/\D/g,''):'';
    box.replaceChildren(el('div',{class:'ap-pay'},[
-    el('div',{class:'ap-row'},[el('span',{text:'شارژ'}),el('b',{text:fa(o.coins||o.count)+' سکه'})]),
-    el('div',{class:'ap-row'},[el('span',{text:'مبلغ'}),el('b',{text:fa(o.amount)+' تومان'})]),
-    el('div',{class:'ap-row'},[el('span',{text:'به ریال'}),el('b',{text:fa(o.amount*10)+' ریال'})]),
-    el('div',{class:'ap-copy'},[copyBtn('کپی به ریال',String(o.amount*10)),copyBtn('کپی به تومان',String(o.amount))]),
-    el('p',{class:'ap-note',text:'بیشتر بانک‌ها مبلغ را به ریال می‌خواهند؛ همین عدد را دقیقاً و بدون گرد کردن واریز کنید.'}),
-    el('div',{class:'ap-row'},[el('span',{text:'کد پیگیری'}),el('b',{dir:'ltr',text:o.ref})]),
-    o.card?el('div',{},[el('div',{class:'ap-card',text:o.card.replace(/(\d{4})(?=\d)/g,'$1 ')}),o.card_owner?el('div',{class:'ap-note',text:'به نام '+o.card_owner}):null]):el('p',{class:'notice notice--warn',text:'پرداخت هنوز آماده نیست؛ کمی بعد دوباره سر بزنید.'}),
-    el('div',{class:'ap-row'},[el('span',{text:'مهلت واریز'}),left]),
-    msg,back,err
+    el('div',{class:'ap-paysum'},[el('span',{},[coinSVG(),document.createTextNode(fa(o.coins||o.count)+' سکه')]),el('b',{text:fa(o.amount)+' تومان'})]),
+    el('ol',{class:'ap-steps'},[
+     el('li',{},[el('b',{text:'به این کارت'}),card?el('div',{class:'ap-cardrow'},[el('div',{class:'ap-card',dir:'ltr',text:card.replace(/(\d{4})(?=\d)/g,'$1 ')}),copyBtn('کپی شماره کارت',card)]):el('p',{class:'notice notice--warn',text:'پرداخت هنوز آماده نیست؛ کمی بعد دوباره سر بزنید.'}),o.card_owner?el('small',{class:'ap-note',text:'به نام '+o.card_owner}):null]),
+     el('li',{},[el('b',{text:'دقیقاً همین مبلغ را بزنید'}),el('div',{class:'ap-amount'},[el('span',{text:fa(o.amount*10)+' ریال'}),copyBtn('کپی به ریال',String(o.amount*10))]),el('div',{class:'ap-amount ap-amount--alt'},[el('span',{text:fa(o.amount)+' تومان'}),copyBtn('کپی به تومان',String(o.amount))]),el('small',{class:'ap-note',text:(o.amount%1000?'این مبلغ عمداً کمی کمتر از '+fa(Math.ceil(o.amount/1000)*1000)+' تومان است تا واریز شما بدون رسید و خودکار شناسایی شود؛ آن را گرد نکنید. ':'')+'بیشتر بانک‌ها مبلغ را به ریال می‌خواهند.'})]),
+     el('li',{},[el('b',{text:'همین صفحه را باز بگذارید'}),el('div',{class:'ap-wait'},[el('span',{class:'ap-spin','aria-hidden':'true'}),el('span',{},['در انتظار واریز · ',left])]),msg])
+    ]),
+    el('div',{class:'ap-row ap-row--ref'},[el('span',{text:'کد پیگیری'}),el('b',{dir:'ltr',text:o.ref})]),
+    back,err
    ]));show();
   }
-  function done(){try{localStorage.removeItem(KEY)}catch(e){}box.replaceChildren(el('p',{class:'notice notice--ok',text:'سکه‌ها به کیف شما اضافه شد.'}));if(opts.onCredited)opts.onCredited()}
+  function done(n){try{localStorage.removeItem(KEY)}catch(e){}box.replaceChildren(el('div',{class:'ap-done'},[coinSVG(),el('b',{text:n?fa(n)+' سکه به کیفتان اضافه شد.':'سکه‌ها به کیف شما اضافه شد.'}),el('span',{text:'حالا برگردید و عکس بعدی را بسازید.'})]));if(opts.onCredited)opts.onCredited()}
   function start(keepErr){if(!keepErr)err.hidden=true;me(!!opts.referral).then(list).catch(function(x){box.replaceChildren(el('p',{class:'notice notice--warn',text:x.message}))})}
   var pending='';try{pending=localStorage.getItem(KEY)||''}catch(e){}
   if(/^[a-f0-9-]{36}$/.test(pending))api('/api/c/order/'+pending).then(pay).catch(function(){start()});else start();

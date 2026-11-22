@@ -589,6 +589,15 @@ img[loading="lazy"].is-in{opacity:1}
 .wallet__bar{height:6px;border-radius:999px;background:var(--line);overflow:hidden}
 .wallet__bar i{display:block;height:100%;background:#E2BC63;border-radius:inherit}
 .dock__wallet svg{width:24px;height:24px}
+.proof{margin:2px 0 0;display:grid;gap:6px}
+.proof__pair{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;max-width:420px}
+.proof__img{position:relative;display:block;border-radius:18px;overflow:hidden;aspect-ratio:3/4;max-height:230px;background:var(--glass-2);box-shadow:0 10px 26px -14px rgba(10,32,42,.45)}
+.proof__img img{width:100%;height:100%;object-fit:cover;object-position:50% 25%;display:block}
+.proof__img i{position:absolute;bottom:8px;inset-inline-start:8px;font-style:normal;font-size:12px;font-weight:800;padding:2px 10px;border-radius:999px;background:rgba(10,32,42,.72);color:#fff}
+.proof__img i.is-after{background:var(--accent)}
+.proof__arrow{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--accent);box-shadow:0 4px 12px rgba(10,32,42,.12)}
+.proof__arrow svg{width:16px;height:16px}
+.proof figcaption{font-size:12px;color:var(--muted)}
 .btn .coin-pill__ico svg{width:20px;height:20px}
 `;
 
@@ -771,17 +780,36 @@ function bizHome(){var m=document.querySelector('meta[name="ayneh-biz"]');return
 function openWallet(){if(window.AynehPacks){track('wallet','open');window.AynehPacks.open()}}
 function renderStudioHead(){
  var head=$('#head');head.classList.add('head--studio');
- var pill=el('button',{class:'coin-pill',type:'button',onclick:openWallet,'aria-label':'کیف سکه؛ شارژ'},[el('span',{class:'coin-pill__ico',html:COIN}),el('span',{id:'coinPill',text:'کیف سکه'})]);
+ var foot=$('#foot');if(foot)foot.textContent='نتیجه یک پیش‌نمایش پیشنهادی است و اجرای دقیق آرایشگر را تضمین نمی‌کند. '+STUDIO_PRIVACY;
+ var pill=el('button',{class:'coin-pill',type:'button',onclick:openWallet,title:'کیف سکه'},[el('span',{class:'coin-pill__ico',html:COIN}),el('span',{id:'coinPill',text:'کیف سکه'})]);
  var bar=el('div',{class:'hero__bar'},[el('a',{class:'brand brand--studio',href:'/','aria-label':'آینه، صفحهٔ اصلی',html:MARK+'<span>آینه</span>'}),el('div',{class:'hero__tools'},[el('a',{class:'pro-link',href:bizHome(),text:'آرایشگر هستید؟'}),pill])]);
  var body=el('div',{class:'studio'},[
   el('h1',{class:'studio__title',text:'مدل بعدی‌ات رو روی عکس خودت ببین'}),
   el('p',{class:'studio__tag',text:'مدل مو، رنگ مو، ناخن و مژه؛ قبل از اینکه بری آرایشگاه. بدون نصب، فقط با یه عکس.'}),
+  studioProof(),
   el('div',{class:'wallet',id:'wallet','aria-live':'polite'},[el('div',{class:'skel',style:'height:56px;border-radius:16px'})]),
-  el('button',{class:'btn btn--primary btn--lg studio__cta',type:'button',onclick:function(){track('cta','studio');go(state.original?2:1)},html:ICO.camera+'<span>'+(state.original?'ادامه با همین عکس':'شروع با عکس خودم')+'</span>'})
+  /* One tap to the photo picker (the gesture opens it on iOS too); with a photo already in, straight to the choices. */
+  el('button',{class:'btn btn--primary btn--lg studio__cta',type:'button',onclick:function(){track('cta','studio');if(state.original){go(2);return}go(1);var p=$('#pick');if(p)p.click()},html:ICO.camera+'<span>'+(state.original?'ادامه با همین عکس':'شروع با عکس خودم')+'</span>'})
  ]);
  head.replaceChildren(el('div',{class:'wrap'},[bar,body]));
  paintWallet(false);
 }
+/* Proof before the first tap: a real before/after of the chosen service (the landing's sample pair). */
+var PROOF={hair:['style','مدل مو'],color:['color','رنگ مو'],nails:['nails','ناخن'],lashes:['lashes','مژه']};
+function studioProof(){
+ var p=PROOF[state.line]||PROOF.hair,src=function(k){return '/landing/demo-'+p[0]+'-'+k+'.webp'};
+ return el('figure',{class:'proof'},[
+  el('div',{class:'proof__pair'},[
+   el('span',{class:'proof__img'},[el('img',{src:src('before'),alt:'نمونهٔ قبل',width:'225',height:'300',decoding:'async'}),el('i',{text:'قبل'})]),
+   el('span',{class:'proof__arrow','aria-hidden':'true',html:ICO.arrow}),
+   el('span',{class:'proof__img'},[el('img',{src:src('after'),alt:'نمونهٔ بعد؛ '+p[1],width:'225',height:'300',decoding:'async'}),el('i',{class:'is-after',text:'بعد'})])
+  ]),
+  el('figcaption',{text:'یک نمونهٔ '+p[1]+' با آینه؛ نتیجهٔ تو روی عکس خودت ساخته می‌شود.'})
+ ]);
+}
+/* What «بساز» costs, on the button itself (studio): her gift first, then 25 coins. */
+function buildText(){if(!studio())return 'بساز';return state.quota&&state.quota.free>0?'بساز · هدیه':'بساز · ۲۵ سکه'}
+var STUDIO_PRIVACY='عکست فقط برای ساختن نمونهٔ خودت استفاده می‌شود؛ نسخهٔ فشرده‌اش برای ساخت تصویر به سرویس تصویر فرستاده می‌شود. دسترسی عمومی ندارد و برای هیچ آرایشگاهی فرستاده نمی‌شود. نتیجه را فقط وقتی خودت ذخیره کنی یا برای دوستت بفرستی کسی می‌بیند.';
 var walletAt=0,walletData=null;
 function paintWallet(force){
  if(!studio()||!window.AynehPacks)return;
@@ -791,7 +819,8 @@ function paintWallet(force){
 function drawWallet(d){
  var w=$('#wallet'),pill=$('#coinPill');if(!w)return;
  var free=d.free?d.free.left:0,coins=d.own?d.own.coins||0:0,per=d.image_coins||25,imgs=Math.floor(coins/per);
- if(pill)pill.textContent=fa(coins)+' سکه';
+ /* A newcomer's pill shows what she has (her gift), never an empty «۰ سکه». */
+ if(pill)pill.textContent=coins<=0&&free>0?fa(free)+' عکس هدیه':fa(coins)+' سکه';
  var rows=[];
  if(free>0)rows.push(el('div',{class:'wallet__gift'},[el('span',{class:'wallet__gift-ico',html:GIFT}),el('div',{},[el('b',{text:fa(free)+' عکس هدیه داری'}),el('small',{text:'رایگان؛ بدون ثبت‌نام. بعدش هر عکس '+fa(per)+' سکه.'})])]));
  var main=el('div',{class:'wallet__main'},[
@@ -992,7 +1021,7 @@ function stepPhoto(){
    ]),
    el('details',{class:'collapse'},[
     el('summary',{html:ICO.lock+'<span>عکسم کجا نگه‌داری می‌شود؟</span>'}),
-    h('p','عکس شما فقط برای ساخت نمونه و دیدنِ سالن استفاده می‌شود؛ نسخهٔ فشردهٔ آن برای ساخت تصویر به سرویس تصویر ارسال می‌شود. عکس دسترسی عمومی ندارد و در سابقهٔ سالن نگه داشته می‌شود تا آرایشگرت بعداً هم آن را ببیند. نتیجه را فقط وقتی خودت دکمهٔ «از دوستم نظر بپرسم» را بزنی برای کسی می‌فرستی.')
+    h('p',studio()?STUDIO_PRIVACY:'عکس شما فقط برای ساخت نمونه و دیدنِ سالن استفاده می‌شود؛ نسخهٔ فشردهٔ آن برای ساخت تصویر به سرویس تصویر ارسال می‌شود. عکس دسترسی عمومی ندارد و در سابقهٔ سالن نگه داشته می‌شود تا آرایشگرت بعداً هم آن را ببیند. نتیجه را فقط وقتی خودت دکمهٔ «از دوستم نظر بپرسم» را بزنی برای کسی می‌فرستی.')
    ])
   ]);
   box.append(input,el('div',{class:'demo-row'},[demoCompare('demo--small'),el('div',{class:'demo-row__text'},[h('b','این‌طوری می‌شود'),h('span',LP().demo)])]),el('div',{class:'shoot'},[drop,side]));
@@ -1185,15 +1214,17 @@ function stepModel(){
  box.append(h('p',buildHint(ready,can,left),'fine-print build-hint'));
  return box;
 }
-function buildLabel(can){return can?ICO.spark+'<span>بساز</span>':(quotaLeft()===0?ICO.send+'<span>فرستادن برای '+artist()+'</span>':'<span>ادامه: نتیجه</span>')}
+function buildLabel(can){if(!can&&studio()&&quotaLeft()===0)return '<span class="coin-pill__ico">'+COIN+'</span><span>شارژ کیف سکه</span>';return can?ICO.spark+'<span>'+buildText()+'</span>':(quotaLeft()===0?ICO.send+'<span>فرستادن برای '+artist()+'</span>':'<span>ادامه: نتیجه</span>')}
 function buildHint(ready,can,left){
  if(!ready)return missingReason()+'؛ بعد «بساز» فعال می‌شود.';
+ if(!can&&studio())return left===0?'عکس‌های هدیه‌ات تموم شد؛ با شارژ کیف سکه، همین انتخاب رو بساز. هر عکس ۲۵ سکه است.':'';
  if(!can)return left===0&&state.pub.generation?'سهم ساخت «'+LINES.label[state.line]+'» برای تو تمام شده؛ همین انتخاب را بدون شبیه‌سازی برای '+artist()+' بفرست.':'';
- return 'با زدن «بساز» نسخهٔ فشردهٔ عکست برای ساخت تصویر به سرویس تصویر فرستاده می‌شود؛ خود عکس فقط برای ساخت نمونه و دیدن سالن می‌ماند.'+(left!=null?' '+fa(left)+' ساخت دیگر در این بخش داری.':'');
+ return (studio()?'با زدن «بساز» نسخهٔ فشردهٔ عکست برای ساخت تصویر به سرویس تصویر فرستاده می‌شود؛ برای هیچ آرایشگاهی فرستاده نمی‌شود.':'با زدن «بساز» نسخهٔ فشردهٔ عکست برای ساخت تصویر به سرویس تصویر فرستاده می‌شود؛ خود عکس فقط برای ساخت نمونه و دیدن سالن می‌ماند.')+(left!=null?(studio()?' '+fa(left)+' عکس دیگر می‌توانی بسازی.':' '+fa(left)+' ساخت دیگر در این بخش داری.'):'');
 }
 // Step 2 → 3 in one tap: «بساز» goes straight to building, no page in between.
 function build(){
  if(!hasChoice()){toast(missingReason());return}
+ if(!canGenerate()&&studio()&&quotaLeft()===0){openWallet();return}
  if(!canGenerate()){go(3);return}
  go(3);generate();
 }
@@ -1543,10 +1574,10 @@ function stepResult(){
   }else{
    box.append(el('div',{class:'stage mirror'},[el('div',{class:'mirror__glass'},[el('span',{class:'stage__empty',text:'نتیجه همین‌جا، در قاب آینه، ظاهر می‌شود'})])]));
    box.append(el('div',{class:'flow__nav'},[
-    el('button',{class:'btn btn--primary',type:'button',onclick:generate,html:ICO.spark+'<span>بساز</span>'}),
-    el('button',{class:'btn btn--ghost',type:'button',onclick:openRequest,html:ICO.send+'<span>بدون شبیه‌سازی بفرست</span>'})
+    el('button',{class:'btn btn--primary',type:'button',onclick:generate,html:ICO.spark+'<span>'+buildText()+'</span>'}),
+    studio()?null:el('button',{class:'btn btn--ghost',type:'button',onclick:openRequest,html:ICO.send+'<span>بدون شبیه‌سازی بفرست</span>'})
    ]));
-   box.append(h('p','با زدن «بساز» نسخهٔ فشردهٔ عکست برای ساخت تصویر به سرویس تصویر فرستاده می‌شود؛ خود عکس فقط برای ساخت نمونه و دیدن سالن می‌ماند.','fine-print'));
+   box.append(h('p',studio()?'با زدن «بساز» نسخهٔ فشردهٔ عکست برای ساخت تصویر به سرویس تصویر فرستاده می‌شود؛ برای هیچ آرایشگاهی فرستاده نمی‌شود.':'با زدن «بساز» نسخهٔ فشردهٔ عکست برای ساخت تصویر به سرویس تصویر فرستاده می‌شود؛ خود عکس فقط برای ساخت نمونه و دیدن سالن می‌ماند.','fine-print'));
   }
  }
  return box;
@@ -1581,12 +1612,12 @@ function renderDock(){
   var out=quotaLeft()===0;
   hint=out?'سهم ساخت این بخش تمام شد':ready?(can?'آماده؛ بزن بساز':'آماده'):missingReason();
   if(studio()&&out){hint='عکس‌هات تموم شد';primary=sendButton()}
-  else primary=el('button',{class:'btn btn--primary btn--build',type:'button',disabled:!ready,onclick:build,html:can?ICO.spark+'<span>بساز</span>':out?ICO.send+'<span>فرستادن</span>':ICO.arrow+'<span>ادامه</span>'});
+  else primary=el('button',{class:'btn btn--primary btn--build',type:'button',disabled:!ready,onclick:build,html:can?ICO.spark+'<span>'+buildText()+'</span>':out?ICO.send+'<span>فرستادن</span>':ICO.arrow+'<span>ادامه</span>'});
  }else{
   if(state.busy){hint='در حال ساخت…';primary=el('button',{class:'btn btn--primary',type:'button',disabled:true,text:'در حال ساخت…'})}
   else if(studio()&&(state.result||!canGenerate())){hint=state.result?'نتیجه آماده است':'عکس‌هات تموم شد';primary=sendButton()}
   else if(state.result||!canGenerate()){hint='فرستادن برای سالن';primary=el('button',{class:'btn btn--primary',type:'button',onclick:openRequest,html:ICO.send+'<span>'+(state.result?'درخواست نوبت می‌دهم':'فرستادن برای '+artist())+'</span>'})}
-  else{hint='آمادهٔ ساخت';primary=el('button',{class:'btn btn--primary',type:'button',onclick:generate,html:ICO.spark+'<span>بساز</span>'})}
+  else{hint='آمادهٔ ساخت';primary=el('button',{class:'btn btn--primary',type:'button',onclick:generate,html:ICO.spark+'<span>'+buildText()+'</span>'})}
  }
  inner.append(el('div',{class:'dock__hint',text:hint}),studio()?el('button',{class:'btn btn--ghost dock__wallet',type:'button',onclick:openWallet,'aria-label':'کیف سکه',html:COIN}):el('button',{class:'btn btn--ghost',type:'button',onclick:openAbout,'aria-label':'دربارهٔ سالن',html:ICO.info}),primary);
  dock.replaceChildren(inner);dock.hidden=false;
@@ -1712,6 +1743,8 @@ function poll(id,resumed){
    }
    if(d.state==='fail'||d.state==='unknown'){
     track('gen_fail',d.state);
+    /* A failed image is refunded on the server: take the real balance back from it. */
+    loadSession().catch(function(){});
     state.busy=false;state.error=d.state==='fail'?'سرویس تصویر نتوانست خروجی بسازد. می‌توانی دوباره تلاش کنی.':friendly('وضعیت نامشخص');
     renderFlow();renderDock();return;
    }
@@ -1782,7 +1815,7 @@ function openViews(){
  api('views',{v:VISITOR,parent:state.gen,idem:state.viewsIdem||(state.viewsIdem=uuid())}).then(function(job){
   spentQuota('hair');var tries=0;
   function check(){if(!panel.isConnected)return;return api('generation/'+job.id).then(function(d){
-   if(d.state==='success'){state.views={gen:state.gen,id:d.result_id};state.viewsIdem=null;ready(d.result_id);return}
+   if(d.state==='success'){state.views={gen:state.gen,id:d.result_id};state.viewsIdem=null;ready(d.result_id);loadSession().catch(function(){});return}
    if(d.state==='fail'||d.state==='unknown'||++tries>90){cleanup();tip.textContent='ساخت زاویه‌ها ممکن نشد؛ کمی بعد دوباره امتحان کن.';state.viewsIdem=null;return}
    return sleep(3000).then(check);
   })}
@@ -1936,7 +1969,7 @@ function ensureSession(){
 // The session also says how many images this person has left in each service.
 function loadSession(){return api('session?v='+VISITOR).then(function(d){state.session=true;applyVerified(d);if(d.quota){state.quota=d.quota;renderDockSoon();paintWallet(true);var f=$('#flow');if(f&&state.step===2&&!state.busy)renderFlow()}})}
 function quotaLeft(line){return state.quota&&state.quota.left?state.quota.left[line||state.line]:null}
-function spentQuota(line){if(state.quota&&state.quota.left&&state.quota.left[line]>0)state.quota.left[line]--}
+function spentQuota(line){if(state.quota&&state.quota.left&&state.quota.left[line]>0)state.quota.left[line]--;if(state.quota&&state.quota.free>0)state.quota.free--;paintWallet(true)}
 window.addEventListener('ayneh:credited',function(){state.paused=false;loadSession().catch(function(){})});
 function quotaOut(){
  /* The direct page (/try) has 3 free images in all, not per service, and no salon to send to. */

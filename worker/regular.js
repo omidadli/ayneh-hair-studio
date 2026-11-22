@@ -14,7 +14,7 @@ import {must, uid, limited} from './domain.js';
 import {smsReady} from './sms.js';
 import {publicOrder, closeExpired, orderById, panelSalon, hashKey, ORDER_MINUTES, pickCard} from './orders.js';
 import {bizOrigin} from './hosts.js';
-import {CUSTOMER_IMAGE_PRICE, CUSTOMER_FREE_IMAGES, REFERRAL_IMAGES, IMAGE_COINS, COIN_TOMAN, TOPUP_MIN, TOPUP_MAX, TOPUP_PRESETS, TOPUP_BONUS, coinsFor} from './customerprices.js';
+import {CUSTOMER_IMAGE_PRICE, CUSTOMER_FREE_IMAGES, REFERRAL_IMAGES, IMAGE_COINS, COIN_TOMAN, TOPUP_MIN, TOPUP_MAX, TOPUP_STEP, TOPUP_PRESETS, GIFT_EVERY, coinsFor} from './customerprices.js';
 import {accountFor, anySession, customerBalance, directSalon, directUsed} from './customers.js';
 import {codeFor, referralStats} from './rewards.js';
 import {timingReport} from './timing.js';
@@ -24,7 +24,7 @@ const J = (v, s = 200) => new Response(JSON.stringify(v), {status: s, headers: {
 const run = (db, sql, ...a) => db.prepare(sql).bind(...a).run();
 const fa = n => Number(n).toLocaleString('fa-IR');
 const topups = () => TOPUP_PRESETS.map(toman => ({toman, ...coinsFor(toman)}));
-const economy = () => ({coin_toman: COIN_TOMAN, image_coins: IMAGE_COINS, image_price: CUSTOMER_IMAGE_PRICE, min: TOPUP_MIN, max: TOPUP_MAX, bonus: TOPUP_BONUS, topups: topups()});
+const economy = () => ({coin_toman: COIN_TOMAN, image_coins: IMAGE_COINS, image_price: CUSTOMER_IMAGE_PRICE, min: TOPUP_MIN, max: TOPUP_MAX, step: TOPUP_STEP, gift_every: GIFT_EVERY, topups: topups()});
 
 /* The sheet sees figures only: no mobile, no key, nothing about other orders. */
 async function packView(db, env, row, origin) {
@@ -56,8 +56,8 @@ export async function regularApi(req, env, u, path, {owner, clientIp}) {
     const b = await req.json().catch(() => ({}));
     /* {toman}: any amount in the range, whole thousands; an older page's {count} images still works. */
     const toman = b.toman !== undefined ? Number(b.toman) : Number(b.count) * CUSTOMER_IMAGE_PRICE;
-    must(Number.isInteger(toman) && toman >= TOPUP_MIN && toman <= TOPUP_MAX && toman % 1000 === 0,
-      'مبلغ شارژ را بین ' + fa(TOPUP_MIN) + ' و ' + fa(TOPUP_MAX) + ' تومان (مضرب هزار) انتخاب کنید.');
+    must(Number.isInteger(toman) && toman >= TOPUP_MIN && toman <= TOPUP_MAX && toman % TOPUP_STEP === 0,
+      'مبلغ شارژ را بین ' + fa(TOPUP_MIN) + ' و ' + fa(TOPUP_MAX) + ' تومان، مضربی از ' + fa(TOPUP_STEP) + ' تومان (یک عکس) انتخاب کنید.');
     const count = coinsFor(toman).coins;
     const s = await anySession(req, db);
     must(!smsReady(env) || s?.verified_phone, 'اول شمارهٔ موبایلت را تأیید کن', 403);

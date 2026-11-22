@@ -270,3 +270,21 @@ test('studio sign-in («ورود یا ثبت‌نام»): mobile + texted code, 
  assert.equal((await call(e,'/api/s/try/session?v='+v2,undefined,g2)).data.verified,false);
  assert.equal((await call(e,'/api/c/me?v='+v2,undefined,g2)).data.own.coins,0);
 });
+
+test('«آلبوم من»: her finished images, newest first, and they follow her verified mobile to another phone',async()=>{
+ const e=fixture(),p=mockProvider();e.MELIPAYAMAK_TOKEN='dev-mock';
+ try{
+  await app.fetch(new Request(origin+'/'),e);
+  const g=await guest(e,'try'),v='c'.repeat(32);
+  await call(e,'/api/s/try/otp/send',{phone:'09120000001',first_name:'نگار',last_name:'نوری'},g);await call(e,'/api/s/try/otp/verify',{code:'12345'},g);
+  const original=await upload(e,'try',g);
+  const r=await gen(e,'try',g,original,v,'hair');assert.equal(r.status,200,JSON.stringify(r));
+  e.DB.sql.prepare("UPDATE generations SET state='success',result_id=original_id WHERE id=?").run(r.data.id);
+  const mine=await call(e,'/api/s/try/looks',undefined,g);assert.equal(mine.status,200);assert.equal(mine.data.looks.length,1);assert.equal(mine.data.looks[0].line,'hair');
+  const g2=await guest(e,'try');assert.equal((await call(e,'/api/s/try/looks',undefined,g2)).data.looks.length,0,'a stranger sees nothing');
+  await call(e,'/api/s/try/otp/send',{phone:'09120000001',signin:true},g2);await call(e,'/api/s/try/otp/verify',{code:'12345'},g2);
+  const there=await call(e,'/api/s/try/looks',undefined,g2);assert.equal(there.data.looks.length,1,'signed in on another phone: same album');
+  const img=await app.fetch(new Request(origin+'/api/s/try/media/'+there.data.looks[0].image,{headers:{cookie:g2.cookie}}),e);
+  assert.notEqual(img.status,403,'her own image opens on the other phone too');
+ }finally{p.restore()}
+});

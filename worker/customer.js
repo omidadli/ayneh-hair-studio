@@ -597,6 +597,25 @@ img[loading="lazy"].is-in{opacity:1}
 .proof__arrow{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--accent);box-shadow:0 4px 12px rgba(10,32,42,.12)}
 .proof__arrow svg{width:16px;height:16px}
 .proof figcaption{font-size:12px;color:var(--muted)}
+
+.album{display:grid;gap:10px;margin-top:4px}
+.album__head{display:flex;align-items:center;gap:10px}
+.album__head h2{font-family:var(--display);font-size:18px;font-weight:800;color:var(--ink)}
+.album__head>span{font-size:13px;color:var(--muted);flex:1}
+.album__strip{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:4px;scrollbar-width:none}
+.album__strip::-webkit-scrollbar{display:none}
+.album__item{flex:0 0 96px;scroll-snap-align:start;display:grid;gap:4px;padding:0;border:0;background:none;cursor:pointer;text-align:center;font-size:12px;color:var(--ink-2);font-weight:600}
+.album__item img{width:96px;height:128px;object-fit:cover;border-radius:14px;background:var(--glass-2);box-shadow:0 6px 16px -10px rgba(10,32,42,.5)}
+.look__img{width:100%;max-height:62vh;object-fit:contain;border-radius:16px;background:var(--glass-2)}
+.look__actions{display:grid;gap:8px;margin-top:12px}
+.look__pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.look__pair figure{margin:0;display:grid;gap:4px}
+.look__pair img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:14px}
+.look__pair figcaption{font-size:12px;color:var(--muted);text-align:center}
+.look__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-height:60vh;overflow:auto}
+.look__pick{display:grid;gap:4px;padding:4px;border-radius:14px;border:2px solid transparent;background:var(--surface);font-size:12px;color:var(--ink-2);cursor:pointer}
+.look__pick img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:10px}
+.look__pick.is-on{border-color:var(--accent)}
 .acct-chip{display:inline-flex;align-items:center;gap:6px;min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:700;font-size:14px;text-decoration:none}
 .acct-chip svg{width:18px;height:18px;color:var(--accent)}
 .acct-chip--in{background:var(--accent-soft,#E4F1EC);border-color:transparent}
@@ -927,6 +946,40 @@ function renderAccount(){
  document.title='ورود یا ثبت‌نام | آینه';
  ensureSession().then(function(){state.verified?signedIn():signedOut()}).catch(function(){signedOut()});
 }
+
+/* ---------- «آلبوم من» (studio): every finished image of hers, newest first ----------
+   Free to look at, compare two side by side and save again; it follows her mobile once she signs in. */
+var looks=null,looksAt=0;
+function loadLooks(){if(Date.now()-looksAt<3000)return;looksAt=Date.now();api('looks').then(function(d){looks=d.looks||[];drawAlbum()}).catch(function(){})}
+function lookDate(t){try{return new Intl.DateTimeFormat('fa-IR',{month:'long',day:'numeric'}).format(new Date(t))}catch(e){return ''}}
+function drawAlbum(){
+ var box=$('#album');if(!box)return;
+ if(!looks||!looks.length){box.hidden=true;return}
+ box.hidden=false;
+ var strip=el('div',{class:'album__strip'},looks.slice(0,12).map(function(l){return el('button',{class:'album__item',type:'button','aria-label':(LINES.label[l.line]||'')+' · '+lookDate(l.at),onclick:function(){openLook(l)}},[el('img',{src:media(l.image),alt:'',loading:'lazy',decoding:'async'}),el('span',{text:LINES.label[l.line]||''})])}));
+ box.replaceChildren(el('div',{class:'album__head'},[el('h2',{text:'آلبوم من'}),el('span',{text:fa(looks.length)+' عکس'}),looks.length>1?el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'مقایسه',onclick:function(){pickCompare(null)}}):null]),strip);
+}
+function openLook(l){
+ var panel=el('div',{class:'sheet__panel look'});
+ panel.append(el('div',{class:'sheet__head'},[h('h2',(LINES.label[l.line]||'')+' · '+lookDate(l.at)),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),
+  el('img',{class:'look__img',src:media(l.image),alt:'نتیجهٔ '+(LINES.label[l.line]||'')}),
+  el('div',{class:'look__actions'},[downloadLink('btn btn--primary','ذخیره عکس',l.image),looks.length>1?el('button',{class:'btn btn--soft',type:'button',text:'مقایسه با یکی دیگه',onclick:function(){pickCompare(l)}}):null]));
+ openSheet(panel);
+}
+function pickCompare(first){
+ var panel=el('div',{class:'sheet__panel look'}),chosen=first?[first]:[];
+ function draw(){
+  if(chosen.length===2){
+   panel.replaceChildren(el('div',{class:'sheet__head'},[h('h2','کدوم بیشتر بهت میاد؟'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),
+    el('div',{class:'look__pair'},chosen.map(function(l){return el('figure',{},[el('img',{src:media(l.image),alt:''}),el('figcaption',{text:(LINES.label[l.line]||'')+' · '+lookDate(l.at)})])})),
+    el('div',{class:'look__actions'},[el('button',{class:'btn btn--soft',type:'button',text:'انتخاب دوباره',onclick:function(){chosen=[];draw()}})]));
+   track('cta','compare');return;
+  }
+  panel.replaceChildren(el('div',{class:'sheet__head'},[h('h2',chosen.length?'یکی دیگه رو انتخاب کن':'دو تا عکس رو برای مقایسه انتخاب کن'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),
+   el('div',{class:'look__grid'},looks.map(function(l){var on=chosen.indexOf(l)>=0;return el('button',{class:'look__pick'+(on?' is-on':''),type:'button','aria-pressed':String(on),onclick:function(){if(!on){chosen.push(l);draw()}}},[el('img',{src:media(l.image),alt:'',loading:'lazy'}),el('span',{text:LINES.label[l.line]||''})])})));
+ }
+ draw();openSheet(panel);
+}
 function renderStudioHead(){
  var head=$('#head');head.classList.add('head--studio');
  var foot=$('#foot');if(foot)foot.textContent='نتیجه یک پیش‌نمایش پیشنهادی است و اجرای دقیق آرایشگر را تضمین نمی‌کند. '+STUDIO_PRIVACY;
@@ -938,12 +991,14 @@ function renderStudioHead(){
   studioProof(),
   el('div',{class:'wallet',id:'wallet','aria-live':'polite'},[el('div',{class:'skel',style:'height:56px;border-radius:16px'})]),
   /* One tap to the photo picker (the gesture opens it on iOS too); with a photo already in, straight to the choices. */
-  el('button',{class:'btn btn--primary btn--lg studio__cta',type:'button',onclick:function(){track('cta','studio');if(state.original){go(2);return}go(1);var p=$('#pick');if(p)p.click()},html:ICO.camera+'<span>'+(state.original?'ادامه با همین عکس':'شروع با عکس خودم')+'</span>'})
+  el('button',{class:'btn btn--primary btn--lg studio__cta',type:'button',onclick:function(){track('cta','studio');if(state.original){go(2);return}go(1);var p=$('#pick');if(p)p.click()},html:ICO.camera+'<span>'+(state.original?'ادامه با همین عکس':'شروع با عکس خودم')+'</span>'}),
+  el('section',{class:'album',id:'album','aria-label':'آلبوم من',hidden:true})
  ]);
  head.replaceChildren(el('div',{class:'wrap'},[bar,body]));
  paintWallet(false);watchCta();
  /* Signed in on this browser before? Ask once, so her name and gift line are right from the start. */
  if(!state.session&&!studioAsked){studioAsked=true;loadSession().catch(function(){})}
+ drawAlbum();
 }
 /* Proof before the first tap: a real before/after of the chosen service (the landing's sample pair). */
 var PROOF={hair:['style','مدل مو'],color:['color','رنگ مو'],nails:['nails','ناخن'],lashes:['lashes','مژه']};
@@ -1665,8 +1720,8 @@ function prepareBranded(id){
  return rec.p;
 }
 var IOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
-function downloadLink(cls,label){
- var id=state.result,rec=branded[id];
+function downloadLink(cls,label,forId){
+ var id=forId||state.result,rec=branded[id];
  var a=el('a',{class:cls,'data-dl':id,href:rec&&rec.url||media(id),download:rec&&rec.name||saveName(id),html:ICO.download+'<span>'+label+'</span>'});
  a.addEventListener('click',function(e){
   var r=branded[id];
@@ -2119,7 +2174,7 @@ function ensureSession(){
  });
 }
 // The session also says how many images this person has left in each service.
-function loadSession(){return api('session?v='+VISITOR).then(function(d){state.session=true;applyVerified(d);if(d.quota){state.quota=d.quota;renderDockSoon();paintWallet(true);var f=$('#flow');if(f&&state.step===2&&!state.busy)renderFlow()}})}
+function loadSession(){return api('session?v='+VISITOR).then(function(d){state.session=true;applyVerified(d);if(studio())loadLooks();if(d.quota){state.quota=d.quota;renderDockSoon();paintWallet(true);var f=$('#flow');if(f&&state.step===2&&!state.busy)renderFlow()}})}
 function quotaLeft(line){return state.quota&&state.quota.left?state.quota.left[line||state.line]:null}
 function spentQuota(line){if(state.quota&&state.quota.left&&state.quota.left[line]>0)state.quota.left[line]--;if(state.quota&&state.quota.free>0)state.quota.free--;paintWallet(true)}
 window.addEventListener('ayneh:credited',function(){state.paused=false;loadSession().catch(function(){})});

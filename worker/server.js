@@ -106,7 +106,7 @@ async function newSession(db,salon){const raw=token(),s={id:uid(),salon_id:salon
 const payToken=(req,u)=>{const h=(req.headers.get('authorization')||'').replace(/^Bearer\s+/i,'')||req.headers.get('x-webhook-key')||'';if(h)return h;if(req.headers.get('origin')!==u.origin)return '';return decodeURIComponent((req.headers.get('cookie')||'').match(/(?:^|; )aynehpay=([^;]+)/)?.[1]||'')};
 const clientIp=req=>req.headers.get('cf-connecting-ip')||(req.headers.get('x-forwarded-for')||'').split(',')[0].trim()||req.headers.get('x-real-ip')||'unknown';
 // A customer may only use their own uploads, or published portfolio items the salon marked for try-on.
-async function ownMedia(db,s,id){must(/^[a-f0-9-]{36}$/.test(String(id||'')),'عکس معتبر نیست؛ دوباره عکس بگذارید',400);const m=await one(db,'SELECT * FROM media WHERE id=? AND salon_id=?',id,s.salon_id);must(m,'عکس یافت نشد');if(m.session_id!==s.id)must(await one(db,"SELECT 1 FROM portfolio WHERE salon_id=? AND published=1 AND try_on=1 AND EXISTS(SELECT 1 FROM json_each(images) WHERE value=?)",s.salon_id,id),'عکس متعلق به این جلسه نیست',403);return m;}
+async function ownMedia(db,s,id){must(/^[a-f0-9-]{36}$/.test(String(id||'')),'عکس معتبر نیست؛ دوباره عکس بگذارید',400);const m=await one(db,'SELECT * FROM media WHERE id=? AND salon_id=?',id,s.salon_id);must(m,'عکس یافت نشد');if(m.session_id!==s.id&&!(s.verified_phone&&m.session_id&&await one(db,'SELECT 1 FROM sessions WHERE id=? AND salon_id=? AND verified_phone=?',m.session_id,s.salon_id,s.verified_phone)))must(await one(db,"SELECT 1 FROM portfolio WHERE salon_id=? AND published=1 AND try_on=1 AND EXISTS(SELECT 1 FROM json_each(images) WHERE value=?)",s.salon_id,id),'عکس متعلق به این جلسه نیست',403);return m;}
 
 // Retention: customer photos, simulations and submissions are kept (the owner asked for permanent
 // records: referrals and customer ownership depend on them). Only expired technical rows go.
@@ -365,7 +365,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  if(!salon&&match[1]==='demo'){await run(db,'INSERT OR IGNORE INTO salons(id,slug,owner_id,name,profile,settings,created_at) VALUES(?,?,?,?,?,?,?)',uid(),'demo','system','آینه (نسخهٔ نمونه)','{}',JSON.stringify({generation_enabled:true,reference_verified:false,demo:true}),Date.now());salon=await one(db,'SELECT * FROM salons WHERE slug=?','demo')}
  must(salon,'سالن پیدا نشد',404);const route=match[2]||'',cfg=parse(salon.settings),trial=cfg.trial?await trialOf(db,salon.id):null,demo=salon.owner_id==='system';
  if(trial&&!trialLive(trial)&&route!=='public'&&!route.startsWith('owner'))throw new Problem(410,'مهلت ۱۰ ساعتهٔ صفحهٔ آزمایشی تمام شده است؛ برای ادامه با ما تماس بگیرید');
- const readOnly=route==='public'||route==='owner'||route==='requests'||route.startsWith('media/')||route.startsWith('generation/');
+ const readOnly=route==='public'||route==='owner'||route==='requests'||route==='looks'||route.startsWith('media/')||route.startsWith('generation/');
  must(route==='session'?['GET','POST'].includes(req.method):req.method===(readOnly?'GET':'POST'),'متد مجاز نیست',405);
  if(route==='public')return J({salon:publicSalon(salon),portfolio:await all(db,'SELECT id,title,category,description,stylist,staff_id AS maker,line,images,try_on,1 AS published FROM portfolio WHERE salon_id=? AND published=1 AND permission=1 ORDER BY created_at DESC',salon.id),generation:!!env.KIE_API_KEY&&!!cfg.generation_enabled,reference:refOn(cfg),telegram:inboxes(env,salon).length>0||!!planOf(salon)||!!await one(db,'SELECT 1 FROM team WHERE salon_id=? AND active=1',salon.id),follow:Object.keys(followLinks(env,'x')),otp:smsReady(env)&&!demo,notice:'خروجی شبیه‌سازی پیشنهادی است و تضمین اجرا نیست.',trial:trialPublic(trial),demo,direct:isDirect(salon),lines:salonLines(salon)});
  if(route==='session'&&req.method==='POST'){await limited(db,'session:'+salon.id+':'+clientIp(req),30);const {raw}=await newSession(db,salon);return J({ok:true},200,{'Set-Cookie':cookie(raw)});}
@@ -445,6 +445,9 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   await run(db,'DELETE FROM otps WHERE session_id=?',s.id);
   return J({ok:true,name,phone:o.phone});
  }
+ /* «آلبوم من»: her finished images, newest first — this browser's, and every session where she
+    verified the same mobile (so signing in on another phone brings her album too). */
+ if(route==='looks'){const rows=await all(db,"SELECT id,result_id,line,created_at FROM generations WHERE salon_id=? AND state='success' AND result_id IS NOT NULL AND kind<>'views' AND (session_id=? OR (? IS NOT NULL AND session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?))) ORDER BY created_at DESC LIMIT 60",salon.id,s.id,s.verified_phone||null,salon.id,s.verified_phone||null);return J({looks:rows.map(r=>({id:r.id,image:r.result_id,line:r.line,at:r.created_at}))})}
  /* «خروج از حساب»: this browser forgets the mobile; her coins stay with her mobile for the next sign-in. */
  if(route==='otp/logout'&&req.method==='POST'){await run(db,'UPDATE sessions SET verified_phone=NULL,verified_name=NULL WHERE id=?',s.id);return J({ok:true})}
  if(route==='requests'){const rows=await all(db,'SELECT id,look,salon_status,handled_at,created_at,follow_chat IS NOT NULL AS followed FROM leads WHERE session_id=? ORDER BY created_at DESC LIMIT 5',s.id);const prof=parse(salon.profile);return J({requests:rows,phone:prof.phone||''});}

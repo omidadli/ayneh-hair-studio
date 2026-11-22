@@ -468,7 +468,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  }
  /* «آلبوم من»: her finished images, newest first — this browser's, and every session where she
     verified the same mobile (so signing in on another phone brings her album too). */
- if(route==='looks'){const rows=await all(db,"SELECT id,result_id,line,created_at FROM generations WHERE salon_id=? AND state='success' AND result_id IS NOT NULL AND kind<>'views' AND (session_id=? OR (? IS NOT NULL AND session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?))) ORDER BY created_at DESC LIMIT 60",salon.id,s.id,s.verified_phone||null,salon.id,s.verified_phone||null);return J({looks:rows.map(r=>({id:r.id,image:r.result_id,line:r.line,at:r.created_at}))})}
+ if(route==='looks'){if(!s.verified_phone)return J({looks:[],signed_in:false});const rows=await all(db,"SELECT id,result_id,line,created_at FROM generations WHERE salon_id=? AND state='success' AND result_id IS NOT NULL AND kind<>'views' AND (session_id=? OR (? IS NOT NULL AND session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?))) ORDER BY created_at DESC LIMIT 60",salon.id,s.id,s.verified_phone||null,salon.id,s.verified_phone||null);return J({looks:rows.map(r=>({id:r.id,image:r.result_id,line:r.line,at:r.created_at}))})}
  /* «پروفایل من»: her account page — name, city, mobile, coins history, saved and liked looks. */
  if(route==='me'&&req.method==='GET'){
   if(!s.verified_phone)return J({signed_in:false});
@@ -491,12 +491,13 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   return J({ok:true,name:first+' '+last});
  }
  /* Saved («ذخیره») and liked («لایک») looks: item is "<line>:<catalog index>" or "img:<image id>". */
- if(route==='saves'&&req.method==='GET'){const owner=s.verified_phone||('s:'+s.id);const rows=await all(db,'SELECT kind,item FROM customer_saves WHERE salon_id=? AND owner=? ORDER BY created_at DESC LIMIT 300',salon.id,owner);return J({saved:rows.filter(r=>r.kind==='save').map(r=>r.item),liked:rows.filter(r=>r.kind==='like').map(r=>r.item)})}
+ if(route==='saves'&&req.method==='GET'){if(!s.verified_phone)return J({saved:[],liked:[],signed_in:false});const owner=s.verified_phone;const rows=await all(db,'SELECT kind,item FROM customer_saves WHERE salon_id=? AND owner=? ORDER BY created_at DESC LIMIT 300',salon.id,owner);return J({saved:rows.filter(r=>r.kind==='save').map(r=>r.item),liked:rows.filter(r=>r.kind==='like').map(r=>r.item)})}
  if(route==='saves'&&req.method==='POST'){
   const b=await req.json();const kind=b.kind==='like'?'like':'save',item=String(b.item||'');
   must(/^(hair|color|nails|lashes):\d{1,3}$|^img:[A-Za-z0-9_-]{6,64}$/.test(item),'مورد معتبر نیست');
-  await limited(db,'saves:'+s.id,400);
-  const owner=s.verified_phone||('s:'+s.id);
+  must(s.verified_phone,'برای ذخیره و پسندیدن، اول وارد حسابت شو',401);
+  await limited(db,'saves:'+s.verified_phone,400);
+  const owner=s.verified_phone;
   if(b.on===false)await run(db,'DELETE FROM customer_saves WHERE salon_id=? AND owner=? AND kind=? AND item=?',salon.id,owner,kind,item);
   else await run(db,'INSERT OR IGNORE INTO customer_saves(salon_id,owner,kind,item,created_at) VALUES(?,?,?,?,?)',salon.id,owner,kind,item,Date.now());
   return J({ok:true});

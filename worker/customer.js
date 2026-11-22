@@ -605,7 +605,8 @@ img[loading="lazy"].is-in{opacity:1}
 .proof__arrow{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--surface);color:var(--accent);box-shadow:0 4px 12px rgba(10,32,42,.12)}
 .proof__arrow svg{width:16px;height:16px}
 .proof figcaption{font-size:12px;color:var(--muted)}
-.compare--hero{aspect-ratio:4/5;max-height:min(46vh,460px);width:100%}
+.compare--hero{aspect-ratio:4/5;width:min(100%,calc(min(52vh,500px) * .8));justify-self:center;border-radius:var(--r-lg,24px)}
+.trend__lines{margin:0}
 .compare--hero img{object-fit:cover;object-position:50% 22%}
 
 .album{display:grid;gap:10px;margin-top:4px}
@@ -1020,13 +1021,13 @@ function authSwitch(mode,go){
 function normalizeDigits(v){return String(v||'').replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d)})}
 var SIGNIN_PERKS=[['coin','سکه‌ها و عکس‌هات روی هر گوشی همراهت می‌مونه'],['lock','رمز نمی‌خواد؛ هر بار یه کد پیامکی'],['gift','۲ عکس اول رایگانه']];
 function perks(){return el('ul',{class:'signin__perks'},SIGNIN_PERKS.map(function(p){return el('li',{},[el('span',{class:'signin__perk-ico',html:p[0]==='coin'?COIN:p[0]==='gift'?GIFT:ICO.lock}),el('span',{text:p[1]})])}))}
-function openSignin(next,mode){
+function openSignin(next,mode,why){
  var panel=el('div',{class:'sheet__panel signin-sheet'});
  function draw(m,ph){
   mode=m;
   panel.replaceChildren(
    el('div',{class:'sheet__head'},[h('h2',m==='signup'?'ثبت‌نام':'ورود'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),
-   h('p',m==='signup'?'برای ساخت عکس، یک حساب رایگان بساز. رمز لازم نیست؛ یک کد پیامکی می‌گیری.':'با شمارهٔ موبایلت وارد شو؛ یک کد پیامکی برایت می‌فرستیم.','muted'),
+   h('p',why||(m==='signup'?'برای ساخت عکس، یک حساب رایگان بساز. رمز لازم نیست؛ یک کد پیامکی می‌گیری.':'با شمارهٔ موبایلت وارد شو؛ یک کد پیامکی برایت می‌فرستیم.'),'muted'),
    authForm(m,function(){closeSheet();renderHead();toast(m==='signup'?'حسابت ساخته شد':'خوش اومدی');if(next)next()},draw,ph),
    authSwitch(m,function(x){draw(x)}),perks());
  }
@@ -1091,7 +1092,7 @@ function profilePage(card){
   function stat(v,l){return el('div',{class:'profile__stat'},[el('b',{html:v}),el('span',{text:l})])}
   function empty(t,sub,href,cta){return el('div',{class:'empty'},[el('b',{text:t}),el('p',{text:sub}),href?el('a',{class:'btn btn--soft btn--sm',href:href,text:cta}):null])}
   drawTabs();
-  var out=el('button',{class:'btn btn--ghost btn--block account__out',type:'button',text:'خروج از حساب',onclick:function(e){var b=e.currentTarget;b.disabled=true;api('otp/logout',{}).then(function(){state.verified=false;state.me={};try{localStorage.removeItem('ayneh-me')}catch(x){}walletData=null;location.href='/'}).catch(function(err){b.disabled=false;toast(err.message,'error')})}});
+  var out=el('button',{class:'btn btn--ghost btn--block account__out',type:'button',text:'خروج از حساب',onclick:function(e){var b=e.currentTarget;b.disabled=true;api('otp/logout',{}).then(function(){state.verified=false;state.me={};looks=null;saves={saved:[],liked:[]};try{localStorage.removeItem('ayneh-me')}catch(x){}walletData=null;location.href='/'}).catch(function(err){b.disabled=false;toast(err.message,'error')})}});
   walletBox.querySelector('.profile__sechead').append(el('button',{class:'btn btn--soft btn--sm',type:'button',onclick:openWallet,html:'<span class="coin-pill__ico">'+COIN+'</span><span>شارژ</span>'}));
   var invite=el('section',{class:'panel profile__sec',hidden:true});
   if(window.AynehPacks)window.AynehPacks.me(true).then(function(d){if(!d||!d.referral)return;var link=d.referral.link;invite.hidden=false;invite.replaceChildren(el('div',{class:'profile__sechead'},[el('h2',{text:'آرایشگرت را دعوت کن'})]),el('p',{class:'muted',text:'اگر آرایشگرت با لینک تو پلن آینه بگیرد، '+fa(d.referral.images*d.image_coins)+' سکه هدیه می‌گیری.'}),el('div',{class:'profile__link'},[el('code',{dir:'ltr',text:link.replace(/^https?:\/\//,'')}),el('button',{class:'btn btn--soft btn--sm',type:'button',text:'کپی لینک',onclick:function(e){var b=e.currentTarget;(navigator.clipboard?navigator.clipboard.writeText(link):Promise.reject()).then(function(){b.textContent='کپی شد'},function(){})}})]))}).catch(function(){});
@@ -1114,13 +1115,15 @@ function editProfile(me,done){
 }
 /* ---------- saved and liked looks ---------- */
 var saves={saved:[],liked:[]},savesAt=0;
-function loadSaves(force){if(!force&&Date.now()-savesAt<5000)return Promise.resolve(saves);savesAt=Date.now();return ensureSession().then(function(){return api('saves')}).then(function(d){saves={saved:d.saved||[],liked:d.liked||[]};return saves}).catch(function(){return saves})}
+function loadSaves(force){if(!state.verified){saves={saved:[],liked:[]};return Promise.resolve(saves)}if(!force&&Date.now()-savesAt<5000)return Promise.resolve(saves);savesAt=Date.now();return ensureSession().then(function(){return api('saves')}).then(function(d){saves={saved:d.saved||[],liked:d.liked||[]};return saves}).catch(function(){return saves})}
 function isOn(kind,item){return (saves[kind==='like'?'liked':'saved']||[]).indexOf(item)>=0}
 function toggleSave(kind,item,btn){
+ /* Likes and saves live in her account: signed out, sign in first, then it is done for her. */
+ if(!state.verified){openSignin(function(){loadSaves(true).then(function(){if(!isOn(kind,item))toggleSave(kind,item,btn);else if(btn){btn.classList.add('is-on');btn.setAttribute('aria-pressed','true')}renderAll()})},state.me&&state.me.phone?'login':'signup',kind==='like'?'برای پسندیدن مدل‌ها وارد حسابت شو؛ پسندیده‌هایت در پروفایلت می‌مانند.':'برای ذخیرهٔ مدل‌ها وارد حسابت شو؛ ذخیره‌ها در پروفایلت می‌مانند.');return}
  var list=saves[kind==='like'?'liked':'saved'],on=list.indexOf(item)<0;
  if(on)list.unshift(item);else list.splice(list.indexOf(item),1);
  if(btn){btn.classList.toggle('is-on',on);btn.setAttribute('aria-pressed',String(on))}
- if(kind==='like'&&trend.likes&&state.verified){trend.likes[item]=Math.max(0,(trend.likes[item]||0)+(on?1:-1));var n=btn&&btn.querySelector('.react__n');if(n)n.textContent=trend.likes[item]?fa(trend.likes[item]):''}
+ if(kind==='like'&&trend.likes){trend.likes[item]=Math.max(0,(trend.likes[item]||0)+(on?1:-1));var n=btn&&btn.querySelector('.react__n');if(n)n.textContent=trend.likes[item]?fa(trend.likes[item]):''}
  if(kind==='save')toast(on?'ذخیره شد؛ در پروفایلت می‌بینی':'از ذخیره‌ها برداشته شد');
  ensureSession().then(function(){return api('saves',{kind:kind,item:item,on:on})}).catch(function(e){toast(e.message,'error')});
 }
@@ -1142,11 +1145,11 @@ function reactBtns(item){
 /* ---------- «آلبوم من» (studio): every finished image of hers, newest first ----------
    Free to look at, compare two side by side and save again; it follows her mobile once she signs in. */
 var looks=null,looksAt=0;
-function loadLooks(){if(Date.now()-looksAt<3000)return;looksAt=Date.now();api('looks').then(function(d){looks=d.looks||[];drawAlbum()}).catch(function(){})}
+function loadLooks(){if(!state.verified){looks=null;drawAlbum();return}if(Date.now()-looksAt<3000)return;looksAt=Date.now();api('looks').then(function(d){looks=d.looks||[];drawAlbum()}).catch(function(){})}
 function lookDate(t){try{return new Intl.DateTimeFormat('fa-IR',{month:'long',day:'numeric'}).format(new Date(t))}catch(e){return ''}}
 function drawAlbum(){
  var box=$('#album');if(!box)return;
- if(!looks||!looks.length){box.hidden=true;return}
+ if(!state.verified||!looks||!looks.length){box.hidden=true;return}
  box.hidden=false;
  var strip=el('div',{class:'album__strip'},looks.slice(0,12).map(function(l){return el('button',{class:'album__item',type:'button','aria-label':(LINES.label[l.line]||'')+' · '+lookDate(l.at),onclick:function(){openLook(l)}},[el('img',{src:media(l.image),alt:'',loading:'lazy',decoding:'async'}),el('span',{text:LINES.label[l.line]||''})])}));
  box.replaceChildren(el('div',{class:'album__head'},[el('h2',{text:'آلبوم من'}),el('span',{text:fa(looks.length)+' عکس'}),looks.length>1?el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'مقایسه',onclick:function(){pickCompare(null)}}):null]),strip);
@@ -1198,7 +1201,7 @@ function renderStudioHead(){
 
 /* «ترند این هفته»: the looks tried and liked most lately, across every service (a curated start
    until there are enough tries). A tap opens that look in its own tab, ready for her photo. */
-var TREND_SEED=['hair:1','color:4','nails:7','lashes:5','hair:2','color:9','nails:8','hair:8','color:13','lashes:4','nails:4','color:3','hair:14','lashes:7'];
+var TREND_SEED=['hair:1','hair:2','hair:8','hair:21','hair:25','hair:26','hair:14','hair:36','hair:4','hair:9','color:4','color:3','color:9','color:13','color:23','color:34','color:24','color:14','color:28','nails:7','nails:8','nails:4','nails:20','nails:29','nails:31','nails:21','nails:36','nails:5','lashes:5','lashes:4','lashes:7','lashes:11','lashes:15','lashes:16','lashes:1','lashes:12'];
 function trendItems(line){
  var seen={},out=[];
  Object.keys(trend.score||{}).filter(function(k){return !line||k.indexOf(line+':')===0}).sort(function(a,b){return trend.score[b]-trend.score[a]}).concat(TREND_SEED.filter(function(k){return !line||k.indexOf(line+':')===0})).forEach(function(k){if(seen[k])return;var it=itemOf(k);if(!it||!LINES.label[it.line])return;seen[k]=1;out.push(it)});
@@ -1206,11 +1209,13 @@ function trendItems(line){
 }
 function drawTrend(){
  var box=$('#trend');if(!box)return;
- var items=trendItems().slice(0,12);if(!items.length){box.hidden=true;return}
+ var L=state.line,items=trendItems(L).slice(0,12);if(!items.length){box.hidden=true;return}
  box.hidden=false;
- box.replaceChildren(el('div',{class:'album__head'},[el('h2',{html:'<span class="trend__ico">'+ICO.fire+'</span>ترند این هفته'}),el('span',{text:'پرطرفدارترین‌های آینه'})]),
+ /* One service at a time, the same one as the tabs below; the chips switch both. */
+ var chips=el('div',{class:'filters trend__lines',role:'tablist','aria-label':'ترند کدام خدمت'},LINE_LIST.map(function(x){return el('button',{class:'chip',type:'button',role:'tab','aria-pressed':String(x[0]===L),'aria-selected':String(x[0]===L),text:x[1],onclick:function(){if(x[0]!==state.line)switchLine(x[0],{silent:true})}})}));
+ box.replaceChildren(el('div',{class:'album__head'},[el('h2',{html:'<span class="trend__ico">'+ICO.fire+'</span>ترند '+LINE_WORDS[L]}),el('span',{text:'پرطرفدارترین‌های این هفته'})]),chips,
   el('div',{class:'trend__strip'},items.map(function(it){var key=it.line+':'+it.i;
-   var b=el('button',{class:'trend__item',type:'button','aria-label':it.name+' · '+LINES.label[it.line],onclick:function(){openTrend(it)}},[el('img',{src:it.img,alt:'',loading:'lazy',decoding:'async'}),el('span',{class:'trend__name',text:it.name}),el('span',{class:'trend__line',text:LINES.label[it.line]})]);
+   var b=el('button',{class:'trend__item',type:'button','aria-label':it.name+' · '+LINES.label[it.line],onclick:function(){openTrend(it)}},[el('img',{src:it.img,alt:'',loading:'lazy',decoding:'async'}),el('span',{class:'trend__name',text:it.name})]);
    var w=el('div',{class:'trend__wrap'},[b,reactBtns(key)]);b.querySelector('img').addEventListener('error',function(){w.remove()});return w})));
 }
 function openTrend(it){
@@ -1227,7 +1232,6 @@ function studioProof(){
  var slider=compareSlider(src('before'),src('after'),['نمونه، قبل','نمونه، بعد از '+p[1]]);
  slider.classList.add('compare--hero');
  /* One gentle sweep so the slider explains itself; not with reduced motion. */
- if(!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)){setTimeout(function(){if(slider.setTo){slider.setTo(28,true);setTimeout(function(){slider.setTo(50,true)},700)}},900)}
  return el('figure',{class:'proof'},[slider,el('figcaption',{text:'یک نمونه از '+p[1]+' با آینه · خط وسط را بکش'})]);
 }
 /* What «بساز» costs, on the button itself (studio): her gift first, then 25 coins. */

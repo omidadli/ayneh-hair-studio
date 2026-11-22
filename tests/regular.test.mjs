@@ -294,19 +294,21 @@ test('«آلبوم من»: her finished images, newest first, and they follow he
  }finally{p.restore()}
 });
 
-test('saved and liked looks: kept for this browser, moved to her mobile at sign-in; liked looks count toward «ترند»',async()=>{
+test('saved and liked looks belong to a signed-in customer and follow her mobile; only likes count as likes in «ترند»',async()=>{
  const e=fixture();e.MELIPAYAMAK_TOKEN='dev-mock';await app.fetch(new Request(origin+'/'),e);
  const g=await guest(e,'try');
+ assert.equal((await call(e,'/api/s/try/saves',{kind:'save',item:'nails:3'},g)).status,401,'signed out: nothing is saved');
+ assert.deepEqual((await call(e,'/api/s/try/saves',undefined,g)).data.saved,[]);
+ assert.deepEqual((await call(e,'/api/s/try/looks',undefined,g)).data.looks,[],'signed out: no album');
+ await call(e,'/api/s/try/otp/send',{phone:'09125550000',first_name:'نگار',last_name:'امینی',city:'شیراز',signup:true},g);
+ await call(e,'/api/s/try/otp/verify',{code:'12345'},g);
  assert.equal((await call(e,'/api/s/try/saves',{kind:'save',item:'nails:3'},g)).status,200);
  assert.equal((await call(e,'/api/s/try/saves',{kind:'like',item:'hair:1'},g)).status,200);
  assert.equal((await call(e,'/api/s/try/saves',{kind:'like',item:'bad item'},g)).status,400);
- let d=(await call(e,'/api/s/try/saves',undefined,g)).data;assert.deepEqual(d.saved,['nails:3']);assert.deepEqual(d.liked,['hair:1']);
- assert.equal((await call(e,'/api/s/try/trending',undefined,g)).data.likes['hair:1'],undefined,'anonymous likes do not move «ترند»');
- await call(e,'/api/s/try/otp/send',{phone:'09125550000',first_name:'نگار',last_name:'امینی',city:'شیراز',signup:true},g);
- await call(e,'/api/s/try/otp/verify',{code:'12345'},g);
  const g2=await guest(e,'try');await call(e,'/api/s/try/otp/send',{phone:'09125550000',signin:true},g2);await call(e,'/api/s/try/otp/verify',{code:'12345'},g2);
- d=(await call(e,'/api/s/try/saves',undefined,g2)).data;assert.deepEqual(d.saved,['nails:3'],'her saves follow her mobile');
+ let d=(await call(e,'/api/s/try/saves',undefined,g2)).data;assert.deepEqual(d.saved,['nails:3'],'her saves follow her mobile');assert.deepEqual(d.liked,['hair:1']);
  const t=(await call(e,'/api/s/try/trending',undefined,g2)).data;assert.equal(t.likes['hair:1'],1);assert.equal(t.likes['nails:3'],undefined,'a save is not a like');assert.ok(t.score['nails:3']>0);
  assert.equal((await call(e,'/api/s/try/saves',{kind:'save',item:'nails:3',on:false},g2)).status,200);
  assert.deepEqual((await call(e,'/api/s/try/saves',undefined,g2)).data.saved,[]);
+ await call(e,'/api/s/try/otp/logout',{},g2);assert.deepEqual((await call(e,'/api/s/try/saves',undefined,g2)).data.liked,[],'signed out again: nothing shown');
 });

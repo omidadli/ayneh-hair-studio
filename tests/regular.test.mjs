@@ -46,7 +46,7 @@ test('the customers\' studio («/» of the main domain) is the direct salon\'s o
  assert.ok(html.includes('window.AynehPacks='),'the coin sheet');
  assert.doesNotMatch(html,/<iframe/,'one page, no frame');
  // The studio's words live in the page script (studio mode), the sheet's in the pack script.
- for(const t of ['روی عکس خودت ببین چی بهت میاد','عکس اول رایگانه','ورود یا ثبت‌نام','دریافت کد ورود','اولین بارته که میای؛ اسمت رو هم بنویس.','خروج از حساب','عکس‌های هدیه‌ات تموم شد.','شارژ کیف سکه','این عکس فقط برای خودته.','لینک آینه را برایشان بفرست؛ ۲ عکس اول برای آن‌ها هم هدیه است','مبلغ دلخواه','سکه‌ها به کیف شما اضافه شد.','کپی به ریال'])
+ for(const t of ['روی عکس خودت ببین چی بهت میاد','عکس اول رایگانه','ورود یا ثبت‌نام','دریافت کد ورود','این شماره هنوز حساب ندارد','ثبت‌نام با همین شماره','پروفایل من','ذخیره‌شده‌ها','تراکنش‌ها','خروج از حساب','عکس‌های هدیه‌ات تموم شد.','شارژ کیف سکه','این عکس فقط برای خودته.','لینک آینه را برایشان بفرست؛ ۲ عکس اول برای آن‌ها هم هدیه است','مبلغ دلخواه','سکه‌ها به کیف شما اضافه شد.','کپی به ریال'])
   assert.ok(html.includes(t),'copy: '+t);
  // what a salon buys is a «پلن» (AGENTS.md); the photo line says where the photo goes, honestly
  assert.doesNotMatch(html,/پنل آینه بگیرد|فقط برای ساخت همین نمونه/);
@@ -250,12 +250,17 @@ test('studio gifts: one connection gets at most 6 gift images a day, whatever th
 test('studio sign-in («ورود یا ثبت‌نام»): mobile + texted code, name only the first time; signing in elsewhere brings her coins; sign-out forgets the mobile here',async()=>{
  const e=fixture();e.MELIPAYAMAK_TOKEN='dev-mock';
  const page=await app.fetch(new Request(origin+'/login'),e);assert.equal(page.status,200);
- const html=await page.text();assert.match(html,/<title>ورود یا ثبت‌نام \| آینه<\/title>/);assert.match(html,/noindex/);
+ const html=await page.text();assert.match(html,/<title>ورود \| آینه<\/title>/);assert.match(html,/noindex/);
+ for(const [path,t] of [['/signup','ثبت‌نام'],['/profile','پروفایل من']]){const x=await (await app.fetch(new Request(origin+path),e)).text();assert.match(x,new RegExp('<title>'+t+' \\| آینه</title>'));assert.match(x,/noindex/)}
  const g=await guest(e,'try'),v='a'.repeat(32);
  let r=await call(e,'/api/s/try/otp/send',{phone:'09121234567',signin:true},g);
- assert.equal(r.status,200);assert.equal(r.data.need_name,true,'a new mobile is asked for a name');
- r=await call(e,'/api/s/try/otp/send',{phone:'09121234567',first_name:'سارا',last_name:'رضایی'},g);assert.equal(r.status,200);
+ assert.equal(r.status,200);assert.equal(r.data.need_signup,true,'a new mobile is sent to sign-up');
+ r=await call(e,'/api/s/try/otp/send',{phone:'09121234567',first_name:'سارا',last_name:'رضایی',signup:true},g);assert.equal(r.status,400,'sign-up needs a city');
+ r=await call(e,'/api/s/try/otp/send',{phone:'09121234567',first_name:'سارا',last_name:'رضایی',city:'مشهد',signup:true},g);assert.equal(r.status,200);
  r=await call(e,'/api/s/try/otp/verify',{code:'12345'},g);assert.equal(r.status,200);assert.equal(r.data.name,'سارا رضایی');
+ let me=(await call(e,'/api/s/try/me',undefined,g)).data;assert.equal(me.signed_in,true);assert.equal(me.city,'مشهد');assert.equal(me.first_name,'سارا');
+ assert.equal((await call(e,'/api/s/try/me',{first_name:'سارا',last_name:'رضایی',city:'تهران'},g)).status,200);
+ assert.equal((await call(e,'/api/s/try/me',undefined,g)).data.city,'تهران');
  // her coins (bought on this phone)
  const acc=(await call(e,'/api/c/me?v='+v+'&ref=1',undefined,g));assert.equal(acc.status,200);
  const id=e.DB.sql.prepare("SELECT id FROM customer_accounts WHERE phone='+989121234567'").get().id;
@@ -287,4 +292,20 @@ test('«آلبوم من»: her finished images, newest first, and they follow he
   const img=await app.fetch(new Request(origin+'/api/s/try/media/'+there.data.looks[0].image,{headers:{cookie:g2.cookie}}),e);
   assert.notEqual(img.status,403,'her own image opens on the other phone too');
  }finally{p.restore()}
+});
+
+test('saved and liked looks: kept for this browser, moved to her mobile at sign-in; liked looks count toward «ترند»',async()=>{
+ const e=fixture();e.MELIPAYAMAK_TOKEN='dev-mock';await app.fetch(new Request(origin+'/'),e);
+ const g=await guest(e,'try');
+ assert.equal((await call(e,'/api/s/try/saves',{kind:'save',item:'nails:3'},g)).status,200);
+ assert.equal((await call(e,'/api/s/try/saves',{kind:'like',item:'hair:1'},g)).status,200);
+ assert.equal((await call(e,'/api/s/try/saves',{kind:'like',item:'bad item'},g)).status,400);
+ let d=(await call(e,'/api/s/try/saves',undefined,g)).data;assert.deepEqual(d.saved,['nails:3']);assert.deepEqual(d.liked,['hair:1']);
+ const t=(await call(e,'/api/s/try/trending',undefined,g)).data;assert.equal(t.likes['hair:1'],1);assert.ok(t.score['hair:1']>0);
+ await call(e,'/api/s/try/otp/send',{phone:'09125550000',first_name:'نگار',last_name:'امینی',city:'شیراز',signup:true},g);
+ await call(e,'/api/s/try/otp/verify',{code:'12345'},g);
+ const g2=await guest(e,'try');await call(e,'/api/s/try/otp/send',{phone:'09125550000',signin:true},g2);await call(e,'/api/s/try/otp/verify',{code:'12345'},g2);
+ d=(await call(e,'/api/s/try/saves',undefined,g2)).data;assert.deepEqual(d.saved,['nails:3'],'her saves follow her mobile');
+ assert.equal((await call(e,'/api/s/try/saves',{kind:'save',item:'nails:3',on:false},g2)).status,200);
+ assert.deepEqual((await call(e,'/api/s/try/saves',undefined,g2)).data.saved,[]);
 });

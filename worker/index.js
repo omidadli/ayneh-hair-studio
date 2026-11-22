@@ -117,7 +117,8 @@ export default {
    if(u.pathname==='/'){must(env.DB,'پایگاه داده هنوز آماده نیست',503);const d=await directSalon(env.DB);const html=await studioPage(u,env,d.slug);return new Response(html,{headers:{...htmlHeaders,'Cache-Control':'no-cache',...refCookie(u,request)}});}
    if(/^\/(?:studio|try)\/?$/.test(u.pathname))return moved('/'+u.search);
    /* «ورود یا ثبت‌نام»: the studio page in its sign-in screen (customer.js accountMode). */
-   if(/^\/login\/?$/.test(u.pathname)){must(env.DB,'پایگاه داده هنوز آماده نیست',503);const d=await directSalon(env.DB);return new Response((await studioPage(u,env,d.slug)).replace(/<title>[^<]*<\/title>/,'<title>ورود یا ثبت‌نام | آینه</title>').replace('<link rel="canonical" href="'+M+'/">','<link rel="canonical" href="'+M+'/login"><meta name="robots" content="noindex">'),{headers:{...htmlHeaders,'Cache-Control':'no-cache'}});}
+   const acct=u.pathname.match(/^\/(login|signup|profile)\/?$/);
+   if(acct){must(env.DB,'پایگاه داده هنوز آماده نیست',503);const d=await directSalon(env.DB);const title={login:'ورود',signup:'ثبت‌نام',profile:'پروفایل من'}[acct[1]];return new Response((await studioPage(u,env,d.slug)).replace(/<title>[^<]*<\/title>/,'<title>'+title+' | آینه</title>').replace('<link rel="canonical" href="'+M+'/">','<link rel="canonical" href="'+M+'/'+acct[1]+'"><meta name="robots" content="noindex">'),{headers:{...htmlHeaders,'Cache-Control':'no-cache'}});}
    /* Salon pages moved to business.; old links, ads and ?ref= links keep working. */
    if(/^\/salons\/?$/.test(u.pathname))return moved(B+'/'+u.search);
    if(svc||u.pathname==='/new'||/^\/pay\/?$/.test(u.pathname))return moved(B+u.pathname+u.search);

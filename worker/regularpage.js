@@ -25,7 +25,7 @@ const packsCSS = String.raw`
 .ap-sheet__head{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .ap-sheet__head h2{font-family:var(--display);font-size:18px}
 .ap-x{border:0;background:transparent;font-size:26px;line-height:1;color:var(--ink);cursor:pointer;min-width:var(--tap);min-height:var(--tap)}
-.ap [hidden]{display:none!important}
+.ap [hidden],.ap-pay [hidden]{display:none!important}
 .ap-pack{position:relative}
 .ap-pack b{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .ap-coin{display:inline-flex;width:20px;height:20px}.ap-coin svg{width:100%;height:100%}
@@ -41,7 +41,7 @@ const packsCSS = String.raw`
 .ap-paysum b{font-size:19px}
 .ap-steps{list-style:none;margin:0;padding:0;display:grid;gap:12px;counter-reset:s}
 .ap-steps li{position:relative;display:grid;gap:8px;padding:12px 14px 12px 14px;padding-inline-start:46px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface,#fff)}
-.ap-steps li::before{counter-increment:s;content:counter(s);position:absolute;inset-inline-start:12px;top:12px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--accent,#0f5e4d);color:#fff;font-size:13px;font-weight:800}
+.ap-steps li::before{counter-increment:s;content:counter(s,persian);position:absolute;inset-inline-start:12px;top:12px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;background:var(--accent,#0f5e4d);color:#fff;font-size:13px;font-weight:800}
 .ap-cardrow,.ap-amount{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
 .ap-amount span{font-size:18px;font-weight:800;color:var(--ink)}
 .ap-amount--alt span{font-size:14px;font-weight:600;color:var(--muted)}
@@ -83,6 +83,26 @@ const packsCSS = String.raw`
   .btn--primary,.btn--build{background-color:var(--accent);color:#fff}
   .btn--soft{background-color:var(--accent-soft);color:var(--accent-ink)}
 }
+.ap-bal{display:flex;align-items:center;gap:8px;padding:10px 14px;border-radius:var(--r);background:var(--surface);border:1px solid var(--line);font-size:14px;color:var(--ink-2)}
+.ap-bal b{margin-inline-start:auto;font-size:15px;color:var(--ink)}
+.ap-opts{display:grid;gap:8px}
+.ap-opt{display:flex;align-items:center;gap:12px;width:100%;min-height:60px;padding:10px 14px;border-radius:var(--r);border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;text-align:start;cursor:pointer;position:relative}
+.ap-opt.is-on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.ap-opt__dot{flex:0 0 20px;width:20px;height:20px;border-radius:50%;border:2px solid var(--line-2,#c9c2b8);display:grid;place-items:center}
+.ap-opt.is-on .ap-opt__dot{border-color:var(--accent)}
+.ap-opt.is-on .ap-opt__dot::after{content:'';width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.ap-opt__main{flex:1;min-width:0;display:grid}
+.ap-opt__main b{font-size:15.5px;font-weight:800}
+.ap-opt__main small{font-size:12.5px;color:var(--muted)}
+.ap-opt__price{font-size:14px;font-weight:700;color:var(--ink);white-space:nowrap}
+.ap-opt__tag{font-style:normal;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#F4E6CC;color:#6B4A0E}
+.ap-opt:focus-visible{outline:3px solid #054b3c;outline-offset:2px}
+.ap-stepper{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 14px;border-radius:var(--r);background:var(--surface-2,#f6f1ea);font-size:14px;color:var(--ink-2)}
+.ap-stepper__ctl{display:flex;align-items:center;gap:12px}
+.ap-stepper__ctl b{min-width:28px;text-align:center;font-size:17px;color:var(--ink)}
+.ap-step{width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font:inherit;font-size:20px;color:var(--ink);cursor:pointer}
+.ap-step[disabled]{opacity:.4;cursor:not-allowed}
+.ap-back{justify-self:start}
 `;
 
 // window.AynehPacks: mount(box,{referral,onCredited}), open(), out(), button(). Inside the /try
@@ -107,26 +127,47 @@ export const packsJS = String.raw`
   }
   /* Images for an amount, the same rule as the server (customerprices.js coinsFor); display only. */
   function worth(d,t){var img=Math.floor(t/d.image_price),gift=Math.floor(t/d.gift_every);return {images:img+gift,gift:gift,coins:(img+gift)*d.image_coins}}
+  /* One clean choice: three packs as a list, «مبلغ دلخواه» as a stepper in whole images, one pay button. */
   function list(d){
-   var best=d.topups.length>1?d.topups[1].toman:0;
-   var packs=el('div',{class:'ap-packs'},d.topups.map(function(p){var w=worth(d,p.toman);var b=el('button',{class:'ap-pack'+(w.gift?' ap-pack--gift':'')+(p.toman===best?' ap-pack--best':''),type:'button',onclick:function(){choose(p.toman,b)}},[
-     w.gift?el('i',{class:'ap-gift',text:fa(w.gift)+' عکس هدیه'}):null,
-     el('b',{},[coinSVG(),document.createTextNode(fa(w.images)+' عکس')]),
-     el('span',{text:fa(p.toman/1000)+' هزار تومان · '+fa(w.coins)+' سکه'+(w.gift?' · هر عکس '+fa(Math.round(p.toman/w.images/1000))+' هزار':'')})]);return b}));
-   var step=d.step/1000,n=el('input',{type:'number',min:String(d.min/1000),max:String(d.max/1000),step:String(step),value:String(d.min/1000*3),inputmode:'numeric','aria-label':'مبلغ شارژ به هزار تومان'});
-   var total=el('output',{});
-   var val=function(){return Math.floor(Number(n.value)||0)*1000};
-   var ok=function(t){return t>=d.min&&t<=d.max&&t%d.step===0};
-   var upd=function(){var t=val();if(!ok(t)){total.textContent='مضربی از '+fa(step)+' هزار تومان، از '+fa(d.min/1000)+' تا '+fa(d.max/1000)+' هزار';return}var w=worth(d,t);total.textContent=fa(w.images)+' عکس'+(w.gift?' (با '+fa(w.gift)+' عکس هدیه)':'')+' · '+fa(w.coins)+' سکه'};n.addEventListener('input',upd);upd();
-   var more=el('div',{class:'ap-more'},[el('label',{},['مبلغ دلخواه',n,el('span',{class:'ap-unit',text:'هزار تومان'})]),total,el('button',{class:'btn btn--primary btn--sm',type:'button',text:'شارژ',onclick:function(e){var t=val();if(!ok(t)){fail('مبلغ را مضربی از '+fa(step)+' هزار تومان (قیمت یک عکس)، بین '+fa(d.min/1000)+' تا '+fa(d.max/1000)+' هزار تومان بنویسید.');return}choose(t,e.target)}})]);
-   box.replaceChildren(el('div',{class:'ap'},[packs,more,el('p',{class:'ap-note',text:'هر عکس '+fa(d.image_coins)+' سکه ('+fa(d.image_price)+' تومان). به ازای هر '+fa(d.gift_every/1000)+' هزار تومان شارژ، ۱ عکس هدیه می‌گیرید. سکه‌ای که می‌خرید هیچ‌وقت منقضی نمی‌شود و اگر ساخت عکسی خراب شود، سکه‌اش برمی‌گردد.'}),err,opts.referral&&d.referral?el('div',{class:'ap-ref'},[el('p',{text:'آرایشگر یا آرایشگاه‌دار می‌شناسید؟ لینک خودتان را به او بدهید؛ اگر پلن آینه بگیرد، '+fa(d.referral.images*d.image_coins)+' سکه هدیه می‌گیرید.'}),el('code',{text:d.referral.link}),copyBtn('کپی لینک',d.referral.link)]):null]));
+   var opts=d.topups.map(function(p){return p.toman}),best=opts.length>1?opts[1]:opts[0],sel=best,custom=Math.max(d.min,d.image_price*3);
+   var own=d.own&&d.own.coins||0;
+   var rows=el('div',{class:'ap-opts',role:'radiogroup','aria-label':'مبلغ شارژ'});
+   var payBtn=el('button',{class:'btn btn--primary btn--block btn--lg',type:'button'});
+   function row(t,isCustom){
+    var w=worth(d,t),on=isCustom?sel==='custom':sel===t;
+    var r=el('button',{class:'ap-opt'+(on?' is-on':''),type:'button',role:'radio','aria-checked':String(on),onclick:function(){sel=isCustom?'custom':t;draw()}},[
+     el('span',{class:'ap-opt__dot','aria-hidden':'true'}),
+     el('span',{class:'ap-opt__main'},[el('b',{text:fa(w.images)+' عکس'}),el('small',{text:fa(w.coins)+' سکه'+(w.gift?' · '+fa(w.gift)+' عکس هدیه':'')})]),
+     !isCustom&&t===best?el('i',{class:'ap-opt__tag',text:'پرطرفدار'}):null,
+     el('span',{class:'ap-opt__price',text:fa(t/1000)+' هزار تومان'})]);
+    return r;
+   }
+   function stepper(){
+    var minus=el('button',{class:'ap-step',type:'button','aria-label':'یک عکس کمتر',text:'−',onclick:function(){custom=Math.max(d.min,custom-d.step);draw()}});
+    var plus=el('button',{class:'ap-step',type:'button','aria-label':'یک عکس بیشتر',text:'+',onclick:function(){custom=Math.min(d.max,custom+d.step);draw()}});
+    minus.disabled=custom<=d.min;plus.disabled=custom>=d.max;
+    return el('div',{class:'ap-stepper'},[el('span',{text:'تعداد عکس'}),el('div',{class:'ap-stepper__ctl'},[minus,el('b',{text:fa(custom/d.image_price)}),plus])]);
+   }
+   function draw(){
+    var list=opts.map(function(t){return row(t,false)});
+    var cr=row(custom,true);cr.querySelector('.ap-opt__main b').textContent='مقدار دلخواه';
+    list.push(cr);if(sel==='custom')list.push(stepper());
+    rows.replaceChildren.apply(rows,list);
+    var t=sel==='custom'?custom:sel;payBtn.textContent='پرداخت '+fa(t)+' تومان';payBtn.onclick=function(){choose(t,payBtn)};
+   }
+   draw();
+   box.replaceChildren(el('div',{class:'ap'},[
+    el('div',{class:'ap-bal'},[coinSVG(),el('span',{text:'موجودی کیف'}),el('b',{text:fa(own)+' سکه'})]),
+    rows,payBtn,
+    el('p',{class:'ap-note',text:'هر عکس '+fa(d.image_coins)+' سکه · سکه منقضی نمی‌شود · اگر ساخت عکسی خراب شود، سکه‌اش برمی‌گردد.'}),err,
+    opts.referral&&d.referral?el('div',{class:'ap-ref'},[el('p',{text:'آرایشگر یا آرایشگاه‌دار می‌شناسید؟ لینک خودتان را به او بدهید؛ اگر پلن آینه بگیرد، '+fa(d.referral.images*d.image_coins)+' سکه هدیه می‌گیرید.'}),el('code',{text:d.referral.link}),copyBtn('کپی لینک',d.referral.link)]):null]));
   }
   function pay(o){
    if(o.status==='paid'){done(o.coins||o.count);return}
    if(o.status==='expired'||o.status==='cancelled'){try{localStorage.removeItem(KEY)}catch(e){}start();return}
    var left=el('span',{}),msg=el('p',{class:'ap-note'});
-   var back=el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'تغییر مبلغ شارژ',onclick:function(){try{localStorage.removeItem(KEY)}catch(e){}stop();start()}});
-   function show(){msg.textContent='پرداخت خودکار و معمولاً چند ثانیه بعد از واریز تأیید می‌شود و سکه‌ها همان لحظه به کیفتان اضافه می‌شود. اگر پول از حسابتان کم شده، دوباره واریز نکنید؛ اگر تا ۱۰ دقیقه تأیید نشد، کد پیگیری را برای پشتیبانی آینه بفرستید.'}
+   var back=el('button',{class:'btn btn--ghost btn--sm ap-back',type:'button',text:'تغییر مبلغ',onclick:function(){try{localStorage.removeItem(KEY)}catch(e){}stop();start()}});
+   function show(){msg.textContent='تأیید خودکار است؛ معمولاً چند ثانیه بعد از واریز.'}
    var t=setInterval(function(){var s=Math.max(0,Math.round((o.expires_at-Date.now())/1000));left.textContent=o.status==='open'?(Math.floor(s/60)+':'+String(s%60).padStart(2,'0')):'';},1000);
    var p=setInterval(function(){api('/api/c/order/'+o.id).then(function(r){o=Object.assign(o,r);if(r.status==='paid'){stop();done(o.coins||o.count)}else if(r.status==='expired'||r.status==='cancelled'){stop();try{localStorage.removeItem(KEY)}catch(e){}fail('مهلت این سفارش تمام شد؛ اگر واریز کرده‌اید با کد پیگیری به پشتیبانی خبر بدهید.');start(true)}else show()}).catch(function(){})},5000);
    function stop(){clearInterval(t);clearInterval(p)}
@@ -136,8 +177,8 @@ export const packsJS = String.raw`
     el('div',{class:'ap-paysum'},[el('span',{},[coinSVG(),document.createTextNode(fa(o.coins||o.count)+' سکه')]),el('b',{text:fa(o.amount)+' تومان'})]),
     el('ol',{class:'ap-steps'},[
      el('li',{},[el('b',{text:'به این کارت'}),card?el('div',{class:'ap-cardrow'},[el('div',{class:'ap-card',dir:'ltr',text:card.replace(/(\d{4})(?=\d)/g,'$1 ')}),copyBtn('کپی شماره کارت',card)]):el('p',{class:'notice notice--warn',text:'پرداخت هنوز آماده نیست؛ کمی بعد دوباره سر بزنید.'}),o.card_owner?el('small',{class:'ap-note',text:'به نام '+o.card_owner+'؛ قبل از تأیید در اپ بانکت، اسم گیرنده را چک کن.'}):null]),
-     el('li',{},[el('b',{text:'دقیقاً همین مبلغ را بزنید'}),el('div',{class:'ap-amount'},[el('span',{text:fa(o.amount*10)+' ریال'}),copyBtn('کپی به ریال',String(o.amount*10))]),el('div',{class:'ap-amount ap-amount--alt'},[el('span',{text:fa(o.amount)+' تومان'}),copyBtn('کپی به تومان',String(o.amount))]),el('small',{class:'ap-note',text:(o.amount%1000?'این مبلغ عمداً کمی کمتر از '+fa(Math.ceil(o.amount/1000)*1000)+' تومان است تا واریز شما بدون رسید و خودکار شناسایی شود؛ آن را گرد نکنید. ':'')+'بیشتر بانک‌ها مبلغ را به ریال می‌خواهند.'})]),
-     el('li',{},[el('b',{text:'همین صفحه را باز بگذارید'}),el('div',{class:'ap-wait'},[el('span',{class:'ap-spin','aria-hidden':'true'}),el('span',{},['در انتظار واریز · ',left])]),msg])
+     el('li',{},[el('b',{text:'دقیقاً همین مبلغ را بزنید'}),el('div',{class:'ap-amount'},[el('span',{text:fa(o.amount*10)+' ریال'}),copyBtn('کپی به ریال',String(o.amount*10))]),el('div',{class:'ap-amount ap-amount--alt'},[el('span',{text:'معادل '+fa(o.amount)+' تومان'})]),o.amount%1000?el('small',{class:'ap-note',text:'مبلغ را گرد نکنید؛ همین عدد واریز شما را خودکار شناسایی می‌کند.'}):null]),
+     el('li',{},[el('b',{text:'منتظر تأیید بمانید'}),el('div',{class:'ap-wait'},[el('span',{class:'ap-spin','aria-hidden':'true'}),el('span',{},['در انتظار واریز · ',left])]),msg])
     ]),
     el('div',{class:'ap-row ap-row--ref'},[el('span',{text:'کد پیگیری'}),el('b',{dir:'ltr',text:o.ref})]),
     back,err
@@ -155,7 +196,7 @@ export const packsJS = String.raw`
   var body=el('div',{});
   var sheet=el('div',{class:'ap-sheet',role:'dialog','aria-modal':'true','aria-label':'شارژ سکه'},[el('div',{class:'ap-sheet__panel'},[el('div',{class:'ap-sheet__head'},[el('h2',{text:'شارژ کیف سکه'}),el('button',{class:'ap-x',type:'button','aria-label':'بستن',text:'×',onclick:function(){sheet.remove()}})]),body])]);
   sheet.addEventListener('click',function(e){if(e.target===sheet)sheet.remove()});
-  document.body.append(sheet);mount(body,{referral:!!document.querySelector('meta[name="ayneh-biz"]'),onCredited:credited});
+  document.body.append(sheet);mount(body,{referral:!!document.querySelector('meta[name="ayneh-biz"]')&&!document.body.classList.contains('is-studio'),onCredited:credited});
  }
  function button(){return el('button',{class:'btn btn--soft btn--sm',type:'button',text:'عکس بیشتر می‌خواهید؟ شارژ سکه',onclick:open})}
  window.AynehPacks={mount:mount,open:open,out:open,button:button,me:me,visitor:visitor,coinSVG:coinSVG};

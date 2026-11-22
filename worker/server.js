@@ -365,8 +365,8 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  if(!salon&&match[1]==='demo'){await run(db,'INSERT OR IGNORE INTO salons(id,slug,owner_id,name,profile,settings,created_at) VALUES(?,?,?,?,?,?,?)',uid(),'demo','system','آینه (نسخهٔ نمونه)','{}',JSON.stringify({generation_enabled:true,reference_verified:false,demo:true}),Date.now());salon=await one(db,'SELECT * FROM salons WHERE slug=?','demo')}
  must(salon,'سالن پیدا نشد',404);const route=match[2]||'',cfg=parse(salon.settings),trial=cfg.trial?await trialOf(db,salon.id):null,demo=salon.owner_id==='system';
  if(trial&&!trialLive(trial)&&route!=='public'&&!route.startsWith('owner'))throw new Problem(410,'مهلت ۱۰ ساعتهٔ صفحهٔ آزمایشی تمام شده است؛ برای ادامه با ما تماس بگیرید');
- const readOnly=route==='public'||route==='owner'||route==='requests'||route==='looks'||route.startsWith('media/')||route.startsWith('generation/');
- must(route==='session'?['GET','POST'].includes(req.method):req.method===(readOnly?'GET':'POST'),'متد مجاز نیست',405);
+ const readOnly=route==='public'||route==='owner'||route==='requests'||route==='looks'||route==='trending'||route.startsWith('media/')||route.startsWith('generation/');
+ must(route==='session'||route==='me'||route==='saves'?['GET','POST'].includes(req.method):req.method===(readOnly?'GET':'POST'),'متد مجاز نیست',405);
  if(route==='public')return J({salon:publicSalon(salon),portfolio:await all(db,'SELECT id,title,category,description,stylist,staff_id AS maker,line,images,try_on,1 AS published FROM portfolio WHERE salon_id=? AND published=1 AND permission=1 ORDER BY created_at DESC',salon.id),generation:!!env.KIE_API_KEY&&!!cfg.generation_enabled,reference:refOn(cfg),telegram:inboxes(env,salon).length>0||!!planOf(salon)||!!await one(db,'SELECT 1 FROM team WHERE salon_id=? AND active=1',salon.id),follow:Object.keys(followLinks(env,'x')),otp:smsReady(env)&&!demo,notice:'خروجی شبیه‌سازی پیشنهادی است و تضمین اجرا نیست.',trial:trialPublic(trial),demo,direct:isDirect(salon),lines:salonLines(salon)});
  if(route==='session'&&req.method==='POST'){await limited(db,'session:'+salon.id+':'+clientIp(req),30);const {raw}=await newSession(db,salon);return J({ok:true},200,{'Set-Cookie':cookie(raw)});}
  if(route.startsWith('owner')){
@@ -410,14 +410,18 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  // Mobile verification: a one-time code texted by Melipayamak. Only the hash of the code is stored.
  if(route==='otp/send'){
   must(smsReady(env),'تأیید شماره هنوز فعال نشده است',503);
-  const b=await req.json();let first=text(String(b.first_name||''),40),last=text(String(b.last_name||''),60);
+  const b=await req.json();let first=text(String(b.first_name||''),40),last=text(String(b.last_name||''),60),city=text(String(b.city||''),40);
   const number=phone(b.phone),now=Date.now();
+  /* «ثبت‌نام»: name, family name and city are all required. */
+  if(b.signup===true)must(city.length>=2,'شهر محل زندگی‌ات را بنویس');
   /* Sign-in (the studio's «ورود یا ثبت‌نام»): a returning mobile needs no name again. The name she
      gave before is reused here and never sent back before the code is verified. */
   if(!first&&!last&&b.signin===true){
-   const known=await one(db,"SELECT verified_name FROM sessions WHERE verified_phone=? AND verified_name<>'' ORDER BY created_at DESC LIMIT 1",number);
-   if(known){const bits=String(known.verified_name).trim().split(/\s+/);first=bits[0]||'';last=bits.slice(1).join(' ')||'-';}
-   else return J({need_name:true});
+   const prof=await one(db,'SELECT first_name,last_name FROM customer_profiles WHERE salon_id=? AND phone=?',salon.id,number);
+   const known=prof?null:await one(db,"SELECT verified_name FROM sessions WHERE verified_phone=? AND verified_name<>'' ORDER BY created_at DESC LIMIT 1",number);
+   if(prof){first=prof.first_name;last=prof.last_name}
+   else if(known){const bits=String(known.verified_name).trim().split(/\s+/);first=bits[0]||'';last=bits.slice(1).join(' ')||'-';}
+   else return J({need_name:true,need_signup:true});
   }
   must(first.length>=2&&last.length>=1,'نام و نام خانوادگی را کامل بنویس');
   const prev=await one(db,'SELECT created_at FROM otps WHERE session_id=? ORDER BY created_at DESC LIMIT 1',s.id);
@@ -428,7 +432,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   await limited(db,'otp-salon:'+salon.id,300,'سقف ارسال کد برای امروز پر شده است');
   const code=await sendOtp(env,number),id=uid();
   await run(db,'DELETE FROM otps WHERE session_id=?',s.id);
-  await run(db,'INSERT INTO otps(id,session_id,phone,first_name,last_name,code_hash,expires_at,created_at) VALUES(?,?,?,?,?,?,?,?)',id,s.id,number,first,last,await hash(id+':'+code),now+10*60000,now);
+  await run(db,'INSERT INTO otps(id,session_id,phone,first_name,last_name,city,code_hash,expires_at,created_at) VALUES(?,?,?,?,?,?,?,?,?)',id,s.id,number,first,last,b.signup===true?city:'',await hash(id+':'+code),now+10*60000,now);
   return J({ok:true,expires_in:600,resend_in:60});
  }
  if(route==='otp/verify'){
@@ -443,11 +447,59 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   const name=o.first_name+' '+o.last_name;
   await run(db,'UPDATE sessions SET verified_phone=?,verified_name=? WHERE id=?',o.phone,name,s.id);
   await run(db,'DELETE FROM otps WHERE session_id=?',s.id);
+  /* Her profile: a sign-up writes name and city; a sign-in only fills what is missing. */
+  const t=Date.now();
+  await run(db,"INSERT INTO customer_profiles(salon_id,phone,first_name,last_name,city,created_at,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(salon_id,phone) DO UPDATE SET first_name=CASE WHEN excluded.city<>'' THEN excluded.first_name ELSE first_name END,last_name=CASE WHEN excluded.city<>'' THEN excluded.last_name ELSE last_name END,city=CASE WHEN excluded.city<>'' THEN excluded.city ELSE city END,updated_at=excluded.updated_at",salon.id,o.phone,o.first_name,o.last_name,o.city||'',t,t);
+  /* Looks she saved or liked before signing in move to her mobile. */
+  await run(db,"INSERT OR IGNORE INTO customer_saves(salon_id,owner,kind,item,created_at) SELECT salon_id,?,kind,item,created_at FROM customer_saves WHERE salon_id=? AND owner=?",o.phone,salon.id,'s:'+s.id);
+  await run(db,'DELETE FROM customer_saves WHERE salon_id=? AND owner=?',salon.id,'s:'+s.id);
   return J({ok:true,name,phone:o.phone});
  }
  /* «آلبوم من»: her finished images, newest first — this browser's, and every session where she
     verified the same mobile (so signing in on another phone brings her album too). */
  if(route==='looks'){const rows=await all(db,"SELECT id,result_id,line,created_at FROM generations WHERE salon_id=? AND state='success' AND result_id IS NOT NULL AND kind<>'views' AND (session_id=? OR (? IS NOT NULL AND session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?))) ORDER BY created_at DESC LIMIT 60",salon.id,s.id,s.verified_phone||null,salon.id,s.verified_phone||null);return J({looks:rows.map(r=>({id:r.id,image:r.result_id,line:r.line,at:r.created_at}))})}
+ /* «پروفایل من»: her account page — name, city, mobile, coins history, saved and liked looks. */
+ if(route==='me'&&req.method==='GET'){
+  if(!s.verified_phone)return J({signed_in:false});
+  const p=await one(db,'SELECT first_name,last_name,city,created_at FROM customer_profiles WHERE salon_id=? AND phone=?',salon.id,s.verified_phone);
+  const bits=String(s.verified_name||'').trim().split(/\s+/);
+  const acc=await one(db,'SELECT id FROM customer_accounts WHERE phone=?',s.verified_phone);
+  const ledger=acc?await all(db,'SELECT delta,reason,created_at FROM customer_ledger WHERE account_id=? ORDER BY created_at DESC LIMIT 30',acc.id):[];
+  const spent=acc?await all(db,"SELECT line,created_at FROM generations WHERE paid_by=? AND state<>'fail' ORDER BY created_at DESC LIMIT 30",acc.id):[];
+  const made=Number((await one(db,"SELECT COUNT(*) n FROM generations WHERE salon_id=? AND state='success' AND kind<>'views' AND (session_id=? OR session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?))",salon.id,s.id,salon.id,s.verified_phone))?.n||0);
+  return J({signed_in:true,phone:s.verified_phone,first_name:p?.first_name||bits[0]||'',last_name:p?.last_name||bits.slice(1).join(' '),city:p?.city||'',since:p?.created_at||null,made,
+   history:[...ledger.map(r=>({kind:r.reason,coins:r.delta,at:r.created_at})),...spent.map(r=>({kind:'image',line:r.line,coins:-25,at:r.created_at}))].sort((a,b)=>b.at-a.at).slice(0,30)});
+ }
+ if(route==='me'&&req.method==='POST'){
+  must(s.verified_phone,'اول وارد حسابت شو',401);
+  const b=await req.json();const first=text(String(b.first_name||''),40),last=text(String(b.last_name||''),60),city=text(String(b.city||''),40);
+  must(first.length>=2&&last.length>=1,'نام و نام خانوادگی را کامل بنویس');must(city.length>=2,'شهر محل زندگی‌ات را بنویس');
+  const t=Date.now();
+  await run(db,'INSERT INTO customer_profiles(salon_id,phone,first_name,last_name,city,created_at,updated_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(salon_id,phone) DO UPDATE SET first_name=excluded.first_name,last_name=excluded.last_name,city=excluded.city,updated_at=excluded.updated_at',salon.id,s.verified_phone,first,last,city,t,t);
+  await run(db,'UPDATE sessions SET verified_name=? WHERE id=?',first+' '+last,s.id);
+  return J({ok:true,name:first+' '+last});
+ }
+ /* Saved («ذخیره») and liked («لایک») looks: item is "<line>:<catalog index>" or "img:<image id>". */
+ if(route==='saves'&&req.method==='GET'){const owner=s.verified_phone||('s:'+s.id);const rows=await all(db,'SELECT kind,item FROM customer_saves WHERE salon_id=? AND owner=? ORDER BY created_at DESC LIMIT 300',salon.id,owner);return J({saved:rows.filter(r=>r.kind==='save').map(r=>r.item),liked:rows.filter(r=>r.kind==='like').map(r=>r.item)})}
+ if(route==='saves'&&req.method==='POST'){
+  const b=await req.json();const kind=b.kind==='like'?'like':'save',item=String(b.item||'');
+  must(/^(hair|color|nails|lashes):\d{1,3}$|^img:[A-Za-z0-9_-]{6,64}$/.test(item),'مورد معتبر نیست');
+  await limited(db,'saves:'+s.id,400);
+  const owner=s.verified_phone||('s:'+s.id);
+  if(b.on===false)await run(db,'DELETE FROM customer_saves WHERE salon_id=? AND owner=? AND kind=? AND item=?',salon.id,owner,kind,item);
+  else await run(db,'INSERT OR IGNORE INTO customer_saves(salon_id,owner,kind,item,created_at) VALUES(?,?,?,?,?)',salon.id,owner,kind,item,Date.now());
+  return J({ok:true});
+ }
+ /* «ترند»: the looks tried and liked most in the last 30 days, per service. */
+ if(route==='trending'){
+  const since=Date.now()-30*864e5;
+  const tried=await all(db,"SELECT line,style,COUNT(*) n FROM generations WHERE salon_id=? AND created_at>? AND style IS NOT NULL AND state<>'fail' GROUP BY line,style",salon.id,since);
+  const liked=await all(db,"SELECT item,COUNT(*) n FROM customer_saves WHERE salon_id=? AND created_at>? AND item NOT LIKE 'img:%' GROUP BY item",salon.id,since);
+  const score={};for(const r of tried){const k=r.line+':'+r.style;score[k]=(score[k]||0)+Number(r.n)}
+  for(const r of liked){score[r.item]=(score[r.item]||0)+2*Number(r.n)}
+  const likes={};for(const r of liked)likes[r.item]=(likes[r.item]||0)+Number(r.n);
+  return J({score,likes});
+ }
  /* «خروج از حساب»: this browser forgets the mobile; her coins stay with her mobile for the next sign-in. */
  if(route==='otp/logout'&&req.method==='POST'){await run(db,'UPDATE sessions SET verified_phone=NULL,verified_name=NULL WHERE id=?',s.id);return J({ok:true})}
  if(route==='requests'){const rows=await all(db,'SELECT id,look,salon_status,handled_at,created_at,follow_chat IS NOT NULL AS followed FROM leads WHERE session_id=? ORDER BY created_at DESC LIMIT 5',s.id);const prof=parse(salon.profile);return J({requests:rows,phone:prof.phone||''});}

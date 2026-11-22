@@ -664,6 +664,56 @@ body.cta-on-screen #dock{transform:translateY(130%);opacity:0;pointer-events:non
 @media (prefers-reduced-motion:reduce){#dock{transition:none}}
 .btn .coin-pill__ico svg{width:20px;height:20px}
 
+
+/* ---------- profile, saves and likes (studio) ---------- */
+.signin__pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.signin__alt{font-size:14px;color:var(--ink-2);text-align:center}
+.signin__alt a{color:var(--accent);font-weight:700}
+.signin__miss{display:grid;gap:10px;text-align:start}
+.signin__miss[hidden]{display:none}
+.profile{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;max-width:560px;margin:10px auto 0;width:100%}
+.profile>*,.profile__sec>*{min-width:0}
+.profile__sec{grid-template-columns:minmax(0,1fr)}
+.profile__id{display:flex;align-items:center;gap:14px;padding:18px}
+.profile__avatar{flex:0 0 60px;width:60px;height:60px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff;font-family:var(--display);font-size:26px;font-weight:800}
+.profile__who{flex:1;min-width:0}
+.profile__who h1{font-family:var(--display);font-size:21px;font-weight:800;color:var(--ink);line-height:1.4}
+.profile__who p{font-size:13.5px;color:var(--muted);line-height:1.8}
+.profile__stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.profile__stat{display:grid;gap:2px;text-align:center;padding:14px 8px;border-radius:16px;background:var(--surface);border:1px solid var(--line)}
+.profile__stat b{font-family:var(--display);font-size:22px;font-weight:800;color:var(--ink)}
+.profile__stat span{font-size:12.5px;color:var(--muted)}
+.profile__sec{padding:16px;display:grid;gap:12px}
+.profile__sechead{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.profile__link{display:flex;align-items:center;gap:8px}
+.profile__link code{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:12.5px ui-monospace,Menlo,monospace;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 10px}
+.profile__sec[hidden]{display:none}
+.profile__sechead h2{font-family:var(--display);font-size:17px;font-weight:800;color:var(--ink)}
+.profile__sec .seg{margin-bottom:0}
+.pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pgrid__item{display:grid;gap:4px;padding:0;border:0;background:none;text-align:center;font-size:11.5px;color:var(--ink-2);font-weight:600;text-decoration:none;cursor:pointer}
+.pgrid__item img{width:100%;aspect-ratio:3/4;object-fit:cover;border-radius:12px;background:var(--glass-2)}
+.empty{display:grid;gap:6px;justify-items:center;text-align:center;padding:22px 8px}
+.empty b{font-size:15px;color:var(--ink)}
+.empty p{font-size:13.5px;color:var(--muted);line-height:1.8}
+.ledger{list-style:none;margin:0;padding:0;display:grid}
+.ledger li{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.ledger li:last-child{border-bottom:0}
+.ledger__ico{flex:0 0 34px;width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:var(--glass-2);color:var(--ink-2)}
+.ledger__ico svg{width:20px;height:20px}
+.ledger__txt{flex:1;min-width:0;display:grid}
+.ledger__txt b{font-size:14px;color:var(--ink)}
+.ledger__txt small{font-size:12px;color:var(--muted)}
+.ledger__amt{font-size:15px;color:var(--ink-2)}
+.ledger__amt.is-plus{color:var(--accent)}
+.react-row{position:absolute;top:8px;inset-inline-start:8px;display:flex;gap:6px;z-index:2}
+.react{min-width:36px;height:36px;padding:0 8px;border:0;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:3px;background:rgba(255,255,255,.92);color:var(--ink-2);box-shadow:0 2px 8px rgba(20,20,20,.14);cursor:pointer;font:inherit;font-size:12px;font-weight:700}
+.react svg{width:18px;height:18px}
+.react::before{content:'';position:absolute;inset:-4px}
+.react{position:relative}
+.react--like.is-on{color:#D2405B}.react--like.is-on svg{fill:currentColor}
+.react--save.is-on{color:var(--accent)}.react--save.is-on svg{fill:currentColor}
+.react__n:empty{display:none}
 `;
 
 const clientJS=String.raw`
@@ -687,6 +737,11 @@ var FROM_LANDING=/[?&]from=landing(?:&|$)/.test(location.search);
 var STUDIO_PREVIEW=location.pathname==='/salon-preview';
 var SLUG=STUDIO_PREVIEW?'sanaz-salon':((document.querySelector('meta[name="ayneh-slug"]')||{}).content||location.pathname.split('/').filter(Boolean)[1]||'');
 var ICO={
+ heart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20s-7-4.4-9.2-9A5.2 5.2 0 0 1 12 6.2 5.2 5.2 0 0 1 21.2 11C19 15.6 12 20 12 20Z"/></svg>',
+ bookmark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6.5 3.5h11a1 1 0 0 1 1 1v16l-6.5-4.2-6.5 4.2v-16a1 1 0 0 1 1-1Z"/></svg>',
+ edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4Z"/><path d="m13.5 6.5 4 4"/></svg>',
+ search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg>',
+ fire:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21c4 0 7-2.7 7-6.6 0-3.7-2.6-5.9-4.2-8.9-.4 2-1.4 3.3-2.8 3.9C12 6.4 10.6 4.4 8.6 3c.3 3.4-1.5 5.3-2.7 7.2A7.4 7.4 0 0 0 5 14.4C5 18.3 8 21 12 21Z"/></svg>',
  camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h1.2a2 2 0 0 0 1.7-.9l.6-1a2 2 0 0 1 1.7-.9h2.6a2 2 0 0 1 1.7.9l.6 1a2 2 0 0 0 1.7.9h1.2A2.5 2.5 0 0 1 21 8.5v8A2.5 2.5 0 0 1 18.5 19h-13A2.5 2.5 0 0 1 3 16.5z"/><circle cx="12" cy="12.5" r="3.4"/></svg>',
  lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><rect x="4.5" y="10" width="15" height="10" rx="2.6"/><path d="M8.5 10V7.8a3.5 3.5 0 0 1 7 0V10"/></svg>',
  phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 3.5h2.2l1.6 4-2 1.3a12 12 0 0 0 6.4 6.4l1.3-2 4 1.6v2.2a2.5 2.5 0 0 1-2.7 2.5A16.5 16.5 0 0 1 4 6.2 2.5 2.5 0 0 1 6.5 3.5z"/></svg>',
@@ -855,41 +910,56 @@ function watchCta(){
    One flow for both: her mobile, a texted code, and her name only the first time. No password.
    Her coins and images follow her mobile, so signing in on another phone brings them along.
    /login shows it as a page; «بساز» shows the same form in a sheet when she is not signed in. */
-function accountMode(){return studio()&&/^\/login\/?$/.test(location.pathname)}
+function accountPage(){var m=location.pathname.match(/^\/(login|signup|profile)\/?$/);return m?m[1]:''}
+function accountMode(){return studio()&&!!accountPage()}
 function accountChip(){
- if(state.verified){var nm=String((state.me&&state.me.name)||'').trim().split(/\s+/)[0]||'حساب من';var a=el('a',{class:'acct-chip acct-chip--in',href:'/login','aria-label':'حساب من: '+nm,html:ICO.user});a.append(el('span',{text:nm}));return a}
- return el('a',{class:'acct-chip',href:'/login?next=/',html:ICO.user+'<span>ورود</span>'})
+ if(state.verified){var nm=String((state.me&&state.me.name)||'').trim().split(/\s+/)[0]||'حساب من';var a=el('a',{class:'acct-chip acct-chip--in',href:'/profile','aria-label':'حساب من: '+nm,html:ICO.user});a.append(el('span',{text:nm}));return a}
+ return el('a',{class:'acct-chip',href:'/login?next=/',html:ICO.user+'<span>ورود / ثبت‌نام</span>'})
 }
-function signinForm(done){
+var CITIES=['تهران','مشهد','اصفهان','کرج','شیراز','تبریز','قم','اهواز','کرمانشاه','ارومیه','رشت','زاهدان','همدان','کرمان','یزد','اردبیل','بندرعباس','اراک','زنجان','سنندج','قزوین','خرم‌آباد','گرگان','ساری','بجنورد','بوشهر','بیرجند','ایلام','شهرکرد','یاسوج','سمنان','کاشان','نیشابور','سبزوار','آمل','بابل','دزفول','کیش','خارج از ایران'];
+function nextPath(){var n=(location.search.match(/[?&]next=(\/[^&#]*)/)||[])[1]||'';n=decodeURIComponent(n||'');return /^\/(?!\/)/.test(n)?n:''}
+/* Two forms, one look: «ورود» (mobile → code) and «ثبت‌نام» (name, family name, mobile, city → code).
+   mode: 'login' | 'signup'. swap(mode, phone) moves to the other form keeping the typed mobile. */
+function authForm(mode,done,swap,prefill){
  var box=el('div',{class:'signin'}),timer=null,last=null;
- var phoneWrap=wrapField('siPhone','شمارهٔ موبایل','tel',(state.me&&state.me.phone)||'','۰۹۱۲ ۱۲۳ ۴۵۶۷',{inputmode:'tel',autocomplete:'tel'});
+ var phoneWrap=wrapField('siPhone','شمارهٔ موبایل','tel',prefill||(state.me&&state.me.phone)||'','۰۹۱۲ ۱۲۳ ۴۵۶۷',{inputmode:'tel',autocomplete:'tel'});
  phoneWrap.querySelector('input').setAttribute('dir','ltr');
  var firstWrap=wrapField('siFirst','نام','text','','',{autocomplete:'given-name'}),lastWrap=wrapField('siLast','نام خانوادگی','text','','',{autocomplete:'family-name'});
- var names=el('div',{class:'signin__names',hidden:true},[el('p',{class:'signin__new',text:'اولین بارته که میای؛ اسمت رو هم بنویس.'}),firstWrap,lastWrap]);
- var send=el('button',{class:'btn btn--primary btn--block btn--lg',type:'submit',text:'دریافت کد ورود'});
- var f1=el('form',{class:'signin__form',novalidate:'true'},[phoneWrap,names,send]);
- function step1(){clearInterval(timer);box.replaceChildren(f1);setTimeout(function(){var i=phoneWrap.querySelector('input');if(i&&!i.value)i.focus()},60)}
+ var cityWrap=wrapField('siCity','شهر محل زندگی','text','','مثلاً مشهد',{autocomplete:'address-level2'});
+ var cin=cityWrap.querySelector('input');cin.setAttribute('list','siCities');
+ var dl=el('datalist',{id:'siCities'},CITIES.map(function(c){return el('option',{value:c})}));
+ var label=mode==='signup'?'ثبت‌نام و دریافت کد':'دریافت کد ورود';
+ var send=el('button',{class:'btn btn--primary btn--block btn--lg',type:'submit',text:label});
+ var fields=mode==='signup'?[el('div',{class:'signin__pair'},[firstWrap,lastWrap]),phoneWrap,cityWrap,dl]:[phoneWrap];
+ var miss=el('div',{class:'notice notice--info signin__miss',hidden:true});
+ var f1=el('form',{class:'signin__form',novalidate:'true'},fields.concat([miss,send]));
+ function step1(){clearInterval(timer);box.replaceChildren(f1);setTimeout(function(){var i=(mode==='signup'?firstWrap:phoneWrap).querySelector('input');if(i&&!i.value)i.focus()},60)}
  f1.addEventListener('submit',function(e){
-  e.preventDefault();
-  var num=normalizePhone(phoneWrap.querySelector('input').value);
-  if(!validate(phoneWrap,function(){return /^\+989\d{9}$/.test(num)},'شمارهٔ موبایل درست نیست؛ مثل ۰۹۱۲۱۲۳۴۵۶۷'))return;
-  var body={phone:num,signin:true};
-  if(!names.hidden){
-   var first=firstWrap.querySelector('input').value.trim(),lastName=lastWrap.querySelector('input').value.trim();
-   var a=validate(firstWrap,function(){return first.length>=2},'نام را بنویس'),b=validate(lastWrap,function(){return lastName.length>=2},'نام خانوادگی را بنویس');
-   if(!a||!b)return;body.first_name=first;body.last_name=lastName;delete body.signin;
-  }
+  e.preventDefault();miss.hidden=true;
+  var num=normalizePhone(phoneWrap.querySelector('input').value),ok=true,body={phone:num};
+  if(mode==='signup'){
+   var first=firstWrap.querySelector('input').value.trim(),lastName=lastWrap.querySelector('input').value.trim(),city=cin.value.trim();
+   ok=validate(firstWrap,function(){return first.length>=2},'نام را بنویس')&ok;
+   ok=validate(lastWrap,function(){return lastName.length>=2},'نام خانوادگی را بنویس')&ok;
+   body.first_name=first;body.last_name=lastName;body.city=city;body.signup=true;
+  }else body.signin=true;
+  ok=validate(phoneWrap,function(){return /^\+989\d{9}$/.test(num)},'شمارهٔ موبایل درست نیست؛ مثل ۰۹۱۲۱۲۳۴۵۶۷')&ok;
+  if(mode==='signup')ok=validate(cityWrap,function(){return body.city.length>=2},'شهرت را بنویس')&ok;
+  if(!ok)return;
   send.disabled=true;send.textContent='در حال فرستادن…';
   ensureSession().then(function(){return api('otp/send',body)}).then(function(d){
-   send.disabled=false;send.textContent='دریافت کد ورود';
-   if(d&&d.need_name){names.hidden=false;send.textContent='ثبت‌نام و دریافت کد';setTimeout(function(){firstWrap.querySelector('input').focus()},60);return}
+   send.disabled=false;send.textContent=label;
+   if(d&&(d.need_signup||d.need_name)){
+    miss.hidden=false;send.hidden=true;phoneWrap.querySelector('input').addEventListener('input',function(){miss.hidden=true;send.hidden=false},{once:true});miss.replaceChildren(el('span',{text:'این شماره هنوز حساب ندارد. با چند ثانیه ثبت‌نام، حسابت ساخته می‌شود.'}),el('button',{class:'btn btn--primary btn--sm',type:'button',text:'ثبت‌نام با همین شماره',onclick:function(){swap('signup',phoneWrap.querySelector('input').value)}}));
+    return;
+   }
    last={body:body,shown:'0'+num.slice(3)};step2();
-  }).catch(function(err){send.disabled=false;send.textContent=names.hidden?'دریافت کد ورود':'ثبت‌نام و دریافت کد';toast(err.message,'error')});
+  }).catch(function(err){send.disabled=false;send.textContent=label;toast(err.message,'error')});
  });
  function step2(){
   var codeWrap=wrapField('siCode','کد ۵ رقمی','text','','',{autocomplete:'one-time-code',inputmode:'numeric'});
   var input=codeWrap.querySelector('input');input.setAttribute('dir','ltr');input.classList.add('signin__code');
-  var verify=el('button',{class:'btn btn--primary btn--block btn--lg',type:'submit',text:'ورود'});
+  var verify=el('button',{class:'btn btn--primary btn--block btn--lg',type:'submit',text:mode==='signup'?'تأیید و ساخت حساب':'ورود'});
   var again=el('button',{class:'btn btn--ghost btn--sm',type:'button',disabled:true,text:''});
   var edit=el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'ویرایش شماره',onclick:step1});
   var f2=el('form',{class:'signin__form',novalidate:'true'},[el('p',{class:'signin__sent'},['کد به ',el('b',{dir:'ltr',text:fa0(last.shown)}),' پیامک شد.']),codeWrap,verify,el('div',{class:'signin__row'},[again,edit])]);
@@ -902,61 +972,141 @@ function signinForm(done){
   f2.addEventListener('submit',function(e){
    e.preventDefault();var code=normalizeDigits(input.value).replace(/\D/g,'');
    if(!validate(codeWrap,function(){return /^\d{3,12}$/.test(code)},'کد را همان‌طور که پیامک شده بنویس'))return;
-   verify.disabled=true;verify.textContent='در حال ورود…';
+   verify.disabled=true;verify.textContent='لطفاً صبر کن…';
    api('otp/verify',{code:code}).then(function(d){
     clearInterval(timer);state.verified=true;
     state.me=Object.assign({},state.me||{},{name:d.name,phone:'0'+String(d.phone).replace(/^\+98/,'')});
     try{localStorage.setItem('ayneh-me',JSON.stringify(state.me))}catch(err){}
-    track('cta','signin');loadSession().catch(function(){}).then(function(){paintWallet(true);done(d)});
-   }).catch(function(err){verify.disabled=false;verify.textContent='ورود';toast(err.message,'error')});
+    track('cta',mode);loadSaves(true);loadSession().catch(function(){}).then(function(){paintWallet(true);done(d)});
+   }).catch(function(err){verify.disabled=false;verify.textContent=mode==='signup'?'تأیید و ساخت حساب':'ورود';toast(err.message,'error')});
   });
  }
  step1();
  return box;
 }
+function authSwitch(mode,go){
+ return el('p',{class:'signin__alt'},mode==='login'?['حساب نداری؟ ',el('a',{href:'#',text:'ثبت‌نام کن',onclick:function(e){e.preventDefault();go('signup')}})]:['قبلاً ثبت‌نام کردی؟ ',el('a',{href:'#',text:'وارد شو',onclick:function(e){e.preventDefault();go('login')}})]);
+}
 function normalizeDigits(v){return String(v||'').replace(/[۰-۹]/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(d)}).replace(/[٠-٩]/g,function(d){return '٠١٢٣٤٥٦٧٨٩'.indexOf(d)})}
 var SIGNIN_PERKS=[['coin','سکه‌ها و عکس‌هات روی هر گوشی همراهت می‌مونه'],['lock','رمز نمی‌خواد؛ هر بار یه کد پیامکی'],['gift','۲ عکس اول رایگانه']];
 function perks(){return el('ul',{class:'signin__perks'},SIGNIN_PERKS.map(function(p){return el('li',{},[el('span',{class:'signin__perk-ico',html:p[0]==='coin'?COIN:p[0]==='gift'?GIFT:ICO.lock}),el('span',{text:p[1]})])}))}
-function openSignin(next){
+function openSignin(next,mode){
  var panel=el('div',{class:'sheet__panel signin-sheet'});
- var head=el('div',{class:'sheet__head'},[h('h2','ورود یا ثبت‌نام'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]);
- panel.append(head,h('p','برای ساخت عکس، با شمارهٔ موبایلت وارد شو. یه کد پیامکی برات می‌فرستیم؛ رمز لازم نیست.','muted'),signinForm(function(){closeSheet();renderHead();toast('خوش اومدی');if(next)next()}),perks());
+ function draw(m,ph){
+  mode=m;
+  panel.replaceChildren(
+   el('div',{class:'sheet__head'},[h('h2',m==='signup'?'ثبت‌نام':'ورود'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),
+   h('p',m==='signup'?'برای ساخت عکس، یک حساب رایگان بساز. رمز لازم نیست؛ یک کد پیامکی می‌گیری.':'با شمارهٔ موبایلت وارد شو؛ یک کد پیامکی برایت می‌فرستیم.','muted'),
+   authForm(m,function(){closeSheet();renderHead();toast(m==='signup'?'حسابت ساخته شد':'خوش اومدی');if(next)next()},draw,ph),
+   authSwitch(m,function(x){draw(x)}),perks());
+ }
+ draw(mode||'login');
  openSheet(panel);
 }
 function renderAccount(){
  ['#steps','#flow','#side','#dock','#invite','#mine'].forEach(function(q){var n=$(q);if(n)n.hidden=true});
  document.body.classList.add('is-studio');
- var head=$('#head');head.classList.add('head--studio','head--account');
- var bar=el('div',{class:'hero__bar'},[el('a',{class:'brand brand--studio',href:'/','aria-label':'آینه، صفحهٔ اصلی',html:MARK+'<span>آینه</span>'}),el('div',{class:'hero__tools'},[el('a',{class:'btn btn--ghost btn--sm',href:'/',html:ICO.arrow+'<span>برگشت به استودیو</span>'})])]);
- var next=(location.search.match(/[?&]next=(\/[^&#]*)/)||[])[1]||'/';if(!/^\/(?!\/)/.test(next))next='/';
- var card=el('section',{class:'account panel','aria-labelledby':'acctTitle','aria-busy':'true'},[el('div',{class:'skel',style:'width:64px;height:64px;border-radius:50%;justify-self:center'}),el('div',{class:'skel',style:'height:28px;width:55%;justify-self:center'}),el('div',{class:'skel',style:'height:52px;border-radius:14px'}),el('div',{class:'skel',style:'height:52px;border-radius:14px'})]);
- function signedIn(){
-  var me=state.me||{};
-  var w=el('div',{class:'wallet',id:'wallet'});
-  card.replaceChildren(
-   el('span',{class:'account__avatar',html:ICO.user}),
-   el('h1',{id:'acctTitle',class:'account__title',text:'سلام '+(String(me.name||'').trim().split(/\s+/)[0]||'')}),
-   el('p',{class:'account__sub'},['با شمارهٔ ',el('b',{dir:'ltr',text:fa0(me.phone||'')}),' وارد شدی.']),
-   w,
-   el('a',{class:'btn btn--primary btn--block btn--lg',href:'/',html:ICO.camera+'<span>برگشت به استودیو</span>'}),
-   el('button',{class:'btn btn--soft btn--block',type:'button',onclick:openWallet,html:'<span class="coin-pill__ico">'+COIN+'</span><span>شارژ کیف سکه</span>'}),
-   el('button',{class:'btn btn--ghost btn--block account__out',type:'button',text:'خروج از حساب',onclick:function(e){var b=e.currentTarget;b.disabled=true;api('otp/logout',{}).then(function(){state.verified=false;state.me={};try{localStorage.removeItem('ayneh-me')}catch(x){}walletData=null;toast('از حساب خارج شدی');signedOut()}).catch(function(err){b.disabled=false;toast(err.message,'error')})}})
-  );
-  paintWallet(true);
- }
- function signedOut(){
-  card.replaceChildren(
-   el('span',{class:'account__avatar',html:ICO.user}),
-   el('h1',{id:'acctTitle',class:'account__title',text:'ورود یا ثبت‌نام'}),
-   el('p',{class:'account__sub',text:'با شمارهٔ موبایلت وارد شو؛ اگه بار اولته، همین‌جا حسابت ساخته می‌شه.'}),
-   state.pub.otp?signinForm(function(){location.href=next}):el('p',{class:'notice notice--info',text:'ورود با شماره موبایل به‌زودی فعال می‌شود. تا آن موقع سکه‌ها و عکس‌هایت در همین مرورگر می‌مانند.'}),
-   perks()
-  );
- }
+ var page=accountPage(),head=$('#head');head.classList.add('head--studio','head--account');
+ var bar=el('div',{class:'hero__bar'},[el('a',{class:'brand brand--studio',href:'/','aria-label':'آینه، صفحهٔ اصلی',html:MARK+'<span>آینه</span>'}),el('div',{class:'hero__tools'},[el('a',{class:'btn btn--ghost btn--sm',href:'/',html:ICO.arrow+'<span>استودیو</span>'})])]);
+ var next=nextPath();
+ var card=el('section',{class:'account panel','aria-busy':'true'},[el('div',{class:'skel',style:'width:64px;height:64px;border-radius:50%;justify-self:center'}),el('div',{class:'skel',style:'height:28px;width:55%;justify-self:center'}),el('div',{class:'skel',style:'height:52px;border-radius:14px'}),el('div',{class:'skel',style:'height:52px;border-radius:14px'})]);
  head.replaceChildren(el('div',{class:'wrap'},[bar,card]));
  var foot=$('#foot');if(foot)foot.textContent=STUDIO_PRIVACY;
- document.title='ورود یا ثبت‌نام | آینه';
- ensureSession().then(function(){card.removeAttribute('aria-busy');state.verified?signedIn():signedOut()}).catch(function(){card.removeAttribute('aria-busy');signedOut()});
+ function to(path){history.replaceState(null,'',path+(next?'?next='+encodeURIComponent(next):''));renderAccount()}
+ function authPage(m,ph){
+  document.title=(m==='signup'?'ثبت‌نام':'ورود')+' | آینه';
+  card.className='account panel';
+  card.replaceChildren(
+   el('span',{class:'account__avatar',html:ICO.user}),
+   el('h1',{class:'account__title',text:m==='signup'?'ساخت حساب':'ورود به حساب'}),
+   el('p',{class:'account__sub',text:m==='signup'?'نام، شماره و شهرت را بنویس؛ با یک کد پیامکی حسابت ساخته می‌شود.':'شمارهٔ موبایلت را بنویس تا کد ورود برایت پیامک شود.'}),
+   state.pub.otp?authForm(m,function(){location.href=next||'/profile'},function(x,phone){history.replaceState(null,'','/'+x+(next?'?next='+encodeURIComponent(next):''));authPage(x,phone)},ph):el('p',{class:'notice notice--info',text:'ورود با شماره موبایل به‌زودی فعال می‌شود.'}),
+   authSwitch(m,function(x){history.replaceState(null,'','/'+x+(next?'?next='+encodeURIComponent(next):''));authPage(x)}),
+   perks());
+ }
+ ensureSession().then(function(){
+  card.removeAttribute('aria-busy');
+  if(page==='profile'){if(state.verified)profilePage(card);else to('/login')}
+  else if(state.verified){location.replace(next||'/profile')}
+  else authPage(page);
+ }).catch(function(){card.removeAttribute('aria-busy');page==='profile'?to('/login'):authPage(page)});
+}
+/* «پروفایل من»: who she is, her coins, her album, saved looks and coin history — one place. */
+function profilePage(card){
+ document.title='پروفایل من | آینه';
+ card.className='profile';
+ card.replaceChildren(el('div',{class:'skel',style:'height:140px;border-radius:20px'}),el('div',{class:'skel',style:'height:90px;border-radius:20px'}));
+ Promise.all([api('me'),loadSaves(true),new Promise(function(r){api('looks').then(function(d){looks=d.looks||[];r()}).catch(function(){r()})})]).then(function(r){
+  var me=r[0];if(!me||!me.signed_in){location.replace('/login?next=/profile');return}
+  var full=(me.first_name+' '+me.last_name).trim(),ini=(me.first_name||'?').slice(0,1);
+  var since='';try{if(me.since)since=new Intl.DateTimeFormat('fa-IR',{year:'numeric',month:'long'}).format(new Date(me.since))}catch(e){}
+  var idCard=el('section',{class:'panel profile__id'},[
+   el('span',{class:'profile__avatar',text:ini,'aria-hidden':'true'}),
+   el('div',{class:'profile__who'},[el('h1',{text:full||'حساب من'}),el('p',{},[el('span',{dir:'ltr',text:fa0(me.phone)}),me.city?' · '+me.city:'',since?' · عضو از '+since:''])]),
+   el('button',{class:'btn btn--ghost btn--sm',type:'button',html:ICO.edit?ICO.edit+'<span>ویرایش</span>':'ویرایش',onclick:function(){editProfile(me,function(){profilePage(card)})}})
+  ]);
+  var stats=el('div',{class:'profile__stats'},[
+   stat(fa(me.made||0),'عکس ساخته‌شده'),stat('<span id="pfCoins">…</span>','سکه'),stat(fa((saves.saved||[]).length),'ذخیره‌شده')
+  ]);
+  var w=el('div',{class:'wallet',id:'wallet'});
+  var walletBox=el('section',{class:'panel profile__sec'},[el('div',{class:'profile__sechead'},[el('h2',{text:'کیف سکه'})]),w]);
+  var tabsBar=el('div',{class:'seg',role:'tablist'}),tabBody=el('div',{class:'profile__tab'});
+  var TABS=[['album','آلبوم من'],['saved','ذخیره‌شده‌ها'],['history','تراکنش‌ها']],cur='album';
+  function drawTabs(){
+   tabsBar.replaceChildren.apply(tabsBar,TABS.map(function(t){return el('button',{type:'button',role:'tab','aria-selected':String(cur===t[0]),text:t[1],onclick:function(){cur=t[0];drawTabs()}})}));
+   if(cur==='album')tabBody.replaceChildren(looks&&looks.length?el('div',{class:'pgrid'},looks.map(function(l){return el('button',{class:'pgrid__item',type:'button',onclick:function(){openLook(l)}},[el('img',{src:media(l.image),alt:'',loading:'lazy'}),el('span',{text:(LINES.label[l.line]||'')+' · '+lookDate(l.at)})])})):empty('هنوز عکسی نساختی','از استودیو یک مدل انتخاب کن و روی عکس خودت ببین.','/','رفتن به استودیو'));
+   else if(cur==='saved'){var items=(saves.saved||[]).map(itemOf).filter(Boolean);tabBody.replaceChildren(items.length?el('div',{class:'pgrid'},items.map(function(it){return el('a',{class:'pgrid__item',href:'/?l='+it.line+'&pick='+it.i},[el('img',{src:it.img,alt:'',loading:'lazy'}),el('span',{text:it.name+' · '+LINES.label[it.line]})])})):empty('هنوز چیزی ذخیره نکردی','روی نشان ذخیره کنار هر مدل بزن تا اینجا بماند.','/','دیدن مدل‌ها'))}
+   else tabBody.replaceChildren(me.history&&me.history.length?el('ul',{class:'ledger'},me.history.map(function(x){var plus=x.coins>0;return el('li',{},[el('span',{class:'ledger__ico'+(plus?' is-plus':''),html:plus?COIN:ICO.spark}),el('span',{class:'ledger__txt'},[el('b',{text:x.kind==='image'?'ساخت عکس · '+(LINES.label[x.line]||''):x.kind==='referral'?'هدیهٔ دعوت دوست':x.kind==='owner'?'هدیهٔ آینه':'شارژ کیف سکه'}),el('small',{text:lookDate(x.at)})]),el('b',{class:'ledger__amt'+(plus?' is-plus':''),dir:'ltr',text:(plus?'+':'−')+fa(Math.abs(x.coins))})])})):empty('تراکنشی نداری','دو عکس اول هدیه است؛ بعد از آن با شارژ کیف سکه ادامه بده.'));
+  }
+  function stat(v,l){return el('div',{class:'profile__stat'},[el('b',{html:v}),el('span',{text:l})])}
+  function empty(t,sub,href,cta){return el('div',{class:'empty'},[el('b',{text:t}),el('p',{text:sub}),href?el('a',{class:'btn btn--soft btn--sm',href:href,text:cta}):null])}
+  drawTabs();
+  var out=el('button',{class:'btn btn--ghost btn--block account__out',type:'button',text:'خروج از حساب',onclick:function(e){var b=e.currentTarget;b.disabled=true;api('otp/logout',{}).then(function(){state.verified=false;state.me={};try{localStorage.removeItem('ayneh-me')}catch(x){}walletData=null;location.href='/'}).catch(function(err){b.disabled=false;toast(err.message,'error')})}});
+  walletBox.querySelector('.profile__sechead').append(el('button',{class:'btn btn--soft btn--sm',type:'button',onclick:openWallet,html:'<span class="coin-pill__ico">'+COIN+'</span><span>شارژ</span>'}));
+  var invite=el('section',{class:'panel profile__sec',hidden:true});
+  if(window.AynehPacks)window.AynehPacks.me(true).then(function(d){if(!d||!d.referral)return;var link=d.referral.link;invite.hidden=false;invite.replaceChildren(el('div',{class:'profile__sechead'},[el('h2',{text:'آرایشگرت را دعوت کن'})]),el('p',{class:'muted',text:'اگر آرایشگرت با لینک تو پلن آینه بگیرد، '+fa(d.referral.images*d.image_coins)+' سکه هدیه می‌گیری.'}),el('div',{class:'profile__link'},[el('code',{dir:'ltr',text:link.replace(/^https?:\/\//,'')}),el('button',{class:'btn btn--soft btn--sm',type:'button',text:'کپی لینک',onclick:function(e){var b=e.currentTarget;(navigator.clipboard?navigator.clipboard.writeText(link):Promise.reject()).then(function(){b.textContent='کپی شد'},function(){})}})]))}).catch(function(){});
+  card.replaceChildren(idCard,stats,walletBox,el('section',{class:'panel profile__sec'},[tabsBar,tabBody]),invite,out);
+  paintWallet(true);
+  var tries=0;(function coins(){var c=$('#pfCoins');if(!c)return;if(walletData){c.textContent=fa(walletData.coins||0)}else if(tries++<20)setTimeout(coins,250)})();
+ }).catch(function(e){toast(e.message,'error')});
+}
+function editProfile(me,done){
+ var panel=el('div',{class:'sheet__panel signin-sheet'});
+ var f=wrapField('pfFirst','نام','text',me.first_name,'',{autocomplete:'given-name'}),l=wrapField('pfLast','نام خانوادگی','text',me.last_name,'',{autocomplete:'family-name'}),c=wrapField('pfCity','شهر محل زندگی','text',me.city,'',{autocomplete:'address-level2'});
+ c.querySelector('input').setAttribute('list','pfCities');
+ var save=el('button',{class:'btn btn--primary btn--block btn--lg',type:'submit',text:'ذخیرهٔ تغییرات'});
+ var form=el('form',{class:'signin__form',novalidate:'true'},[el('div',{class:'signin__pair'},[f,l]),c,el('datalist',{id:'pfCities'},CITIES.map(function(x){return el('option',{value:x})})),save]);
+ form.addEventListener('submit',function(e){e.preventDefault();var b={first_name:f.querySelector('input').value.trim(),last_name:l.querySelector('input').value.trim(),city:c.querySelector('input').value.trim()};
+  var ok=validate(f,function(){return b.first_name.length>=2},'نام را بنویس')&validate(l,function(){return b.last_name.length>=2},'نام خانوادگی را بنویس')&validate(c,function(){return b.city.length>=2},'شهرت را بنویس');if(!ok)return;
+  save.disabled=true;api('me',b).then(function(d){state.me=Object.assign({},state.me||{},{name:d.name});try{localStorage.setItem('ayneh-me',JSON.stringify(state.me))}catch(x){}closeSheet();toast('ذخیره شد');done()}).catch(function(err){save.disabled=false;toast(err.message,'error')})});
+ panel.append(el('div',{class:'sheet__head'},[h('h2','ویرایش اطلاعات'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),el('p',{class:'muted',text:'شمارهٔ موبایل همان شماره‌ای است که با آن وارد شدی.'}),form);
+ openSheet(panel);
+}
+/* ---------- saved and liked looks ---------- */
+var saves={saved:[],liked:[]},savesAt=0;
+function loadSaves(force){if(!force&&Date.now()-savesAt<5000)return Promise.resolve(saves);savesAt=Date.now();return ensureSession().then(function(){return api('saves')}).then(function(d){saves={saved:d.saved||[],liked:d.liked||[]};return saves}).catch(function(){return saves})}
+function isOn(kind,item){return (saves[kind==='like'?'liked':'saved']||[]).indexOf(item)>=0}
+function toggleSave(kind,item,btn){
+ var list=saves[kind==='like'?'liked':'saved'],on=list.indexOf(item)<0;
+ if(on)list.unshift(item);else list.splice(list.indexOf(item),1);
+ if(btn){btn.classList.toggle('is-on',on);btn.setAttribute('aria-pressed',String(on))}
+ if(kind==='like'&&trend.likes){trend.likes[item]=Math.max(0,(trend.likes[item]||0)+(on?1:-1));var n=btn&&btn.querySelector('.react__n');if(n)n.textContent=trend.likes[item]?fa(trend.likes[item]):''}
+ if(kind==='save')toast(on?'ذخیره شد؛ در پروفایلت می‌بینی':'از ذخیره‌ها برداشته شد');
+ ensureSession().then(function(){return api('saves',{kind:kind,item:item,on:on})}).catch(function(e){toast(e.message,'error')});
+}
+function itemOf(key){
+ var m=String(key).match(/^(hair|color|nails|lashes):(\d+)$/);if(!m)return null;
+ var line=m[1],i=+m[2],list=line==='hair'?STYLES:(LINES[line]&&LINES[line].styles);if(!list||!list[i])return null;
+ return {line:line,i:i,name:list[i][0],img:'/catalog/'+(line==='hair'?'':line+'/')+String(i+1).padStart(2,'0')+'.webp'};
+}
+var trend={score:{},likes:{}},trendAt=0;
+function loadTrend(){if(Date.now()-trendAt<60000)return Promise.resolve(trend);trendAt=Date.now();return api('trending').then(function(d){trend={score:d.score||{},likes:d.likes||{}};return trend}).catch(function(){return trend})}
+function reactBtns(item){
+ var like=el('button',{class:'react react--like'+(isOn('like',item)?' is-on':''),type:'button','aria-label':'پسندیدن','aria-pressed':String(isOn('like',item)),html:ICO.heart+'<span class="react__n">'+(trend.likes[item]?fa(trend.likes[item]):'')+'</span>'});
+ var save=el('button',{class:'react react--save'+(isOn('save',item)?' is-on':''),type:'button','aria-label':'ذخیره','aria-pressed':String(isOn('save',item)),html:ICO.bookmark});
+ like.addEventListener('click',function(e){e.stopPropagation();toggleSave('like',item,like)});
+ save.addEventListener('click',function(e){e.stopPropagation();toggleSave('save',item,save)});
+ return el('div',{class:'react-row'},[like,save]);
 }
 
 /* ---------- «آلبوم من» (studio): every finished image of hers, newest first ----------
@@ -1910,7 +2060,7 @@ function generate(){
  if(state.pub.otp&&!state.verified){
   ensureSession().then(function(){
    if(state.verified){generate();return}
-   if(studio())openSignin(generate);else openOtp(generate);
+   if(studio())openSignin(generate,state.me&&state.me.phone?'login':'signup');else openOtp(generate);
   }).catch(function(e){toast(e.message,'error')});
   return;
  }

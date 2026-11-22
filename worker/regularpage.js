@@ -137,7 +137,7 @@ export const packsJS = String.raw`
     var w=worth(d,t),on=isCustom?sel==='custom':sel===t;
     var r=el('button',{class:'ap-opt'+(on?' is-on':''),type:'button',role:'radio','aria-checked':String(on),onclick:function(){sel=isCustom?'custom':t;draw()}},[
      el('span',{class:'ap-opt__dot','aria-hidden':'true'}),
-     el('span',{class:'ap-opt__main'},[el('b',{text:fa(w.images)+' عکس'}),el('small',{text:isCustom&&sel!=='custom'?'تعداد عکس را خودت انتخاب کن':(w.gift?fa(w.images-w.gift)+' عکس + '+fa(w.gift)+' عکس هدیه':'')+(w.gift?'، ':'')+fa(w.coins)+' سکه'})]),
+     el('span',{class:'ap-opt__main'},[el('b',{text:fa(w.images)+' عکس'}),el('small',{text:isCustom&&sel!=='custom'?'تعداد عکس را خودت انتخاب کن':(w.gift?fa(w.images-w.gift)+' عکس + '+fa(w.gift)+' عکس جایزه':'')+(w.gift?'، ':'')+fa(w.coins)+' سکه'})]),
      !isCustom&&t===best?el('i',{class:'ap-opt__tag',text:'پرطرفدار'}):null,
      isCustom&&sel!=='custom'?null:el('span',{class:'ap-opt__price',text:fa(t/1000)+' هزار تومان'})]);
     return r;

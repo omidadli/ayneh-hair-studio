@@ -749,6 +749,10 @@ body.cta-on-screen #dock{transform:translateY(130%);opacity:0;pointer-events:non
 .own-ref small{display:block;font-size:12.5px;color:var(--muted);line-height:1.7}
 .own-ref>span:nth-child(2){flex:1;min-width:0}
 .own-ref__go{color:var(--muted)}
+.profile__phone{unicode-bidi:isolate;display:inline-block}
+body.is-studio .result-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+body.is-studio .result-actions>*{width:100%;min-width:0;justify-content:center;white-space:normal;text-align:center}
+body.is-studio .result-actions>:last-child:nth-child(odd){grid-column:1/-1}
 .ico-back{display:inline-flex;transform:scaleX(-1)}.ico-back svg{width:18px;height:18px}.own-ref__go svg{width:18px;height:18px}
 `;
 
@@ -876,6 +880,7 @@ function track(kind,meta,once){if(STUDIO_PREVIEW)return;if(once){if(tracked[kind
  /* The landing no longer pre-picks a look (owner's decision): she chooses it after her photo. */
  // Open on the salon's own work for this line when it has some, otherwise on the ready-made looks.
  state.tab=hasLineWork(state.line)?'salon':'catalog';
+ if(studio()&&!Object.keys(pendings).length)restoreStudio();
  /* From the profile's saved looks (/?l=nails&pick=3): that look is already chosen. */
  var pk=(location.search.match(/[?&]pick=(\d{1,3})/)||[])[1];if(pk&&studio()&&itemOf(state.line+':'+pk)){state.style=+pk;state.tab='catalog'}
  renderAll();
@@ -934,7 +939,7 @@ function heroTag(){return {nails:'طرح ناخن بعدی‌ات را روی ع
 var COIN='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="#E9B949" stroke="#B9822E" stroke-width="1.5"/><circle cx="12" cy="12" r="6" fill="none" stroke="#B9822E" stroke-width="1.3"/><path d="M12 8.6v6.8M9.6 10.4 12 8.6l2.4 1.8" fill="none" stroke="#8A5A14" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 var GIFT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8.5" width="17" height="4" rx="1"/><path d="M5 12.5V20h14v-7.5M12 8.5V20M12 8.5S10.8 4 8.3 4a2.2 2.2 0 0 0 0 4.5H12zM12 8.5S13.2 4 15.7 4a2.2 2.2 0 0 1 0 4.5H12z"/></svg>';
 function studio(){return !!(state.pub&&state.pub.direct&&!EMBED)}
-function openWallet(){if(studio()&&state.pub&&state.pub.otp&&!state.verified){openSignin(function(){paintWallet(true);renderAll()},state.me&&state.me.phone?'login':'signup','کیف سکه مال حساب توست. وارد شو یا ثبت‌نام کن؛ حساب تازه ۲ عکس اول را رایگان دارد.');return}if(window.AynehPacks){track('wallet','open');window.AynehPacks.open()}}
+function openWallet(){if(studio()&&state.pub&&state.pub.otp&&!state.verified){openSignin(function(){paintWallet(true);renderAll()},state.me&&state.me.phone?'login':'signup','کیف سکه مال حساب توست؛ حساب تازه ۲ عکس اول را رایگان دارد.');return}if(window.AynehPacks){track('wallet','open');window.AynehPacks.open()}}
 var ctaWatch=null,studioAsked=false;
 function watchCta(){
  if(!('IntersectionObserver' in window))return;
@@ -1035,7 +1040,7 @@ function openSignin(next,mode,why){
   panel.replaceChildren(
    el('div',{class:'sheet__head'},[h('h2',m==='signup'?'ثبت‌نام':'ورود'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),
    h('p',why||(m==='signup'?'برای ساخت عکس، یک حساب رایگان بساز. رمز لازم نیست؛ یک کد پیامکی می‌گیری.':'با شمارهٔ موبایلت وارد شو؛ یک کد پیامکی برایت می‌فرستیم.'),'muted'),
-   authForm(m,function(){closeSheet();renderHead();toast(m==='signup'?'حسابت ساخته شد':'خوش اومدی');if(next)next()},draw,ph),
+   authForm(m,function(){closeSheet();renderHead();if(!next)toast(m==='signup'?'حسابت ساخته شد':'خوش اومدی');if(next)next()},draw,ph),
    authSwitch(m,function(x){draw(x)}),perks(m));
  }
  draw(mode||'login');
@@ -1045,7 +1050,7 @@ function renderAccount(){
  ['#steps','#flow','#side','#dock','#invite','#mine'].forEach(function(q){var n=$(q);if(n)n.hidden=true});
  document.body.classList.add('is-studio');
  var page=accountPage(),head=$('#head');head.classList.add('head--studio','head--account');
- var bar=el('div',{class:'hero__bar'},[el('a',{class:'brand brand--studio',href:'/','aria-label':'آینه، صفحهٔ اصلی',html:MARK+'<span>آینه</span>'}),el('div',{class:'hero__tools'},[el('a',{class:'btn btn--ghost btn--sm',href:'/',html:'<span class="ico-back">'+ICO.arrow+'</span><span>استودیو</span>'})])]);
+ var bar=el('div',{class:'hero__bar'},[el('a',{class:'brand brand--studio',href:'/','aria-label':'آینه، صفحهٔ اصلی',html:MARK+'<span>آینه</span>'}),el('div',{class:'hero__tools'},[el('a',{class:'btn btn--ghost btn--sm',href:'/',html:'<span class="ico-back">'+ICO.arrow+'</span><span>صفحهٔ اصلی</span>'})])]);
  var next=nextPath();
  var card=el('section',{class:'account panel','aria-busy':'true'},[el('div',{class:'skel',style:'width:64px;height:64px;border-radius:50%;justify-self:center'}),el('div',{class:'skel',style:'height:28px;width:55%;justify-self:center'}),el('div',{class:'skel',style:'height:52px;border-radius:14px'}),el('div',{class:'skel',style:'height:52px;border-radius:14px'})]);
  head.replaceChildren(el('div',{class:'wrap'},[bar,card]));
@@ -1077,10 +1082,10 @@ function profilePage(card){
  Promise.all([api('me'),loadSaves(true),new Promise(function(r){api('looks').then(function(d){looks=d.looks||[];r()}).catch(function(){r()})})]).then(function(r){
   var me=r[0];if(!me||!me.signed_in){location.replace('/login?next=/profile');return}
   var full=(me.first_name+' '+me.last_name).trim(),ini=(me.first_name||'?').slice(0,1);
-  var since='';try{if(me.since)since=new Intl.DateTimeFormat('fa-IR',{year:'numeric',month:'long'}).format(new Date(me.since))}catch(e){}
+  var since='';try{if(me.since){var d0=new Date(me.since);since=new Intl.DateTimeFormat('fa-IR',{month:'long'}).format(d0)+' '+new Intl.DateTimeFormat('fa-IR',{year:'numeric'}).format(d0).replace(/[^۰-۹]/g,'')}}catch(e){}
   var idCard=el('section',{class:'panel profile__id'},[
    el('span',{class:'profile__avatar',text:ini,'aria-hidden':'true'}),
-   el('div',{class:'profile__who'},[el('h1',{text:full||'حساب من'}),el('p',{},[el('bdi',{dir:'ltr',text:fa0(me.phone).replace(/^(.{4})(.{3})(.+)$/,'$1 $2 $3')}),me.city?'، '+me.city:'']),since?el('p',{text:'عضو از '+since}):null]),
+   el('div',{class:'profile__who'},[el('h1',{text:full||'حساب من'}),el('p',{},[el('span',{dir:'ltr',class:'profile__phone',text:fa0(me.phone)}),me.city?'، '+me.city:'']),since?el('p',{text:'عضو از '+since}):null]),
    el('button',{class:'btn btn--ghost btn--sm',type:'button',html:ICO.edit?ICO.edit+'<span>ویرایش</span>':'ویرایش',onclick:function(){editProfile(me,function(){profilePage(card)})}})
   ]);
   var stats=el('div',{class:'profile__stats'},[
@@ -1094,7 +1099,7 @@ function profilePage(card){
    tabsBar.replaceChildren.apply(tabsBar,TABS.map(function(t){return el('button',{type:'button',role:'tab','aria-selected':String(cur===t[0]),text:t[1],onclick:function(){cur=t[0];drawTabs()}})}));
    if(cur==='album')tabBody.replaceChildren(looks&&looks.length?el('div',{class:'pgrid'},looks.map(function(l){return el('button',{class:'pgrid__item',type:'button',onclick:function(){openLook(l)}},[el('img',{src:media(l.image),alt:'',loading:'lazy'}),el('span',{},[el('b',{text:lookTitle(l)}),el('small',{text:LINES.label[l.line]+'، '+lookDate(l.at)})])])})):empty('هنوز عکسی نساختی','از استودیو یک مدل انتخاب کن و روی عکس خودت ببین.','/','رفتن به استودیو'));
    else if(cur==='saved'||cur==='liked'){var lk=cur==='liked',items=(lk?saves.liked:saves.saved||[]).map(itemOf).filter(Boolean);tabBody.replaceChildren(items.length?el('div',{class:'pgrid'},items.map(function(it){return el('a',{class:'pgrid__item',href:'/?l='+it.line+'&pick='+it.i},[el('img',{src:it.img,alt:'',loading:'lazy'}),el('span',{},[el('b',{text:it.name}),el('small',{text:LINES.label[it.line]})])])})):empty(lk?'هنوز مدلی نپسندیدی':'هنوز چیزی ذخیره نکردی',lk?'روی قلب کنار هر مدل بزن تا اینجا بماند.':'روی نشان ذخیره کنار هر مدل بزن تا اینجا بماند.','/','دیدن مدل‌ها'))}
-   else tabBody.replaceChildren(me.history&&me.history.length?el('ul',{class:'ledger'},me.history.map(function(x){var plus=x.coins>0;return el('li',{},[el('span',{class:'ledger__ico'+(plus?' is-plus':''),html:plus?COIN:ICO.spark}),el('span',{class:'ledger__txt'},[el('b',{text:x.kind==='gift'?'عکس هدیه، '+(LINES.label[x.line]||''):x.kind==='image'?'ساخت عکس، '+(LINES.label[x.line]||''):x.kind==='referral'?'هدیهٔ دعوت دوست':x.kind==='owner'?'هدیهٔ آینه':'شارژ کیف سکه'}),el('small',{text:lookDate(x.at)})]),el('b',{class:'ledger__amt'+(plus?' is-plus':''),dir:'ltr',text:x.kind==='gift'?'هدیه':(plus?'+':'−')+fa(Math.abs(x.coins))})])})):empty('هنوز تراکنشی نداری','هر عکسی که بسازی یا هر شارژی که انجام بدهی اینجا ثبت می‌شود.'));
+   else tabBody.replaceChildren(me.history&&me.history.length?el('ul',{class:'ledger'},me.history.map(function(x){var plus=x.coins>0;return el('li',{},[el('span',{class:'ledger__ico'+(plus?' is-plus':''),html:plus?COIN:ICO.spark}),el('span',{class:'ledger__txt'},[el('b',{text:x.views?'نمای ۳۶۰ درجه'+(x.kind==='gift'?' (هدیه)':''):x.kind==='gift'?'عکس هدیه، '+(LINES.label[x.line]||''):x.kind==='image'?'ساخت عکس، '+(LINES.label[x.line]||''):x.kind==='referral'?'هدیهٔ دعوت دوست':x.kind==='owner'?'هدیهٔ آینه':'شارژ کیف سکه'}),el('small',{text:lookDate(x.at)})]),el('b',{class:'ledger__amt'+(plus?' is-plus':''),dir:'ltr',text:x.kind==='gift'?'هدیه':(plus?'+':'−')+fa(Math.abs(x.coins))})])})):empty('هنوز تراکنشی نداری','هر عکسی که بسازی یا هر شارژی که انجام بدهی اینجا ثبت می‌شود.'));
   }
   function stat(v,l){return el('div',{class:'profile__stat'},[el('b',{html:v}),el('span',{text:l})])}
   function empty(t,sub,href,cta){return el('div',{class:'empty'},[el('b',{text:t}),el('p',{text:sub}),href?el('a',{class:'btn btn--soft btn--sm',href:href,text:cta}):null])}
@@ -1124,7 +1129,7 @@ function loadSaves(force){if(!state.verified){saves={saved:[],liked:[]};return P
 function isOn(kind,item){return (saves[kind==='like'?'liked':'saved']||[]).indexOf(item)>=0}
 function toggleSave(kind,item,btn){
  /* Likes and saves live in her account: signed out, sign in first, then it is done for her. */
- if(!state.verified){openSignin(function(){loadSaves(true).then(function(){if(!isOn(kind,item))toggleSave(kind,item,btn);else if(btn){btn.classList.add('is-on');btn.setAttribute('aria-pressed','true')}renderAll()})},state.me&&state.me.phone?'login':'signup',kind==='like'?'برای پسندیدن مدل‌ها وارد حسابت شو؛ پسندیده‌هایت در پروفایلت می‌مانند.':'برای ذخیرهٔ مدل‌ها وارد حسابت شو؛ ذخیره‌ها در پروفایلت می‌مانند.');return}
+ if(!state.verified){openSignin(function(){loadSaves(true).then(function(){if(!isOn(kind,item))toggleSave(kind,item,btn);else if(btn){btn.classList.add('is-on');btn.setAttribute('aria-pressed','true')}renderAll()})},state.me&&state.me.phone?'login':'signup',kind==='like'?'پسندیدن مدل‌ها مخصوص حساب توست؛ پسندیده‌هایت در پروفایلت می‌مانند.':'ذخیرهٔ مدل‌ها مخصوص حساب توست؛ ذخیره‌ها در پروفایلت می‌مانند.');return}
  var list=saves[kind==='like'?'liked':'saved'],on=list.indexOf(item)<0;
  if(on)list.unshift(item);else list.splice(list.indexOf(item),1);
  if(btn){btn.classList.toggle('is-on',on);btn.setAttribute('aria-pressed',String(on))}
@@ -1245,7 +1250,7 @@ function studioProof(){
 }
 /* What «بساز» costs, on the button itself (studio): her gift first, then 25 coins. */
 var giftOut=false;
-function buildText(){if(!studio())return 'بساز';return state.quota&&state.quota.free>0&&!giftOut?'بساز · هدیه':'بساز · ۲۵ سکه'}
+function buildText(){if(!studio())return 'بساز';if(walletData&&state.verified){var fr=giftOut?0:(walletData.free?walletData.free.left:0),cn=walletData.own?walletData.own.coins||0:0;if(fr<=0&&cn<(walletData.image_coins||25))return 'شارژ کیف سکه'}return state.quota&&state.quota.free>0&&!giftOut?'بساز · هدیه':'بساز · ۲۵ سکه'}
 var STUDIO_PRIVACY='عکست فقط برای ساختن نمونهٔ خودت استفاده می‌شود؛ نسخهٔ فشرده‌اش برای ساخت تصویر به سرویس تصویر فرستاده می‌شود. دسترسی عمومی ندارد و برای هیچ آرایشگاهی فرستاده نمی‌شود. نتیجه‌ها در آلبوم حساب خودت می‌مانند و فقط خودت می‌بینی؛ مگر اینکه خودت برای کسی بفرستی.';
 
 var walletAt=0,walletData=null;
@@ -1255,6 +1260,7 @@ function paintWallet(force){
  window.AynehPacks.me(true).then(function(d){walletData=d;walletAt=Date.now();drawWallet(d)}).catch(function(){var w=$('#wallet');if(w)w.replaceChildren()});
 }
 function drawWallet(d){
+ if(studio()&&!accountMode()&&state.step===2)setTimeout(renderDock,0);
  var w=$('#wallet'),pill=$('#coinPill');if(!w)return;
  var free=d.free&&!giftOut?d.free.left:0,coins=d.own?d.own.coins||0:0,per=d.image_coins||25,imgs=Math.floor(coins/per);
  /* A newcomer's pill shows what she has (her gift), never an empty «۰ سکه». */
@@ -1379,7 +1385,12 @@ function switchLine(to,opts){
  }
  if(!(opts&&opts.silent)&&from!==to&&opts&&opts.scroll)focusFlow();
 }
-function renderAll(){if(accountMode()){renderAccount();return}renderHead();renderSteps();renderFlow();renderSide();renderDock()}
+/* Studio: her photo, choices and results per service survive a trip to the profile (this tab only). */
+var KEEP=['original','ratio','result','resultBase','style','reference','refTitle','custom','base','gen','color','opts','filter','tab','seen','rating'];
+function keepStudio(){if(!studio()||accountMode())return;try{var o={line:state.line,lines:{}};LINE_LIST.forEach(function(x){var d=lineData(x[0]);if(!d||!d.original)return;var k={};KEEP.forEach(function(f){k[f]=d[f]});k.step=d.result?3:2;o.lines[x[0]]=k});sessionStorage.setItem('ayneh-studio-'+SLUG,JSON.stringify(o))}catch(e){}}
+window.addEventListener('pagehide',function(){keepStudio()});
+function restoreStudio(){try{var o=JSON.parse(sessionStorage.getItem('ayneh-studio-'+SLUG)||'null');if(!o||!o.lines)return false;Object.keys(o.lines).forEach(function(k){if(!LINES.label[k])return;var d=Object.assign(lineDefaults(k),o.lines[k]);if(k===state.line)Object.assign(state,d);else lineStore[k]=d});return true}catch(e){return false}}
+function renderAll(){if(accountMode()){renderAccount();return}keepStudio();renderHead();renderSteps();renderFlow();renderSide();renderDock()}
 function lineSwitch(){
  var bar=el('div',{class:'linesw',role:'tablist','aria-label':'خدمت'});
  LINE_LIST.forEach(function(x){
@@ -1551,7 +1562,7 @@ function stepModel(){
  /* No work of a salon for this line (always so in the studio): no «کارهای سالن» tab, no word about it. */
  if(!own&&state.tab==='salon')state.tab='catalog';
  box.append(flowHead(MODEL_HEAD[L][0],L==='hair'&&state.pub.demo?'مدل مو و رنگ دلخواهت را انتخاب کن؛ هر دو روی همین عکس خودت ساخته می‌شوند.':own?MODEL_HEAD[L][1]:MODEL_HEAD[L][1].replace('از کارهای همین سالن، ','از ')));
- if(quotaLeft()===0&&!state.tourDemo){box.append(notice('warn',quotaOut()));if(studio())box.append(el('div',{class:'flow__nav'},[sendButton()]));else if(window.AynehPacks)box.append(window.AynehPacks.button())}
+ if(quotaLeft()===0&&!state.tourDemo){box.append(notice('warn',quotaOut()));if(studio()){}else if(window.AynehPacks)box.append(window.AynehPacks.button())}
  if(state.demoOut){box.append(notice('info','نمونهٔ رایگانتان را ساختید. برای عکس‌های بیشتر به استودیوی آینه بروید؛ ۲ عکس اول آنجا هم هدیه است.'));box.append(el('a',{class:'btn btn--primary btn--block',href:location.protocol+'//'+location.host.replace(/^business\./,'')+'/?l='+L,target:'_top',text:'ثبت‌نام و شارژ حساب'}))}
  if(L==='color'){var bc=baseChooser();if(bc)box.append(bc)}
  var seg=el('div',{class:'seg',role:'tablist'});
@@ -1673,13 +1684,14 @@ function stepModel(){
 }
 function buildLabel(can){if(!can&&studio()&&quotaLeft()===0)return '<span class="coin-pill__ico">'+COIN+'</span><span>شارژ کیف سکه</span>';return can?ICO.spark+'<span>'+buildText()+'</span>':(quotaLeft()===0?ICO.send+'<span>فرستادن برای '+artist()+'</span>':'<span>ادامه: نتیجه</span>')}
 function buildHint(ready,can,left){
- if(!ready)return missingReason()+'؛ بعد «بساز» فعال می‌شود.';
- if(!can&&studio())return left===0?'عکس‌های هدیه‌ات تموم شد؛ با شارژ کیف سکه، همین انتخاب رو بساز. هر عکس ۲۵ سکه است.':'';
+ if(!ready)return missingReason().replace(/\.$/,'')+'؛ بعد «بساز» فعال می‌شود.';
+ if(!can&&studio())return '';
  if(!can)return left===0&&state.pub.generation?'سهم ساخت «'+LINES.label[state.line]+'» برای تو تمام شده؛ همین انتخاب را بدون شبیه‌سازی برای '+artist()+' بفرست.':'';
  return (studio()?'با زدن «بساز» نسخهٔ فشردهٔ عکست برای ساخت تصویر به سرویس تصویر فرستاده می‌شود؛ برای هیچ آرایشگاهی فرستاده نمی‌شود.':'با زدن «بساز» نسخهٔ فشردهٔ عکست برای ساخت تصویر به سرویس تصویر فرستاده می‌شود؛ خود عکس فقط برای ساخت نمونه و دیدن سالن می‌ماند.')+(left!=null?(studio()?' '+fa(left)+' عکس دیگر می‌توانی بسازی.':' '+fa(left)+' ساخت دیگر در این بخش داری.'):'');
 }
 // Step 2 → 3 in one tap: «بساز» goes straight to building, no page in between.
 function build(){
+ if(studio()&&walletData&&state.verified){var fr=giftOut?0:(walletData.free?walletData.free.left:0),cn=walletData.own?walletData.own.coins||0:0;if(fr<=0&&cn<(walletData.image_coins||25)){openWallet();return}}
  if(state.busy){toast('صبر کن بارگذاری عکس تمام شود');return}
  if(!hasChoice()){toast(missingReason());return}
  if(!canGenerate()&&studio()&&quotaLeft()===0){openWallet();return}
@@ -1961,7 +1973,7 @@ function storyLink(cls){
   if(r&&r.file&&(IOS||/Android/.test(navigator.userAgent))&&navigator.canShare&&navigator.canShare({files:[r.file]})){e.preventDefault();track('save','story');navigator.share({files:[r.file]}).catch(function(){});return}
   if(r&&r.url){track('save','story');return}
   e.preventDefault();
-  if(r&&r.failed){toast('ساخت قالب استوری ممکن نشد؛ «ذخیره تصویر» را بزنید.');return}
+  if(r&&r.failed){toast('ساخت قالب استوری ممکن نشد؛ «'+(studio()?'دانلود عکس':'ذخیره تصویر')+'» را بزنید.');return}
   toast('یک لحظه، استوری را آماده می‌کنم…');
   prepareStory(id).then(function(x){if(x&&x.url){a.href=x.url;a.setAttribute('download',x.name);a.click()}});
  });
@@ -2016,11 +2028,11 @@ function stepResult(){
    storyLink('btn btn--ghost btn--sm')
   ]))}else
   box.append(el('div',{class:'result-actions'},[
-   L==='hair'?el('button',{class:'btn btn--soft btn--sm',type:'button',onclick:openViews,html:ICO.orbit+'<span>نمای ۳۶۰ درجه'+(studio()?' (۱ عکس)':'')+'</span>'}):null,
-   el('button',{class:'btn btn--soft btn--sm',type:'button',onclick:openAsk,html:SHARE_IC.chat+'<span>از دوستم نظر بپرسم</span>'}),
+   L==='hair'?el('button',{class:'btn btn--soft btn--sm',type:'button',onclick:openViews,html:ICO.orbit+'<span>نمای ۳۶۰ درجه</span>'}):null,
+   el('button',{class:'btn btn--soft btn--sm',type:'button',onclick:openAsk,html:SHARE_IC.chat+'<span>'+(studio()?'نظر دوستم':'از دوستم نظر بپرسم')+'</span>'}),
    studio()?null:downloadLink('btn btn--ghost btn--sm','ذخیره تصویر'),
    storyLink('btn btn--ghost btn--sm'),
-   el('button',{class:'btn btn--ghost btn--sm',type:'button',onclick:function(){state.result=null;state.gen=null;state.idem=null;state.error='';state.busy=false;state.resultBase=null;go(2)},text:{nails:'یک طرح دیگر',color:'یک رنگ دیگر'}[L]||'یک مدل دیگر'})
+   studio()?null:el('button',{class:'btn btn--ghost btn--sm',type:'button',onclick:function(){state.result=null;state.gen=null;state.idem=null;state.error='';state.busy=false;state.resultBase=null;go(2)},text:{nails:'یک طرح دیگر',color:'یک رنگ دیگر'}[L]||'یک مدل دیگر'})
   ]));
   // After a new hairstyle, the natural next step is its colour.
   if(L==='hair')box.append(el('button',{class:'next-line',type:'button',onclick:function(){track('color_on_hair');switchLine('color',{step:2,onHair:true,scroll:true})}},[el('span',{class:'next-line__ico',html:ICO.drop}),el('span',{},[el('b',{text:'رنگ مو را هم روی همین مدل امتحان کن'}),el('small',{text:'مدل همین می‌ماند و فقط رنگ عوض می‌شود.'})]),el('span',{class:'next-line__go',html:ICO.arrow})]));
@@ -2089,7 +2101,7 @@ function renderDock(){
   else if(state.result||!canGenerate()){hint='فرستادن برای سالن';primary=el('button',{class:'btn btn--primary',type:'button',onclick:openRequest,html:ICO.send+'<span>'+(state.result?'درخواست نوبت می‌دهم':'فرستادن برای '+artist())+'</span>'})}
   else{hint='آمادهٔ ساخت';primary=el('button',{class:'btn btn--primary',type:'button',onclick:generate,html:ICO.spark+'<span>'+buildText()+'</span>'})}
  }
- inner.append(el('div',{class:'dock__hint',text:hint}),studio()?null:el('button',{class:'btn btn--ghost',type:'button',onclick:openAbout,'aria-label':'دربارهٔ سالن',html:ICO.info}),primary);
+ inner.append.apply(inner,[el('div',{class:'dock__hint',text:hint}),studio()?null:el('button',{class:'btn btn--ghost',type:'button',onclick:openAbout,'aria-label':'دربارهٔ سالن',html:ICO.info}),primary].filter(Boolean));
  var wasHidden=dock.hidden;dock.replaceChildren(inner);dock.hidden=false;if(wasHidden&&studio()){dock.classList.remove('is-in');void dock.offsetWidth;dock.classList.add('is-in')}
  var cta=document.querySelector('.studio__cta span');if(cta)cta.textContent=state.original?'ادامه با همین عکس':'شروع با عکس خودم';
 }
@@ -2213,10 +2225,11 @@ function poll(id,resumed,line){
    if(d.state==='success'){
     track('result','',true);
     if(window.__trialLeft)window.__trialLeft();
-    L().result=d.result_id;if(line===state.line)L().seen=d.result_id;L().resultBase=L().genBase||null;L().busy=false;L().idem=null;state.session=false;loadSession().catch(function(){});
+    L().result=d.result_id;if(line===state.line)L().seen=d.result_id;setTimeout(keepStudio,0);L().resultBase=L().genBase||null;L().busy=false;L().idem=null;state.session=false;loadSession().catch(function(){});
     try{sessionStorage.removeItem('ayneh-job-'+SLUG+'-'+line)}catch(e){}
     L().rating=(function(){try{return Number(localStorage.getItem('ayneh-rating-'+d.result_id)||0)}catch(e){return 0}})();
-    paint();toast(line===state.line?'شبیه‌سازی آماده شد':LINES.label[line]+' آماده شد؛ در تب خودش ببین');renderSteps();
+    paint();if(line===state.line)setTimeout(function(){var c=$('#flow .compare');if(c&&c.getBoundingClientRect().bottom>innerHeight){var bar=$('#steps'),off=bar?bar.getBoundingClientRect().height+12:12;scrollTo({top:c.getBoundingClientRect().top+pageYOffset-off,behavior:'smooth'})}},120);
+    toast(line===state.line?'شبیه‌سازی آماده شد':LINES.label[line]+' آماده شد؛ در تب خودش ببین');renderSteps();
     return;
    }
    if(d.state==='fail'||d.state==='unknown'){
@@ -2239,9 +2252,10 @@ function poll(id,resumed,line){
 /* ---------- 360° view: 8 estimated angles, played like a turntable ---------- */
 // Drag (with momentum), tap a thumbnail, use the arrow keys, or let it turn on its own.
 // While the angles are being made, the result itself sways in 3D so the wait feels alive.
-function openViews(){
- track('view360');
+function openViews(ok){
  if(!state.gen)return;
+ if(studio()&&ok!==true&&!state.views){var gift=state.quota&&state.quota.free>0&&!giftOut;var cp=el('div',{class:'sheet__panel'});cp.append(el('div',{class:'sheet__head'},[h('h2','نمای ۳۶۰ درجه'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),h('p',(gift?'ساخت زاویه‌های دیگر یکی از عکس‌های هدیه‌ات را مصرف می‌کند.':'ساخت زاویه‌های دیگر ۲۵ سکه از کیفت کم می‌کند.')+' زاویه‌ها در همین صفحه نمایش داده می‌شوند؛ اگر می‌خواهی نگهشان داری، از هر زاویه اسکرین‌شات بگیر.','muted'),el('div',{class:'look__actions'},[el('button',{class:'btn btn--primary',type:'button',text:gift?'بساز · هدیه':'بساز · ۲۵ سکه',onclick:function(){closeSheet();setTimeout(function(){openViews(true)},220)}}),el('button',{class:'btn btn--ghost',type:'button',text:'نه، فعلاً',onclick:closeSheet})]));openSheet(cp);return}
+ track('view360');
  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
  // Front = her own result photo (her real face); the other three come from one generated row.
  var ANG=['جلو','نیم‌رخ چپ','پشت سر','نیم‌رخ راست'],N=4;
@@ -2291,7 +2305,7 @@ function openViews(){
  if(state.views&&state.views.gen===state.gen){ready(state.views.id);return}
  if(quotaLeft('hair')===0){cleanup();tip.textContent='سهم امتحان «مدل مو» برای تو تمام شد؛ نمای ۳۶۰ هم یک تصویر از همین سهم است.';return}
  api('views',{v:VISITOR,parent:state.gen,idem:state.viewsIdem||(state.viewsIdem=uuid())}).then(function(job){
-  spentQuota('hair');var tries=0;
+  spentQuota('hair');setTimeout(function(){paintWallet(true)},1500);var tries=0;
   function check(){if(!panel.isConnected)return;return api('generation/'+job.id).then(function(d){
    if(d.state==='success'){state.views={gen:state.gen,id:d.result_id};state.viewsIdem=null;ready(d.result_id);loadSession().catch(function(){});return}
    if(d.state==='fail'||d.state==='unknown'||++tries>90){cleanup();tip.textContent='ساخت زاویه‌ها ممکن نشد؛ کمی بعد دوباره امتحان کن.';state.viewsIdem=null;return}
@@ -2309,8 +2323,8 @@ function demoCompare(cls){
  var wrap=el('div',{class:'compare compare--demo'},[el('img',{src:sb,alt:'نمونه: قبل',draggable:'false'}),el('div',{class:'compare__after'},[el('img',{src:sa,alt:'نمونه: بعد',draggable:'false'})]),el('div',{class:'compare__handle'}),el('span',{class:'compare__tag compare__tag--before',text:'قبل'}),el('span',{class:'compare__tag compare__tag--after',text:'بعد'})]);
  var box=el('div',{class:'mirror demo '+(cls||'')},[wrap]),fails=0;
  Array.prototype.forEach.call(wrap.querySelectorAll('img'),function(i){i.addEventListener('error',function(){if(++fails===1)box.remove()})});
- wrap.style.setProperty('--x','62%');
- if(!window.matchMedia('(prefers-reduced-motion: reduce)').matches){var t0=performance.now(),seen=false,raf=0;
+ wrap.style.setProperty('--x',studio()?'50%':'62%');
+ if(!studio()&&!window.matchMedia('(prefers-reduced-motion: reduce)').matches){var t0=performance.now(),seen=false,raf=0;
   function tick(now){if(!box.isConnected)return;wrap.style.setProperty('--x',(50+30*Math.sin((now-t0)/1100))+'%');raf=requestAnimationFrame(tick)}
   var io=window.IntersectionObserver?new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){if(!seen){seen=true;track('demo','',true)}cancelAnimationFrame(raf);raf=requestAnimationFrame(tick)}else cancelAnimationFrame(raf)})}):null;
   if(io)setTimeout(function(){io.observe(box)},0);else raf=requestAnimationFrame(tick);
@@ -2698,7 +2712,7 @@ function openAsk(){
   prepareBranded(id).then(function(rec){
    var file=rec&&rec.file;
    if(file&&navigator.canShare&&navigator.canShare({files:[file]}))return navigator.share({files:[file],text:both}).then(function(){done('image')},function(){});
-   return copyText(both).then(function(){done('copy','متن و لینک کپی شد؛ عکس را با «ذخیره تصویر» جدا بفرست')},function(){toast(url)});
+   return copyText(both).then(function(){done('copy','متن و لینک کپی شد؛ عکس را با «'+(studio()?'دانلود عکس':'ذخیره تصویر')+'» جدا بفرست')},function(){toast(url)});
   });
  }
  var grid=el('div',{class:'share__grid'},[
@@ -2708,7 +2722,7 @@ function openAsk(){
   opt('instagram','اینستاگرام',SHARE_IC.cam,'linear-gradient(45deg,#f2a93b,#d6286f 55%,#7b3bc4)',null,function(){copyText(both).then(function(){done('instagram','پیام و لینک کپی شد؛ در دایرکت اینستاگرام بگذار')},function(){toast(url)})}),
   opt('copy','کپی لینک',SHARE_IC.link,'var(--accent)',null,function(){copyText(both).then(function(){done('copy','پیام و لینک کپی شد')},function(){toast(url)})})
  ].filter(Boolean));
- panel.append(grid,h('p','«عکس و پیام» عکس نتیجه را با شیت اشتراک گوشی‌ات می‌فرستد. با بقیهٔ دکمه‌ها فقط پیام و لینک می‌رود؛ عکس را با «ذخیره تصویر» جدا ضمیمه کن. هیچ چیز خودکار فرستاده نمی‌شود و عکس اصلی‌ات هیچ‌جا منتشر نمی‌شود.','share__note'));
+ panel.append(grid,h('p',navigator.share?'«عکس و پیام» عکس نتیجه را با شیت اشتراک گوشی‌ات می‌فرستد؛ بقیهٔ دکمه‌ها فقط پیام و لینک را می‌فرستند.':'این دکمه‌ها پیام و لینک را می‌فرستند؛ خود عکس را با «'+(studio()?'دانلود عکس':'ذخیره تصویر')+'» بگیر و جدا بفرست. هیچ چیز خودکار فرستاده نمی‌شود.','share__note'));
  openSheet(panel);
 }
 

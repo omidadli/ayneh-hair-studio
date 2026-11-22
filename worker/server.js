@@ -414,6 +414,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   const score={};for(const r of tried){const k=r.line+':'+r.style;score[k]=(score[k]||0)+Number(r.n)}
   for(const r of liked){score[r.item]=(score[r.item]||0)+2*Number(r.n)}
   const likes={};for(const r of liked)if(r.kind==='like')likes[r.item]=(likes[r.item]||0)+Number(r.n);
+  for(const k of Object.keys(score))if(score[k]<3)delete score[k];
   return J({score,likes});
  }
  const s=await session(req,db,salon);
@@ -476,11 +477,11 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   const bits=String(s.verified_name||'').trim().split(/\s+/);
   const acc=await one(db,'SELECT id FROM customer_accounts WHERE phone=?',s.verified_phone);
   const ledger=acc?await all(db,'SELECT delta,reason,created_at FROM customer_ledger WHERE account_id=? ORDER BY created_at DESC LIMIT 30',acc.id):[];
-  const spent=acc?await all(db,"SELECT line,created_at FROM generations WHERE paid_by=? AND state<>'fail' ORDER BY created_at DESC LIMIT 30",acc.id):[];
-  const gifts=await all(db,"SELECT line,created_at FROM generations WHERE salon_id=? AND paid_by IS NULL AND state='success' AND kind<>'views' AND session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?) ORDER BY created_at DESC LIMIT 10",salon.id,salon.id,s.verified_phone);
+  const spent=acc?await all(db,"SELECT line,kind,created_at FROM generations WHERE paid_by=? AND state<>'fail' ORDER BY created_at DESC LIMIT 30",acc.id):[];
+  const gifts=await all(db,"SELECT line,kind,created_at FROM generations WHERE salon_id=? AND paid_by IS NULL AND state<>'fail' AND session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?) ORDER BY created_at DESC LIMIT 10",salon.id,salon.id,s.verified_phone);
   const made=Number((await one(db,"SELECT COUNT(*) n FROM generations WHERE salon_id=? AND state='success' AND kind<>'views' AND (session_id=? OR session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?))",salon.id,s.id,salon.id,s.verified_phone))?.n||0);
   return J({signed_in:true,phone:s.verified_phone,first_name:p?.first_name||bits[0]||'',last_name:p?.last_name||bits.slice(1).join(' '),city:p?.city||'',since:p?.created_at||null,made,
-   history:[...ledger.map(r=>({kind:r.reason,coins:r.delta,at:r.created_at})),...gifts.map(r=>({kind:'gift',line:r.line,coins:0,at:r.created_at})),...spent.map(r=>({kind:'image',line:r.line,coins:-IMAGE_COINS,at:r.created_at}))].sort((a,b)=>b.at-a.at).slice(0,30)});
+   history:[...ledger.map(r=>({kind:r.reason,coins:r.delta,at:r.created_at})),...gifts.map(r=>({kind:'gift',views:r.kind==='views',line:r.line,coins:0,at:r.created_at})),...spent.map(r=>({kind:'image',views:r.kind==='views',line:r.line,coins:-IMAGE_COINS,at:r.created_at}))].sort((a,b)=>b.at-a.at).slice(0,30)});
  }
  if(route==='me'&&req.method==='POST'){
   must(s.verified_phone,'اول وارد حسابت شو',401);

@@ -307,7 +307,7 @@ test('saved and liked looks belong to a signed-in customer and follow her mobile
  assert.equal((await call(e,'/api/s/try/saves',{kind:'like',item:'bad item'},g)).status,400);
  const g2=await guest(e,'try');await call(e,'/api/s/try/otp/send',{phone:'09125550000',signin:true},g2);await call(e,'/api/s/try/otp/verify',{code:'12345'},g2);
  let d=(await call(e,'/api/s/try/saves',undefined,g2)).data;assert.deepEqual(d.saved,['nails:3'],'her saves follow her mobile');assert.deepEqual(d.liked,['hair:1']);
- const t=(await call(e,'/api/s/try/trending',undefined,g2)).data;assert.equal(t.likes['hair:1'],1);assert.equal(t.likes['nails:3'],undefined,'a save is not a like');assert.ok(t.score['nails:3']>0);
+ const t=(await call(e,'/api/s/try/trending',undefined,g2)).data;assert.equal(t.likes['hair:1'],1);assert.equal(t.likes['nails:3'],undefined,'a save is not a like');assert.equal(t.score['nails:3'],undefined,'one person alone does not reorder «ترند»');
  assert.equal((await call(e,'/api/s/try/saves',{kind:'save',item:'nails:3',on:false},g2)).status,200);
  assert.deepEqual((await call(e,'/api/s/try/saves',undefined,g2)).data.saved,[]);
  await call(e,'/api/s/try/otp/logout',{},g2);assert.deepEqual((await call(e,'/api/s/try/saves',undefined,g2)).data.liked,[],'signed out again: nothing shown');

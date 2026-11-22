@@ -621,7 +621,7 @@ img[loading="lazy"].is-in{opacity:1}
 .acct-chip--in{background:var(--accent-soft,#E4F1EC);border-color:transparent}
 .acct-chip span{max-width:9ch;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .head--account .wrap{max-width:480px}
-.account{display:grid;gap:14px;justify-items:stretch;margin-top:10px;padding:26px 20px 22px;text-align:center}
+.account{display:grid;grid-template-columns:minmax(0,1fr)!important;gap:14px;justify-items:stretch;margin:10px auto 0;max-width:480px;width:100%;padding:26px 20px 22px;text-align:center}
 .account__avatar{justify-self:center;width:64px;height:64px;border-radius:50%;display:grid;place-items:center;background:var(--accent-soft,#E4F1EC);color:var(--accent)}
 .account__avatar svg{width:30px;height:30px}
 .account__title{font-family:var(--display);font-size:26px;font-weight:800;color:var(--ink)}

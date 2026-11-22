@@ -1493,7 +1493,7 @@ test('step 24 pricing: the three plans of the owner\'s price sheet, on the home 
  for(const t of ['hair','color','nails','lashes','salon'])assert.match(landingHTML,new RegExp('data-tab="'+t+'"'),t+' tab');
  // the server charges from the same table
  assert.deepEqual(Object.fromEntries(Object.entries(PLANS).map(([k,v])=>[k,[v.months,v.amount,v.credits]])),
-  {essential:[1,2900000,20],pro:[3,6000000,75],signature:[6,10000000,180],test:[1,10000,20],
+  {essential:[1,2900000,20],pro:[3,6000000,75],signature:[6,10000000,180],
    salon1:[1,5000000,40],salon3:[3,10000000,150],salon6:[6,15000000,360]});
  // «پنل آرایشگاه»: 3 users included; each user beyond is priced for the whole period
  assert.deepEqual(['salon1','salon3','salon6'].map(k=>[PLANS[k].seats,PLANS[k].seat_amount,PLANS[k].tier]),
@@ -1584,7 +1584,7 @@ test('step 25 funnel: every plan sells with «خرید» and opens the checkout 
  for(const k of ['hair','nails','lashes']){
   const html=servicePages[k];
   const labels=[...html.matchAll(/<a\b[^>]*data-buy="([a-z]+)"[^>]*>([^<]*)<\/a>/g)];
-  assert.deepEqual(labels.map(m=>m[1]),['essential','pro','signature','test']);
+  assert.deepEqual(labels.map(m=>m[1]),['essential','pro','signature']);
   for(const [tag,plan,text] of labels){
    assert.equal(text,'خرید',plan+' says خرید');
    assert.match(tag,/data-state="open"/);assert.match(tag,new RegExp('data-amount="'+PLANS[plan].amount+'"'),plan+' carries the sheet amount');
@@ -1874,7 +1874,7 @@ test('step 25 pages: /panel and /pay are real routes, the panel page parses, and
   assert.match(landingHTML,/id="pay"/,'the home page carries the checkout its price cards open');
   for(const k of ['home','hair','color','nails','lashes','salon']){
    const html=k==='home'?landingHTML:servicePages[k];
-   assert.equal((html.match(/data-state="open"/g)||[]).length,k==='salon'?3:7,k+': every plan on the page sells (three single-service, three «پنل آرایشگاه»)');
+   assert.equal((html.match(/data-state="open"/g)||[]).length,k==='salon'?3:6,k+': every plan on the page sells (three single-service, three «پنل آرایشگاه»)');
    assert.match(html,/پرداخت موقتاً ممکن نیست: شمارهٔ کارت آینه هنوز ثبت نشده/);
    assert.match(html,/هر سفارش فقط ۱۰ دقیقه اعتبار دارد/);
    assert.doesNotMatch(html,/[0-9۰-۹]{16}/,'no card number is ever baked into the page');
@@ -1906,7 +1906,7 @@ test('step 25 checkout never leaves a "buy a panel" bar over a payment, and an u
   assert.match(js, /order\//, 'status, receipt and coupon all go through the order endpoints');
   assert.match(js, /expires_at/, 'the countdown mirrors the server deadline');
   assert.doesNotMatch(js, /تومان\/\s*\d/, 'the page does not compute its own prices');
-  assert.equal((landingHTML.match(/data-state="open"/g) || []).length, 7, 'the home page sells the three plans, «پکیج تست» and the three salon plans');
+  assert.equal((landingHTML.match(/data-state="open"/g) || []).length, 6, 'the home page sells the three plans and the three salon plans');
 });
 
 test('step 25 brand: the favicon is the owner\'s mirror logo, never the retired brass mark', () => {
@@ -2296,7 +2296,7 @@ test('panel own page (ESSENTIAL): setup asks for nothing the plan lacks; portfol
  assert.equal(first.data.salon.profile.phone,undefined,'no phone until the salon writes one');
  assert.equal(first.data.salon.profile.manager,undefined,'no buyer name on the page');
  assert.doesNotMatch(JSON.stringify(first.data),/09125550000|9125550000/,'the buyer mobile is not in the public payload');
- assert.deepEqual(d.plans.map(p=>p.key),['essential','pro','signature','test','salon1','salon3','salon6'],'renew/upgrade options are listed, «پنل آرایشگاه» included');
+ assert.deepEqual(d.plans.map(p=>p.key),['essential','pro','signature','salon1','salon3','salon6'],'renew/upgrade options are listed, «پنل آرایشگاه» included');
  // Page details
  const bad=await panel(e,ctx,'profile',{phone:'abc'});assert.equal(bad.status,400);
  const ok=await panel(e,ctx,'profile',{name:'سالن آینه‌ای',bio:'رنگ و لایت',hours:'شنبه تا پنجشنبه',phone:'۰۹۱۲۰۰۰۰۰۰۰',instagram:'@my.salon'});
@@ -2759,7 +2759,7 @@ test('pricing tabs: five visible tabs, each service page opens its own, /salon-p
   const single=panelOf(html,'hair color nails lashes');assert.ok(single,k+': the single-service panel');
   assert.doesNotMatch(single.slice(0,200),/ hidden>/,k+': the own panel is visible without a script');
   const buys=[...single.matchAll(/data-buy="(\w+)" data-service="(\w+)" data-title="([^"]+)" data-months="(\d)"/g)];
-  assert.deepEqual(buys.map(m=>m[1]),['essential','pro','signature','test']);
+  assert.deepEqual(buys.map(m=>m[1]),['essential','pro','signature']);
   for(const m of buys){assert.equal(m[2],own,k+' sells '+own);assert.equal(m[3],SERVICE_TITLES[own]);assert.equal(Number(m[4]),PLANS[m[1]].months)}
   const salon=panelOf(html,'salon');assert.match(salon,/data-plans-panel="salon" hidden>/,k+': the salon tab waits behind its tab');
  }
@@ -3260,4 +3260,27 @@ test('pay review fixes: re-forwarded paid deposit is «already», outgoing «ن�
   const id = await hash('pay-sms:' + digits(n2).replace(/\s+/g, ' ').trim());
   e.DB.sql.prepare("INSERT INTO pay_sms(id,amount,result,created_at) VALUES(?,?,'error',?)").run(id, t2.data.amount * 10, Date.now());
   assert.equal((await send(n2)).status, 'paid');
+});
+
+test('every plan on sale is confirmed by the bank notification with production amounts (no «پکیج تست»)', async () => {
+  const {amountMode} = await import('../worker/paysms.js');
+  assert.equal(PLANS.test, undefined, '«پکیج تست» is gone');
+  const was = amountMode.roundFirst; amountMode.roundFirst = false;
+  try {
+    const e = fixture();
+    const key = (await call(e, '/api/owner/payment', undefined, OWNER)).data.webhook.key;
+    const send = text => app.fetch(new Request(origin + '/api/pay/sms', {method: 'POST', headers: {'content-type': 'application/json', authorization: 'Bearer ' + key}, body: JSON.stringify({text})}), e).then(r => r.json());
+    let i = 0;
+    for (const plan of ['essential', 'pro', 'signature', 'salon1', 'salon3', 'salon6']) {
+      i++;
+      const o = await call(e, '/api/order', orderBody(plan, {phone: '0912000000' + i, salon: 'سالن ' + plan, name: 'خریدار ' + plan}));
+      assert.equal(o.status, 200, plan + ' opens');
+      const list = Number(PLANS[plan].amount);
+      assert.ok(o.data.amount < list && o.data.amount >= list - 999, plan + ': a unique amount just under the price');
+      const r = await send('بلو\nواریز پول\nامید عزیز،' + (o.data.amount * 10).toLocaleString('en-US') + ' ریال به حساب شما نشست.\nموجودی: 1,000 ریال\n⏱' + i);
+      assert.equal(r.status, 'paid', plan + ' is confirmed by the notification');
+      assert.equal(r.ref, o.data.ref);
+      assert.equal((await call(e, '/api/order/' + o.data.id)).data.status, 'paid');
+    }
+  } finally { amountMode.roundFirst = was; }
 });

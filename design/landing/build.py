@@ -43,10 +43,6 @@ PLANS = [
      'features': ['همهٔ امکانات پلن پایه', '۷۵ عکس هدیه', 'نوبت‌دهی و پیگیری', 'گزارش عملکرد ساده']},
     {'key': 'signature', 'name': 'کامل', 'months': 6, 'amount': 10000000, 'was': 17400000, 'credits': 180, 'badge': 'پیشنهاد آینه',
      'features': ['همهٔ امکانات پلن حرفه‌ای', '۱۸۰ عکس هدیه', 'گزارش عملکرد کامل', 'آرشیو مشتریان', 'پشتیبانی ویژه']},
-    # «پکیج تست» (owner's request): an exact copy of «پایه» — same length, gift images, features
-    # and the same public checkout path — at 10,000 toman, so the owner can buy as a customer.
-    {'key': 'test', 'name': 'پکیج تست', 'months': 1, 'amount': 10000, 'was': 0, 'credits': 20, 'badge': '', 'tier': 'essential',
-     'features': ['صفحهٔ اختصاصی شما', 'گالری نمونه‌کار', 'امتحان مدل با عکس دلخواه مشتری', 'دریافت درخواست مشتری', 'اتصال پیام‌رسان', '۲۰ عکس هدیه']},
 ]
 # «پنل آرایشگاه» (owner's decision): every service (hairstyle, hair colour, nails, lashes) for the
 # whole salon, for up to SALON_SEATS users (the manager is one of them). Each user beyond that

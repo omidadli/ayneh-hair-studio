@@ -917,7 +917,7 @@ function renderAccount(){
  var head=$('#head');head.classList.add('head--studio','head--account');
  var bar=el('div',{class:'hero__bar'},[el('a',{class:'brand brand--studio',href:'/','aria-label':'آینه، صفحهٔ اصلی',html:MARK+'<span>آینه</span>'}),el('div',{class:'hero__tools'},[el('a',{class:'btn btn--ghost btn--sm',href:'/',html:ICO.arrow+'<span>برگشت به استودیو</span>'})])]);
  var next=(location.search.match(/[?&]next=(\/[^&#]*)/)||[])[1]||'/';if(!/^\/(?!\/)/.test(next))next='/';
- var card=el('section',{class:'account panel','aria-labelledby':'acctTitle'});
+ var card=el('section',{class:'account panel','aria-labelledby':'acctTitle','aria-busy':'true'},[el('div',{class:'skel',style:'width:64px;height:64px;border-radius:50%;justify-self:center'}),el('div',{class:'skel',style:'height:28px;width:55%;justify-self:center'}),el('div',{class:'skel',style:'height:52px;border-radius:14px'}),el('div',{class:'skel',style:'height:52px;border-radius:14px'})]);
  function signedIn(){
   var me=state.me||{};
   var w=el('div',{class:'wallet',id:'wallet'});
@@ -944,7 +944,7 @@ function renderAccount(){
  head.replaceChildren(el('div',{class:'wrap'},[bar,card]));
  var foot=$('#foot');if(foot)foot.textContent=STUDIO_PRIVACY;
  document.title='ورود یا ثبت‌نام | آینه';
- ensureSession().then(function(){state.verified?signedIn():signedOut()}).catch(function(){signedOut()});
+ ensureSession().then(function(){card.removeAttribute('aria-busy');state.verified?signedIn():signedOut()}).catch(function(){card.removeAttribute('aria-busy');signedOut()});
 }
 
 /* ---------- «آلبوم من» (studio): every finished image of hers, newest first ----------

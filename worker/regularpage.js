@@ -171,6 +171,7 @@ export const packsJS = String.raw`
    var t=setInterval(function(){var s=Math.max(0,Math.round((o.expires_at-Date.now())/1000));left.textContent=o.status==='open'?(Math.floor(s/60)+':'+String(s%60).padStart(2,'0')):'';},1000);
    var p=setInterval(function(){api('/api/c/order/'+o.id).then(function(r){o=Object.assign(o,r);if(r.status==='paid'){stop();done(o.coins||o.count)}else if(r.status==='expired'||r.status==='cancelled'){stop();try{localStorage.removeItem(KEY)}catch(e){}fail('مهلت این سفارش تمام شد؛ اگر واریز کرده‌اید با کد پیگیری به پشتیبانی خبر بدهید.');start(true)}else show()}).catch(function(){})},5000);
    function stop(){clearInterval(t);clearInterval(p)}
+   window.__apStop=stop;
    /* Order of a bank app: the card, then the exact amount, then wait here. Every number has its own copy button. */
    var card=o.card?o.card.replace(/\D/g,''):'';
    box.replaceChildren(el('div',{class:'ap-pay'},[
@@ -194,8 +195,9 @@ export const packsJS = String.raw`
  function open(){
   if(framed){framed.out();return}
   var body=el('div',{});
-  var sheet=el('div',{class:'ap-sheet',role:'dialog','aria-modal':'true','aria-label':'شارژ سکه'},[el('div',{class:'ap-sheet__panel'},[el('div',{class:'ap-sheet__head'},[el('h2',{text:'شارژ کیف سکه'}),el('button',{class:'ap-x',type:'button','aria-label':'بستن',text:'×',onclick:function(){sheet.remove()}})]),body])]);
-  sheet.addEventListener('click',function(e){if(e.target===sheet)sheet.remove()});
+  var sheet=el('div',{class:'ap-sheet',role:'dialog','aria-modal':'true','aria-label':'شارژ سکه'},[el('div',{class:'ap-sheet__panel'},[el('div',{class:'ap-sheet__head'},[el('h2',{text:'شارژ کیف سکه'}),el('button',{class:'ap-x',type:'button','aria-label':'بستن',text:'×',onclick:function(){close()}})]),body])]);
+  function close(){if(window.__apStop)window.__apStop();sheet.remove()}
+  sheet.addEventListener('click',function(e){if(e.target===sheet)close()});
   document.body.append(sheet);mount(body,{referral:!!document.querySelector('meta[name="ayneh-biz"]')&&!document.body.classList.contains('is-studio'),onCredited:credited});
  }
  function button(){return el('button',{class:'btn btn--soft btn--sm',type:'button',text:'عکس بیشتر می‌خواهید؟ شارژ سکه',onclick:open})}

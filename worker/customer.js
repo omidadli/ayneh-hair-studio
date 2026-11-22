@@ -287,7 +287,7 @@ a.hchip,button.hchip{cursor:pointer}a.hchip:hover,button.hchip:hover{border-colo
   .btn--primary,.btn--build,.chip[aria-pressed="true"],.chip.is-on,.linesw__btn.is-on{background-color:var(--accent);color:#fff}
   .dock .btn--ghost{background-color:transparent;color:#fff}
 }
-@media(min-width:960px){.dock{display:none}}
+@media(min-width:960px){body:not(.is-studio) .dock{display:none}body.is-studio .dock{left:50%;right:auto;width:min(520px,100%);transform:translateX(-50%);background:none}}
 
 
 
@@ -1325,7 +1325,7 @@ function offerText(ez){var w=LINE_LIST.map(function(x){return LINE_WORDS[x[0]]})
 var FACE=['hair','color','lashes'];
 var lineStore={};
 function hasLineWork(line){return (state.pub&&state.pub.portfolio||[]).some(function(p){return (p.published||p.try_on)&&(p.line||'hair')===line})}
-function lineDefaults(to){return {busy:false,rating:0,step:1,original:null,preview:null,ratio:'',reference:null,refTitle:'',style:null,tab:hasLineWork(to)?'salon':'catalog',transfer:'both',color:'',opts:{},result:null,gen:null,genState:null,views:null,viewsIdem:null,idem:null,filter:'همه',error:'',justUploaded:false,base:'hair',genBase:null,resultBase:null,genT0:0}}
+function lineDefaults(to){return {busy:false,rating:0,seen:null,custom:'',q:'',step:1,original:null,preview:null,ratio:'',reference:null,refTitle:'',style:null,tab:hasLineWork(to)?'salon':'catalog',transfer:'both',color:'',opts:{},result:null,gen:null,genState:null,views:null,viewsIdem:null,idem:null,filter:'همه',error:'',justUploaded:false,base:'hair',genBase:null,resultBase:null,genT0:0}}
 function LP(){return LINES.photo[state.line]||LINES.photo.hair}
 function lineCat(){return state.line==='hair'?null:LINES[state.line]}
 function catalogImg(i){return '/catalog/'+(state.line==='hair'?'':state.line+'/')+String(i+1).padStart(2,'0')+'.webp'}
@@ -1494,7 +1494,8 @@ function buildButton(){
  var f=$('#flow'),d=$('#dock');
  var inFlow=f?f.querySelector('.btn--build'):null;
  var inDock=d&&!d.hidden?d.querySelector('.btn--build'):null;
- return inFlow||inDock;
+ var ok=function(b){return b&&b.getBoundingClientRect().width>0?b:null};
+ return ok(inFlow)||ok(inDock);
 }
 function scrollToBuild(){
  var f=$('#flow');if(!f)return;
@@ -1663,6 +1664,7 @@ function buildHint(ready,can,left){
 }
 // Step 2 → 3 in one tap: «بساز» goes straight to building, no page in between.
 function build(){
+ if(state.busy){toast('صبر کن بارگذاری عکس تمام شود');return}
  if(!hasChoice()){toast(missingReason());return}
  if(!canGenerate()&&studio()&&quotaLeft()===0){openWallet();return}
  if(!canGenerate()){go(3);return}
@@ -2084,7 +2086,7 @@ function handleFile(file,kind){
  var line=state.line,L=function(){return lineRef(line)};
  state.busy=true;renderDock();
  if(kind==='original'){try{if(state.preview)URL.revokeObjectURL(state.preview);state.preview=URL.createObjectURL(file)}catch(e){state.preview=null}state.original=null;state.justUploaded=false;clearTimeout(state.advT);if(state.step!==1){state.step=1;renderSteps()}renderFlow();focusFlow()}
- return Promise.all([compress(file),ensureSession()]).then(function(r){
+ return Promise.resolve().then(function(){return Promise.all([compress(file),ensureSession()])}).then(function(r){
   return api('upload?kind='+kind,r[0],true);
  }).then(function(d){
   if(kind==='original'){track('photo',line);L().original=d.id;L().ratio=compress.ratio||'';L().result=null;L().error='';L().idem=null;L().justUploaded=true;
@@ -2180,7 +2182,7 @@ function updateProgress(){
  Array.prototype.forEach.call(f.querySelectorAll('.build__steps li'),function(li,i){var c=i<at?'is-done':i===at?'is-on':'';if(li.className!==c){li.className=c;li.firstChild.innerHTML=i<at?ICO.check:''}});
 }
 function poll(id,resumed,line){
- line=line||state.line;var L=function(){return lineRef(line)},paint=function(){if(line===state.line){renderFlow();renderDock()}};
+ line=line||state.line;var L=function(){return lineRef(line)},paint=function(){if(line===state.line){renderFlow();renderDock()}else if(!accountMode())renderSteps()};
  var attempts=0;
  function tick(){
   attempts++;
@@ -2194,7 +2196,7 @@ function poll(id,resumed,line){
     if(window.__trialLeft)window.__trialLeft();
     L().result=d.result_id;if(line===state.line)L().seen=d.result_id;L().resultBase=L().genBase||null;L().busy=false;L().idem=null;state.session=false;loadSession().catch(function(){});
     try{sessionStorage.removeItem('ayneh-job-'+SLUG+'-'+line)}catch(e){}
-    L().rating=Number(localStorage.getItem('ayneh-rating-'+d.result_id)||0);
+    L().rating=(function(){try{return Number(localStorage.getItem('ayneh-rating-'+d.result_id)||0)}catch(e){return 0}})();
     paint();toast(line===state.line?'شبیه‌سازی آماده شد':LINES.label[line]+' آماده شد؛ در تب خودش ببین');renderSteps();
     return;
    }

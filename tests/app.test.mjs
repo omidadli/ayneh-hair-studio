@@ -893,7 +893,7 @@ assert.match(js,/col=line==='hair'\?\(state\.pub\.demo\?o\.color:''\)/);assert.m
  // stops at the optional shape, length or colour rows on the way there.
  assert.match(js,/function chooseLook\(fn\)\{pickLook\(fn\);scrollToBuild\(\)\}/,'picking a look goes straight to the build button');
  // buildButton() looks in the flow and in the dock, so the phone's «بساز» is found too.
- assert.match(js,/function buildButton\(\)\{[\s\S]*?return inFlow\|\|inDock;\n\}/,'one place knows which button builds');
+ assert.match(js,/function buildButton\(\)\{[\s\S]*?return ok\(inFlow\)\|\|ok\(inDock\);\n\}/,'one place knows which button builds');
  assert.match(js,/inFlow=f\?f\.querySelector\('\.btn--build'\):null/,'the flow carries the hook');
  assert.match(js,/inDock=d&&!d\.hidden\?d\.querySelector\('\.btn--build'\):null/,'and so does the dock');
  assert.match(js,/class:'btn btn--primary btn--build',type:'button',disabled:!ready,onclick:build/,'the dock «بساز» is the same button');

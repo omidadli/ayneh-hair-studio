@@ -46,7 +46,7 @@ export async function regularApi(req, env, u, path, {owner, clientIp}) {
     let referral = null;
     if (acc && u.searchParams.get('ref') === '1') {
       const code = await codeFor(db, 'customer', acc.id);
-      referral = {link: bizOrigin(u, env) + '/?ref=' + code, ...await referralStats(db, 'customer', acc.id)};
+      referral = {link: bizOrigin(u, env) + '/?ref=' + code, images: REFERRAL_IMAGES, ...await referralStats(db, 'customer', acc.id)};
     }
     return J({account: !!acc, verify: smsReady(env) && !s?.verified_phone, free: {per: CUSTOMER_FREE_IMAGES, left: free, coins: free * IMAGE_COINS}, own: bal,
       price: CUSTOMER_IMAGE_PRICE, ...economy(), referral});

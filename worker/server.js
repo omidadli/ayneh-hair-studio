@@ -83,7 +83,7 @@ const visitorOf=b=>/^[a-f0-9]{16,32}$/.test(String(b?.v||''))?String(b.v):'';
 const refLink=(env,origin,salon,t)=>(env.APP_ORIGIN||origin)+'/s/'+salon.slug+'?r='+t.ref_code;
 async function teamView(db,env,salon,origin){return Promise.all((await teamOf(db,salon.id)).map(async t=>{const pt=await pendingTransfer(db,salon.id,t.id);return {id:t.id,name:t.name,specialty:t.specialty,telegram:!!t.telegram_chat_id,bale:!!t.bale_chat_id,invite_pending:!!t.invite_hash&&t.invite_expires>Date.now(),ref:refLink(env,origin,salon,t),transfer:pt?{id:pt.id,to:pt.to_staff,expires_at:pt.expires_at,asked:!!pt.notified}:null}}))}
 // Anonymous usage events for the dashboard. The visitor id is random and made by the browser.
-export const TRACK_KINDS=['view','tour_start','tour_done','tour_skip','about','photo','look','color','generate','result','gen_fail','view360','send_open','sent','follow','rating','demo','share_open','share','line','color_on_hair','save'];
+export const TRACK_KINDS=['view','tour_start','tour_done','tour_skip','about','photo','look','color','generate','result','gen_fail','view360','send_open','sent','follow','rating','demo','share_open','share','line','color_on_hair','save','wallet','cta'];
 export async function logEvent(db,salonId,kind,visitor='',meta=''){await run(db,'INSERT INTO events_log(id,salon_id,visitor,kind,meta,created_at) VALUES(?,?,?,?,?,?)',uid(),salonId,/^[a-f0-9]{16,32}$/.test(visitor)?visitor:'',kind,String(meta||'').slice(0,80),Date.now())}
 // Ayneh's own pages (the visitor demo and the /try direct salon) show as «سالن آینه» with the site's
 // logo and cover (owner's decision); the URLs are static assets, never a customer upload.

@@ -38,12 +38,17 @@ const gen=(e,slug,g,original,v,line='hair',extra={})=>call(e,'/api/s/'+slug+'/ge
 async function webhookPay(e,ref,amount){const key=(await call(e,'/api/owner/payment',undefined,OWNER)).data.webhook.key;
  return app.fetch(new Request(origin+'/api/pay/confirm',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+key},body:JSON.stringify({ref,amount,status:'paid'})}),e);}
 
-test('/studio: the customer page carries the owner\'s copy and embeds the real try-on of the direct salon',async()=>{
+test('the customers\' studio («/» of the main domain) is the direct salon\'s own try-on page in studio mode, with the coin sheet',async()=>{
  const e=fixture();
  const res=await app.fetch(new Request(origin+'/'),e);assert.equal(res.status,200);const html=await res.text();
- for(const t of ['مدل جدیدت رو روی عکس خودت ببین.','بدون نصب. فقط یه سلفی لازمه.','عکس‌های هدیه‌ات تموم شد.','کیف سکه‌ات رو شارژ کن','آرایشگر یا آرایشگاه‌دار می‌شناسید؟ لینک شما را به او بدهید؛ اگر پلن آینه بگیرد، ۲۵۰ سکه هدیه می‌گیرید.','نتیجه یک نمونهٔ نمایشی است؛ برای انتخاب قبل از نوبت. عکس شما فقط برای ساخت نمونه استفاده می‌شود؛ نسخهٔ فشردهٔ آن برای ساخت تصویر به سرویس تصویر ارسال می‌شود.','مبلغ دلخواه','سکه‌ها به کیف شما اضافه شد.','کپی به ریال'])
+ assert.match(html,/<meta name="ayneh-slug" content="try">/,'the page runs on the direct salon');
+ assert.match(html,/<title>آینه \| مدل بعدی‌ات رو روی عکس خودت ببین<\/title>/);
+ assert.ok(html.includes('<meta name="ayneh-biz" content="https://business.test.example">'),'the way to the salons\' site');
+ assert.ok(html.includes('window.AynehPacks='),'the coin sheet');
+ assert.doesNotMatch(html,/<iframe/,'one page, no frame');
+ // The studio's words live in the page script (studio mode), the sheet's in the pack script.
+ for(const t of ['مدل بعدی‌ات رو روی عکس خودت ببین','عکس هدیه داری','آرایشگر هستید؟','عکس‌های هدیه‌ات تموم شد.','شارژ کیف سکه','این عکس فقط برای خودته.','لینک آینه را برایشان بفرست؛ ۲ عکس اول برای آن‌ها هم هدیه است','مبلغ دلخواه','سکه‌ها به کیف شما اضافه شد.','کپی به ریال'])
   assert.ok(html.includes(t),'copy: '+t);
- assert.match(html,/<iframe id="trFrame" data-slug="try" src="\/s\/try\?embed=1"/);
  // what a salon buys is a «پلن» (AGENTS.md); the photo line says where the photo goes, honestly
  assert.doesNotMatch(html,/پنل آینه بگیرد|فقط برای ساخت همین نمونه/);
  const row=e.DB.sql.prepare("SELECT id,slug,owner_id FROM salons WHERE id='ayneh-direct'").get();assert.equal(row.slug,'try');assert.equal(row.owner_id,'direct');

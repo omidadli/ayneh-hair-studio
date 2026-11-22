@@ -10,7 +10,7 @@ import {webhook,baleWebhook} from './telegram.js';
 import {favicon,baseCSS} from './design.js';
 import {sharePage} from './share.js';
 import {landingHTML,servicePages} from './landing.js';
-import {tryHTML,packsTag} from './regularpage.js';
+import {packsTag} from './regularpage.js';
 import {isBiz,bizOrigin,mainOrigin} from './hosts.js';
 import {directSalon} from './customers.js';
 import {refCookie} from './rewards.js';
@@ -52,6 +52,15 @@ async function salonPage(u,env,forcedSlug=''){
  const desc=(p.bio?String(p.bio).slice(0,150)+' ':'')+'مدل مو، طرح ناخن یا مژه را روی عکس خودت امتحان کن و برای سالن بفرست.';
  const img=p.cover||p.logo?(forcedSlug?u.origin:origin)+'/api/s/'+salon.slug+'/media/'+(p.cover||p.logo):'';
  const tags='<title>'+attr(title)+'</title>\n<meta name="ayneh-slug" content="'+attr(salon.slug)+'">\n<meta name="description" content="'+attr(desc)+'">\n<meta property="og:title" content="'+attr(title)+'">\n<meta property="og:description" content="'+attr(desc)+'">\n<meta property="og:type" content="website">\n<meta property="og:url" content="'+attr(url)+'">\n<meta property="og:site_name" content="آینه">\n<meta property="og:locale" content="fa_IR">\n'+(img?'<meta property="og:image" content="'+attr(img)+'">\n<meta property="og:image:alt" content="'+attr(salon.name)+'">\n<meta name="twitter:card" content="summary_large_image">\n<meta name="twitter:image" content="'+attr(img)+'">\n':'<meta name="twitter:card" content="summary">\n')+'<link rel="canonical" href="'+attr(url)+'">';
+ return customerHTML.replace(/<meta name="description"[^>]*>\n?/,'').replace(/<meta property="og:[a-z:]+"[^>]*>\n?/g,'').replace(/<title>[^<]*<\/title>/,tags).replace('</body>',()=>packsTag+'</body>');
+}
+/* The customers' studio («/» on the main domain): the direct salon's own try-on page, which runs
+   in studio mode (customer.js: wallet, no salon) — one page, one scroll, no frame. */
+async function studioPage(u,env,slug){
+ const M=mainOrigin(u,env),B=bizOrigin(u,env);
+ const title='آینه | مدل بعدی‌ات رو روی عکس خودت ببین';
+ const desc='مدل مو، رنگ مو، ناخن و مژه را قبل از رفتن به آرایشگاه روی عکس خودتان ببینید. بدون نصب؛ ۲ عکس اول هدیه است.';
+ const tags='<title>'+title+'</title>\n<meta name="ayneh-slug" content="'+attr(slug)+'">\n<meta name="description" content="'+desc+'">\n<link rel="canonical" href="'+M+'/">\n<meta property="og:title" content="'+title+'">\n<meta property="og:description" content="'+desc+'">\n<meta property="og:type" content="website">\n<meta property="og:url" content="'+M+'/">\n<meta property="og:site_name" content="آینه">\n<meta property="og:image" content="'+M+'/landing/og.jpg">\n<meta name="ayneh-biz" content="'+attr(B)+'">\n<script type="application/ld+json">'+JSON.stringify({'@context':'https://schema.org','@type':'WebApplication',name:'آینه',url:M+'/',applicationCategory:'LifestyleApplication',inLanguage:'fa-IR',offers:{'@type':'Offer',price:'0',priceCurrency:'IRR',description:'۲ عکس اول رایگان'}})+'</script>';
  return customerHTML.replace(/<meta name="description"[^>]*>\n?/,'').replace(/<meta property="og:[a-z:]+"[^>]*>\n?/g,'').replace(/<title>[^<]*<\/title>/,tags).replace('</body>',()=>packsTag+'</body>');
 }
 const PAY_LOGO='<svg xmlns="http://www.w3.org/2000/svg" width="76" height="76" style="border-radius:22px;display:block;margin:0 auto;box-shadow:0 10px 26px rgba(6,143,108,.3)" viewBox="0 0 108 108"> <defs> <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"> <stop offset="0" stop-color="#17B48B"/><stop offset="1" stop-color="#045A46"/> </linearGradient> <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"> <stop offset="0" stop-color="#1FC59A"/><stop offset="1" stop-color="#077257"/> </linearGradient> </defs> <rect width="108" height="108" fill="url(#bg)"/> <g transform="rotate(-14 54 54)"> <ellipse cx="54" cy="44" rx="19.5" ry="23" fill="#FFFFFF"/> <ellipse cx="54" cy="44" rx="14.6" ry="18.1" fill="url(#glass)"/> <ellipse cx="54" cy="44" rx="17.1" ry="20.6" fill="none" stroke="#0A7A5E" stroke-opacity="0.25" stroke-width="0.9"/> <path d="M43.4,37.5 C44.6,32.4 48.4,28.8 53,28" fill="none" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="2.2" stroke-linecap="round"/> <path d="M46.4,45 L51.8,50.4 L62.4,39.4" fill="none" stroke="#FFFFFF" stroke-width="4.4" stroke-linecap="round" stroke-linejoin="round"/> <path d="M49.2,66.2 C51,67.6 57,67.6 58.8,66.2 L57.6,71.4 L50.4,71.4 Z" fill="#FFFFFF"/> <path d="M51,71 L57,71 L56.2,87.6 C56.1,89.2 55.2,90.2 54,90.2 C52.8,90.2 51.9,89.2 51.8,87.6 Z" fill="#FFFFFF"/> <circle cx="54" cy="77.2" r="1.3" fill="#0A7A5E" fill-opacity="0.35"/> </g> <path d="M79,24 L80.5,28.3 L84.8,29.8 L80.5,31.3 L79,35.6 L77.5,31.3 L73.2,29.8 L77.5,28.3 Z" fill="#FFE3A3"/> <path d="M30.5,62 L31.3,64.2 L33.5,65 L31.3,65.8 L30.5,68 L29.7,65.8 L27.5,65 L29.7,64.2 Z" fill="#FFFFFF" fill-opacity="0.7"/> </svg> ';
@@ -101,7 +110,7 @@ export default {
    if(/^\/(?:s|i)\//.test(u.pathname)&&!/[?&]embed=1(?:&|$)/.test(u.search))return moved(M+u.pathname+u.search);
   }else{
    /* The main domain is the customers' site: «/» is their studio. */
-   if(u.pathname==='/'){must(env.DB,'پایگاه داده هنوز آماده نیست',503);const d=await directSalon(env.DB);return page(tryHTML(d.slug),'/');}
+   if(u.pathname==='/'){must(env.DB,'پایگاه داده هنوز آماده نیست',503);const d=await directSalon(env.DB);const html=await studioPage(u,env,d.slug);return new Response(html,{headers:{...htmlHeaders,'Cache-Control':'no-cache',...refCookie(u,request)}});}
    if(/^\/(?:studio|try)\/?$/.test(u.pathname))return moved('/'+u.search);
    /* Salon pages moved to business.; old links, ads and ?ref= links keep working. */
    if(/^\/salons\/?$/.test(u.pathname))return moved(B+'/'+u.search);

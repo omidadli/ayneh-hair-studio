@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync,readdirSync,existsSync} from 'node:fs';
 import {database,memoryBucket} from '../scripts/local-adapter.mjs';import app from '../worker/index.js';
-import {phone,transferPrompt} from '../worker/domain.js';import {appHTML} from '../worker/ui.js';import {customerHTML,customerJS} from '../worker/customer.js';import {tryHTML} from '../worker/regularpage.js';import {landingHTML,servicePages} from '../worker/landing.js';
+import {phone,transferPrompt} from '../worker/domain.js';import {appHTML} from '../worker/ui.js';import {customerHTML,customerJS} from '../worker/customer.js';import {landingHTML,servicePages} from '../worker/landing.js';
 import {brandMark as generatedMark,favicon as faviconMark} from '../worker/brand.js';
 const brand=()=>({brandMark:generatedMark,faviconMark});import {tick} from '../worker/server.js';import {styles} from '../worker/legacy.js';
 
@@ -928,12 +928,12 @@ test('customer page: four services, «بساز» starts building with no consent
  }
  // The page that /s/<slug> and /salon-preview serve carries the hook twice: once in the flow,
  // once in the phone dock. Served, not just written.
- const tryOn=customerHTML,tryPage=tryHTML('try');
+ const tryOn=customerHTML;
  assert.ok((tryOn.match(/btn--build/g)||[]).length>=2,'the try-on ships «بساز» in the flow AND in the dock');
  assert.match(tryOn,/id="flow"/,'the flow is where a look is chosen');
  assert.match(tryOn,/id="dock"/,'the phone dock carries the same button');
- // /try is the same engine in a frame, so she cannot get a different behaviour there.
- assert.match(tryPage,/src="\/s\/[a-z0-9-]+\?embed=1"/,'/try embeds the salon try-on rather than repeating it');
+ // The customers' studio («/») is this same page in studio mode, so she cannot get a different behaviour there.
+ assert.match(customerJS,/function studio\(\)\{return !!\(state\.pub&&state\.pub\.direct&&!EMBED\)\}/);
  // Every service has its building scene and stages.
  for(const l of ['hair','color','nails','lashes'])assert.match(js,new RegExp('\\n '+l+":\\{title:'"));
 });
@@ -3294,11 +3294,10 @@ test('two sites: the main domain is the customers\' studio, business. is the sal
   const home = await app.fetch(new Request(origin + '/?ref=R2345678'), e);
   assert.equal(home.status, 200);
   const html = await home.text();
-  assert.match(html, /مدل جدیدت رو روی عکس خودت ببین/);
-  assert.ok(html.includes('href="' + BIZ + '/"'), 'a way to the salons\' site');
+  assert.match(html, /مدل بعدی‌ات رو روی عکس خودت ببین/);
+  assert.ok(html.includes('<meta name="ayneh-biz" content="' + BIZ + '">'), 'a way to the salons\' site');
   assert.ok(html.includes('<link rel="canonical" href="' + origin + '/">'));
   assert.doesNotMatch(html, /__ORIGIN__|__MAIN__|__CANON__/);
-  for (const l of ['hair', 'color', 'nails', 'lashes']) assert.ok(html.includes('data-line="' + l + '"'), 'service card ' + l);
   const go = async (u) => { const r = await app.fetch(new Request(u, {redirect: 'manual'}), e); return [r.status, r.headers.get('location')]; };
   assert.deepEqual(await go(origin + '/studio?l=nails'), [301, '/?l=nails']);
   assert.deepEqual(await go(origin + '/try?l=hair'), [301, '/?l=hair']);

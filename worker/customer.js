@@ -2797,7 +2797,7 @@ function consultCard(){
 }
 function openConsult(){
  if(!state.original){toast('اول عکس خودت را اضافه کن');return}
- consult={step:1,line:state.line,photo:state.original,analysis:null,picked:{},answers:{},picks:null,savedId:null,busy:false,self:false,tried:false,note:''};
+ consult={step:1,line:state.line,photo:state.original,analysis:null,picked:{},skipped:{},answers:{},picks:null,savedId:null,busy:false,self:false,tried:false,note:''};
  track('consult',state.line);
  consultPanel=el('div',{class:'sheet__panel csheet'});
  openSheet(consultPanel);
@@ -2807,6 +2807,7 @@ function consultRel(){return CONSULT.r[consult.line]||[]}
 function consultEffFields(){
  var out={},rel=consultRel(),f=(consult.analysis&&consult.analysis.fields)||{},low=(consult.analysis&&consult.analysis.low)||[];
  rel.forEach(function(k){
+  if(consult.skipped&&consult.skipped[k])return;
   if(consult.picked[k]!=null){out[k]=consult.picked[k];return}
   var v=f[k];
   if(v&&low.indexOf(k)<0)out[k]=v;
@@ -2838,8 +2839,9 @@ function consultStep1(p){
   var pickedVal=consult.picked[k],modelVal=f[k];
   /* A low-confidence (or missing) field is never preselected: the sheet asks her, and the
      model's guess only travels as a hint. effFields() ignores it until she taps. */
-  var isLow=pickedVal==null&&(low.indexOf(k)>=0||!modelVal);
-  var v=pickedVal!=null?pickedVal:(isLow?null:modelVal);
+  var isSkipped=!!(consult.skipped&&consult.skipped[k]);
+  var isLow=pickedVal==null&&!isSkipped&&(low.indexOf(k)>=0||!modelVal);
+  var v=pickedVal!=null?pickedVal:((isLow||isSkipped)?null:modelVal);
   var top=el('div',{class:'cfield__top'},[el('b',{text:def.label})]);
   if(isLow)top.append(el('span',{class:'cconf is-low',text:consult.self?'بدون تحلیل':'کم‌اطمینان'}));
   else if(v!=null){
@@ -2852,15 +2854,22 @@ function consultStep1(p){
   def.options.forEach(function(o){
    var on=v===o[0];
    var b=el('button',{class:'chip'+(on?' is-on':''),type:'button','aria-pressed':on?'true':'false',text:o[1]});
-   b.addEventListener('click',function(){consult.picked[k]=o[0];consultDraw()});
+   b.addEventListener('click',function(){consult.picked[k]=o[0];if(consult.skipped)delete consult.skipped[k];consultDraw()});
    chips.append(b);
   });
+  /* «نمی‌دونم» lets her skip a field; it simply stays out of the analysis. */
+  var skipped=!!(consult.skipped&&consult.skipped[k]);
+  var skip=el('button',{class:'chip'+(skipped?' is-on':''),type:'button','aria-pressed':skipped?'true':'false',text:'نمی‌دونم'});
+  skip.addEventListener('click',function(){
+   if(!consult.skipped)consult.skipped={};
+   if(consult.skipped[k])delete consult.skipped[k];else{consult.skipped[k]=1;delete consult.picked[k]}
+   consultDraw();
+  });
+  chips.append(skip);
   box.append(chips);
   p.append(box);
  });
- var miss=rel.filter(function(k){return consultEffFields()[k]==null});
- p.append(el('button',{class:'btn btn--primary btn--block',type:'button',text:'بعدی: پرسش‌نامه',disabled:!!miss.length||!!consult.busy,onclick:function(){consult.step=2;consultDraw()}}));
- if(miss.length)p.append(el('p',{class:'cfield__hint',text:'چند گزینه را هنوز انتخاب نکردی.'}));
+ p.append(el('button',{class:'btn btn--primary btn--block',type:'button',text:'بعدی: پرسش‌نامه',disabled:!!consult.busy,onclick:function(){consult.step=2;consultDraw()}}));
 }
 function consultStep2(p){
  p.append(el('p',{class:'cfield__hint',text:'هر کدام را نخواستی رد کن؛ هرچه بیشتر بگویی، پیشنهادها دقیق‌تر می‌شود.'}));
@@ -2948,7 +2957,11 @@ function consultSave(){
  }
  if(consult.busy)return;
  consult.busy=true;consultDraw();
- var body={line:consult.line,photo_id:consult.photo,analysis:{source:consult.self?'self':'vision',fields:consultEffFields(),confidence:(consult.analysis&&consult.analysis.confidence)||{},low:(consult.analysis&&consult.analysis.low)||[]},answers:consult.answers};
+ /* self_keys marks the fields she answered herself (or all of them when there was no analysis)
+    so the share page and the profile detail can call them her answer, never a photo analysis. */
+ var eff=consultEffFields();
+ var selfKeys=consult.self?Object.keys(eff):Object.keys(consult.picked||{}).filter(function(k){return eff[k]!=null});
+ var body={line:consult.line,photo_id:consult.photo,analysis:{source:consult.self?'self':'vision',fields:eff,confidence:(consult.analysis&&consult.analysis.confidence)||{},low:(consult.analysis&&consult.analysis.low)||[],self_keys:selfKeys},answers:consult.answers};
  var res=lineRef(consult.line).result;if(res)body.result_id=res;
  ensureSession().then(function(){return api('consult',body)})
  .then(function(d){
@@ -2987,11 +3000,20 @@ function openConsultDetail(id){
   if(!panel.isConnected)return;
   panel.replaceChildren(el('div',{class:'sheet__head'},[h('h2','مشاورهٔ '+LINES.label[d.line]),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]));
   var rel=CONSULT.r[d.line]||[],fields=(d.analysis&&d.analysis.fields)||{};
-  var rows=rel.filter(function(k){return fields[k]}).map(function(k){
+  /* Honesty: her own answers are labelled hers, never a photo analysis; all-self → one title. */
+  var selfSet={};((d.analysis&&d.analysis.self_keys)||[]).forEach(function(k){selfSet[k]=1});
+  var rowOf=function(k){
    var def=consultFieldDef(k);
    return el('div',{class:'cfield__top'},[el('b',{text:def?def.label:k}),el('span',{class:'muted',text:consultOptLabel(def,fields[k])})]);
-  });
-  if(rows.length)panel.append(el('div',{class:'cfield'},[el('div',{class:'cfield__top'},[el('b',{text:'تحلیل عکس'})])].concat(rows)));
+  };
+  var present=rel.filter(function(k){return fields[k]});
+  var visionRows=present.filter(function(k){return !selfSet[k]}),selfRows=present.filter(function(k){return !!selfSet[k]});
+  var allSelf=(d.analysis&&d.analysis.source==='self')||(selfRows.length>0&&!visionRows.length);
+  if(allSelf)panel.append(el('div',{class:'cfield'},[el('div',{class:'cfield__top'},[el('b',{text:'مشخصات (پاسخ مشتری)'})])].concat(present.map(rowOf))));
+  else{
+   if(visionRows.length)panel.append(el('div',{class:'cfield'},[el('div',{class:'cfield__top'},[el('b',{text:'تحلیل عکس'})])].concat(visionRows.map(rowOf))));
+   if(selfRows.length)panel.append(el('div',{class:'cfield'},[el('div',{class:'cfield__top'},[el('b',{text:'پاسخ مشتری'})])].concat(selfRows.map(rowOf))));
+  }
   var ans=d.answers||{},qrows=CONSULT.q.filter(function(q){return ans[q.key]}).map(function(q){
    return el('div',{class:'cfield__top'},[el('b',{text:q.label}),el('span',{class:'muted',text:consultOptLabel(q,ans[q.key])})]);
   });

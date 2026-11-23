@@ -227,13 +227,16 @@ export async function consultApi(req,env,{u,route,salon,s,clientIp}){
   const source=b.analysis&&b.analysis.source==='self'?'self':'vision';
   const a=source==='self'?{fields:(b.analysis&&b.analysis.fields)||{},confidence:{},low:[]}:cleanAnalysis(b.analysis,b.line);
   if(source==='self'){const f={};for(const k of RELEVANT[b.line]){const v=a.fields[k];if(typeof v==='string'&&ENUMS[k].has(v))f[k]=v}a.fields=f}
+  /* Fields she answered herself (all of them when there was no analysis, or the ones she
+     overrode) are stored so every surface can label them her answer, not a photo analysis. */
+  const selfKeys=source==='self'?Object.keys(a.fields):(Array.isArray(b.analysis&&b.analysis.self_keys)?b.analysis.self_keys.filter(k=>Object.prototype.hasOwnProperty.call(a.fields,k)):[]);
   const answers=cleanAnswers(b.answers);
   const picks=suggest(b.line,{fields:a.fields},answers).picks;
   let resultId=null;
   if(b.result_id){resultId=(await ownResult(db,s,b.result_id)).id}
   const id=uid();
   await db.prepare('INSERT INTO consultations(id,salon_id,owner,line,photo_id,analysis_json,answers_json,picks_json,result_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)')
-   .bind(id,salon.id,phone,b.line,m.id,JSON.stringify({source,fields:a.fields,confidence:a.confidence,low:a.low}),JSON.stringify(answers),JSON.stringify(picks),resultId,Date.now()).run();
+   .bind(id,salon.id,phone,b.line,m.id,JSON.stringify({source,fields:a.fields,confidence:a.confidence,low:a.low,self_keys:selfKeys}),JSON.stringify(answers),JSON.stringify(picks),resultId,Date.now()).run();
   return J({id,picks,result_id:resultId});
  }
  if(route==='consults'&&req.method==='GET'){
@@ -284,12 +287,23 @@ export async function consultShare(u,env){
  if(row.share_used_at&&now-row.share_used_at>GRACE)return gone('این لینک یک‌بار مصرف بود و تمام شده است؛ از مشتری بخواه لینک تازه بفرستد.');
  if(!row.share_used_at)await env.DB.prepare('UPDATE consultations SET share_used_at=? WHERE id=? AND share_used_at IS NULL').bind(now,row.id).run();
  const analysis=parse(row.analysis_json),answers=parse(row.answers_json),picks=parse(row.picks_json);
- const fields=RELEVANT[row.line].map(k=>'<li><span>'+esc(fieldLabel(k))+'</span><b>'+esc(optionLabel(ANALYSIS_FIELDS,k,analysis.fields&&analysis.fields[k])||'—')+'</b></li>').join('');
+ /* Honesty: fields she answered herself are labelled her answer — never a photo analysis —
+    and when every field is hers the whole block is titled that way. */
+ const selfSet=new Set(Array.isArray(analysis.self_keys)?analysis.self_keys:[]);
+ const rel=RELEVANT[row.line];
+ const li=k=>'<li><span>'+esc(fieldLabel(k))+'</span><b>'+esc(optionLabel(ANALYSIS_FIELDS,k,analysis.fields&&analysis.fields[k])||'—')+'</b></li>';
+ const visionKeys=rel.filter(k=>!selfSet.has(k)),selfFields=rel.filter(k=>selfSet.has(k));
+ const valuedVision=visionKeys.filter(k=>analysis.fields&&analysis.fields[k]);
+ const allSelf=analysis.source==='self'||(selfFields.length>0&&!valuedVision.length);
+ const fieldsHtml=allSelf
+  ? '<section><h2>مشخصات (پاسخ مشتری)</h2><ul class="kv">'+rel.map(li).join('')+'</ul></section>'
+  : '<section><h2>تحلیل عکس</h2><ul class="kv">'+visionKeys.map(li).join('')+'</ul></section>'
+    +(selfFields.length?'<section><h2>پاسخ مشتری</h2><ul class="kv">'+selfFields.map(li).join('')+'</ul></section>':'');
  const qs=QUESTIONS.filter(q=>answers[q.key]).map(q=>'<li><span>'+esc(q.label)+'</span><b>'+esc(optionLabel(QUESTIONS,q.key,answers[q.key]))+'</b></li>').join('');
  const cards=picks.map(p=>'<article class="pk"><h3>'+esc(p.name)+'</h3><p class="w">'+esc(p.why)+'</p><p class="l">'+esc(p.limit)+'</p></article>').join('');
  const img=row.result_id?'<img src="/share/'+t+'/img" alt="نتیجهٔ ساخته‌شده">':'<p class="muted">هنوز عکسی از این مشاوره ساخته نشده است.</p>';
  const date=new Intl.DateTimeFormat('fa-IR',{dateStyle:'long'}).format(new Date(row.created_at));
- return {status:200,html:page(null,null,'<p class="date">'+esc(date)+' · '+esc(LINE_LABEL[row.line]||'')+'</p>'+'<section><h2>تحلیل</h2><ul class="kv">'+fields+'</ul></section>'+(qs?'<section><h2>پرسش‌نامه</h2><ul class="kv">'+qs+'</ul></section>':'')+'<section><h2>پیشنهادها</h2><div class="pks">'+cards+'</div></section><section><h2>نتیجهٔ تصویر</h2><div class="shot">'+img+'</div></section><footer>این پیشنهادها بر اساس عکس و پاسخ‌های مشتری ساخته شده و جای مشورت حضوری با آرایشگر را نمی‌گیرد؛ نکتهٔ مراقبتی است، تشخیص پزشکی نیست. این لینک یک‌بار مصرف است و تا ۷۲ ساعت معتبر می‌ماند.')};
+ return {status:200,html:page(null,null,'<p class="date">'+esc(date)+' · '+esc(LINE_LABEL[row.line]||'')+'</p>'+fieldsHtml+(qs?'<section><h2>پرسش‌نامه</h2><ul class="kv">'+qs+'</ul></section>':'')+'<section><h2>پیشنهادها</h2><div class="pks">'+cards+'</div></section><section><h2>نتیجهٔ تصویر</h2><div class="shot">'+img+'</div></section><footer>این پیشنهادها بر اساس عکس و پاسخ‌های مشتری ساخته شده و جای مشورت حضوری با آرایشگر را نمی‌گیرد؛ نکتهٔ مراقبتی است، تشخیص پزشکی نیست. این لینک یک‌بار مصرف است و تا ۷۲ ساعت معتبر می‌ماند.')};
 }
 export async function consultShareImage(u,env){
  const t=(u.pathname.split('/')[2]||'').toLowerCase();

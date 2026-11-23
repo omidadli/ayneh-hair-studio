@@ -223,6 +223,42 @@ test('the one-time share link shows the stylist everything and dies after its wi
  assert.equal((await call(e,'/api/s/salon-a/consults/'+id+'/share',{},other)).status,404);
 });
 
+test('her own answers are labelled hers — never a photo analysis — on the share page',async()=>{
+ const e=fixture(),s=await salon(e),g=await verified(e,s);
+ const photo=await upload(e,s,g);
+ // All fields self → one block titled «مشخصات (پاسخ مشتری)», no «تحلیل عکس» anywhere.
+ const self=await call(e,'/api/s/salon-a/consult',{line:'hair',photo_id:photo,analysis:{source:'self',fields:{face_shape:'round',hair_length:'long'},confidence:{}},answers:{}},g);
+ assert.equal(self.status,200,JSON.stringify(self));
+ const sh1=await call(e,'/api/s/salon-a/consults/'+self.data.id+'/share',{},g);
+ const html1=await (await app.fetch(new Request(origin+sh1.data.path),e)).text();
+ assert.match(html1,/مشخصات \(پاسخ مشتری\)/);
+ assert.ok(!html1.includes('<h2>تحلیل عکس</h2>'),'an all-self consultation never claims photo analysis');
+ // Vision with one overridden field → two blocks, each field under its true source.
+ const mixed=await call(e,'/api/s/salon-a/consult',{line:'hair',photo_id:photo,analysis:{source:'vision',fields:{face_shape:'oval',hair_length:'short'},confidence:{face_shape:0.9,hair_length:0.8},low:[],self_keys:['hair_length']},answers:{}},g);
+ assert.equal(mixed.status,200,JSON.stringify(mixed));
+ const stored=JSON.parse(e.DB.sql.prepare('SELECT analysis_json FROM consultations WHERE id=?').get(mixed.data.id).analysis_json);
+ assert.deepEqual(stored.self_keys,['hair_length']);
+ const sh2=await call(e,'/api/s/salon-a/consults/'+mixed.data.id+'/share',{},g);
+ const html2=await (await app.fetch(new Request(origin+sh2.data.path),e)).text();
+ assert.match(html2,/<h2>تحلیل عکس<\/h2>/);
+ assert.match(html2,/<h2>پاسخ مشتری<\/h2>/);
+ const vis=html2.split('<h2>تحلیل عکس</h2>')[1].split('</section>')[0];
+ assert.ok(vis.includes('فرم صورت')&&!vis.includes('طول مو'),'the overridden field is not under the analysis');
+ const cus=html2.split('<h2>پاسخ مشتری</h2>')[1].split('</section>')[0];
+ assert.ok(cus.includes('طول مو'),'her override sits under her answer');
+ // The profile detail (client) reads the same self_keys marker.
+ assert.match(customerHTML,/مشخصات \(پاسخ مشتری\)/);
+ assert.match(customerHTML,/self_keys/);
+});
+
+test('the fallback form lets her skip any field and «بعدی» is never blocked',()=>{
+ // A «نمی‌دونم» chip per field…
+ assert.match(customerHTML,/نمی‌دونم/);
+ // …and Next carries no missing-field disable (only the busy guard).
+ assert.match(customerHTML,/text:'بعدی: پرسش‌نامه',disabled:!!consult\.busy/);
+ assert.doesNotMatch(customerHTML,/بعدی: پرسش‌نامه',disabled:!!miss/);
+});
+
 test('the built result attaches to the consultation and travels through the share image',async()=>{
  const e=fixture(),s=await salon(e),g=await verified(e,s);
  const photo=await upload(e,s,g);

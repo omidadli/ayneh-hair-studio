@@ -1,6 +1,7 @@
 import {draftScript} from './draft.js';
 import {styles} from './legacy.js';
 import {NAIL_STYLES,LASH_STYLES,COLOR_STYLES,COLOR_SWATCHES,LINE_OPTIONS,LINE_COLORS,LINE_POPULAR,LINE_FILTERS,LINE_PHOTO,LINE_LABEL} from './lines.js';
+import {QUESTIONS,ANALYSIS_FIELDS,RELEVANT} from './consult.js';
 const lineJSON=(line,list)=>({styles:list.map(x=>[x[0],x[1],x[2]]),filters:LINE_FILTERS[line],options:(LINE_OPTIONS[line]||[]).map(o=>({key:o.key,label:o.label,items:o.items.map(i=>i[0])})),colors:(LINE_COLORS[line]||[]).map(c=>[c[0],c[1]]),popular:LINE_POPULAR[line]||[]});
 const LINES_JSON=JSON.stringify({label:LINE_LABEL,photo:LINE_PHOTO,color:{...lineJSON('color',COLOR_STYLES),swatches:COLOR_SWATCHES},nails:lineJSON('nails',NAIL_STYLES),lashes:lineJSON('lashes',LASH_STYLES)});
 import {baseCSS,markSVG} from './design.js';
@@ -754,12 +755,52 @@ body.is-studio .result-actions{display:grid;grid-template-columns:repeat(2,minma
 body.is-studio .result-actions>*{width:100%;min-width:0;justify-content:center;white-space:normal;text-align:center}
 body.is-studio .result-actions>:last-child:nth-child(odd){grid-column:1/-1}
 .ico-back{display:inline-flex;transform:scaleX(-1)}.ico-back svg{width:18px;height:18px}.own-ref__go svg{width:18px;height:18px}
+/* ---------- beauty consultant (phase 1): card in the studio, the 3-step sheet, saved list ---------- */
+.consult-card{display:flex;align-items:center;gap:12px;width:100%;margin:0 0 12px;padding:14px;border:1.5px solid var(--accent);border-radius:var(--r);background:var(--accent-soft,#E4F1EC);text-align:start;cursor:pointer;font:inherit;color:var(--ink)}
+.consult-card:hover{border-color:var(--accent-ink)}
+.consult-card__ico{flex:0 0 42px;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--surface);color:var(--accent)}
+.consult-card__ico svg{width:22px;height:22px}
+.consult-card>span:nth-child(2){flex:1;min-width:0}
+.consult-card b{display:block;font-size:14.5px}
+.consult-card small{display:block;font-size:12.5px;color:var(--muted);line-height:1.7}
+.consult-card__go{color:var(--muted)}.consult-card__go svg{width:18px;height:18px}
+.csheet .cphoto{display:flex;gap:12px;align-items:center;margin-bottom:14px}
+.csheet .cphoto img{width:64px;height:80px;object-fit:cover;border-radius:12px;background:var(--surface-2)}
+.csheet .cphoto b{display:block;font-size:14px}
+.csheet .cphoto small{display:block;font-size:12.5px;color:var(--muted)}
+.csteps{display:flex;gap:6px;margin-bottom:16px}
+.cstep{flex:1;text-align:center;font-size:12px;padding:7px 2px;border-radius:var(--r-sm,#10px);background:var(--surface-2);color:var(--ink-3,#9c9186)}
+.cstep.is-on{background:var(--accent-soft);color:var(--accent-ink);font-weight:600}
+.csheet .consult-img{width:100%;border-radius:var(--r-lg);margin-top:8px;display:block}
+.cfield{display:grid;gap:8px;padding:12px;border:1px solid var(--line);border-radius:var(--r);margin-bottom:10px;background:var(--surface)}
+.cfield__top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.cfield__top b{font-size:13.5px}
+.cconf{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--accent-soft,#E4F1EC);color:var(--accent-ink,#0b5c46);white-space:nowrap}
+.cconf.is-low{background:var(--warn-soft);color:var(--warn)}
+.cfield__hint{font-size:12px;color:var(--muted);line-height:1.7}
+.cchips{display:flex;flex-wrap:wrap;gap:6px}
+.cpick{border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:10px;background:var(--surface);display:grid;gap:6px}
+.cpick>b{font-size:15.5px;font-weight:800}
+.cpick .why{font-size:13.5px;line-height:1.8;color:var(--ink-2)}
+.cpick .lim{font-size:13px;line-height:1.8;color:var(--warn);background:var(--warn-soft);border-radius:10px;padding:8px 10px}
+.cpick .btn{margin-top:4px;justify-self:start}
+.clist{display:grid;gap:8px}
+.clist__row{display:flex;gap:12px;align-items:center;width:100%;padding:12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);text-align:start;cursor:pointer;font:inherit;color:var(--ink)}
+.clist__row:hover{border-color:var(--accent)}
+.clist__row img{width:48px;height:60px;object-fit:cover;border-radius:10px;background:var(--surface-2);flex:0 0 auto}
+.clist__row>span{flex:1;min-width:0}
+.clist__row b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.clist__row small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.clist__row .ico{color:var(--muted)}.clist__row .ico svg{width:18px;height:18px}
+/* five profile tabs must stay readable at 390px */
+.profile__sec .seg button{font-size:12.5px;padding:0 4px;white-space:normal;line-height:1.3}
 `;
 
 const clientJS=String.raw`
 var STYLES=__STYLES__;
 var LINES=__LINES__;
 var MARK=__MARK__;
+var CONSULT=__CONSULT__;
 var EMBED=/[?&]embed=1(?:&|$)/.test(location.search);if(EMBED)document.body.classList.add('embedded-demo');
 /* Embedded on the landing page: report the height of what is actually on screen, so the
    frame there can be exactly as tall as this page instead of putting one scrollbar inside
@@ -1094,11 +1135,26 @@ function profilePage(card){
   var w=el('div',{class:'wallet',id:'wallet'});
   var walletBox=el('section',{class:'panel profile__sec'},[el('div',{class:'profile__sechead'},[el('h2',{text:'کیف سکه'})]),w]);
   var tabsBar=el('div',{class:'seg',role:'tablist'}),tabBody=el('div',{class:'profile__tab'});
-  var TABS=[['album','آلبوم'],['saved','ذخیره‌ها'],['liked','پسندیده‌ها'],['history','تراکنش‌ها']],cur='album';
+  var TABS=[['album','آلبوم'],['saved','ذخیره‌ها'],['liked','پسندیده‌ها'],['consult','مشاوره‌های من'],['history','تراکنش‌ها']],cur='album';
   function drawTabs(){
    tabsBar.replaceChildren.apply(tabsBar,TABS.map(function(t){return el('button',{type:'button',role:'tab','aria-selected':String(cur===t[0]),text:t[1],onclick:function(){cur=t[0];drawTabs()}})}));
    if(cur==='album')tabBody.replaceChildren(looks&&looks.length?el('div',{class:'pgrid'},looks.map(function(l){return el('button',{class:'pgrid__item',type:'button',onclick:function(){openLook(l)}},[el('img',{src:media(l.image),alt:'',loading:'lazy'}),el('span',{},[el('b',{text:lookTitle(l)}),el('small',{text:LINES.label[l.line]+'، '+lookDate(l.at)})])])})):empty('هنوز عکسی نساختی','از استودیو یک مدل انتخاب کن و روی عکس خودت ببین.','/','رفتن به استودیو'));
    else if(cur==='saved'||cur==='liked'){var lk=cur==='liked',items=(lk?saves.liked:saves.saved||[]).map(itemOf).filter(Boolean);tabBody.replaceChildren(items.length?el('div',{class:'pgrid'},items.map(function(it){return el('a',{class:'pgrid__item',href:'/?l='+it.line+'&pick='+it.i},[el('img',{src:it.img,alt:'',loading:'lazy'}),el('span',{},[el('b',{text:it.name}),el('small',{text:LINES.label[it.line]})])])})):empty(lk?'هنوز مدلی نپسندیدی':'هنوز چیزی ذخیره نکردی',lk?'روی قلب کنار هر مدل بزن تا اینجا بماند.':'روی نشان ذخیره کنار هر مدل بزن تا اینجا بماند.','/','دیدن مدل‌ها'))}
+   else if(cur==='consult'){
+    tabBody.replaceChildren(el('p',{class:'muted',text:'در حال بارگذاری…'}));
+    api('consults').then(function(d){
+     if(cur!=='consult')return;
+     var items=(d&&d.consultations)||[];
+     if(!items.length){tabBody.replaceChildren(empty('هنوز مشاوره‌ای ذخیره نکردی','در استودیو «نمی‌دونی چی بهت میاد؟ تحلیلش کنیم» را بزن و پیشنهادها را ببین.','/','رفتن به استودیو'));return}
+     tabBody.replaceChildren(el('div',{class:'clist'},items.map(function(c){
+      return el('button',{class:'clist__row',type:'button',onclick:function(){openConsultDetail(c.id)}},[
+       c.result_id?el('img',{src:media(c.result_id),alt:'',loading:'lazy'}):el('span',{class:'consult-card__ico',html:ICO.spark}),
+       el('span',{},[el('b',{text:c.top||LINES.label[c.line]}),el('small',{text:LINES.label[c.line]+'، '+lookDate(c.at)})]),
+       el('span',{class:'ico',html:ICO.arrow})
+      ]);
+     })));
+    }).catch(function(e){if(cur==='consult')tabBody.replaceChildren(el('p',{class:'hint',text:e.message}))});
+   }
    else tabBody.replaceChildren(me.history&&me.history.length?el('ul',{class:'ledger'},me.history.map(function(x){var plus=x.coins>0;return el('li',{},[el('span',{class:'ledger__ico'+(plus?' is-plus':''),html:plus?COIN:ICO.spark}),el('span',{class:'ledger__txt'},[el('b',{text:x.views?'نمای ۳۶۰ درجه'+(x.kind==='gift'?' (هدیه)':''):x.kind==='gift'?'عکس هدیه، '+(LINES.label[x.line]||''):x.kind==='image'?'ساخت عکس، '+(LINES.label[x.line]||''):x.kind==='referral'?'هدیهٔ دعوت دوست':x.kind==='owner'?'هدیهٔ آینه':'شارژ کیف سکه'}),el('small',{text:lookDate(x.at)})]),el('b',{class:'ledger__amt'+(plus?' is-plus':''),dir:'ltr',text:x.kind==='gift'?'هدیه':(plus?'+':'−')+fa(Math.abs(x.coins))})])})):empty('هنوز تراکنشی نداری','هر عکسی که بسازی یا هر شارژی که انجام بدهی اینجا ثبت می‌شود.'));
   }
   function stat(v,l){return el('div',{class:'profile__stat'},[el('b',{html:v}),el('span',{text:l})])}
@@ -1564,6 +1620,7 @@ function stepModel(){
  box.append(flowHead(MODEL_HEAD[L][0],L==='hair'&&state.pub.demo?'مدل مو و رنگ دلخواهت را انتخاب کن؛ هر دو روی همین عکس خودت ساخته می‌شوند.':own?MODEL_HEAD[L][1]:MODEL_HEAD[L][1].replace('از کارهای همین سالن، ','از ')));
  if(quotaLeft()===0&&!state.tourDemo){box.append(notice('warn',quotaOut()));if(studio()){}else if(window.AynehPacks)box.append(window.AynehPacks.button())}
  if(state.demoOut){box.append(notice('info','نمونهٔ رایگانتان را ساختید. برای عکس‌های بیشتر به استودیوی آینه بروید؛ ۲ عکس اول آنجا هم هدیه است.'));box.append(el('a',{class:'btn btn--primary btn--block',href:location.protocol+'//'+location.host.replace(/^business\./,'')+'/?l='+L,target:'_top',text:'ثبت‌نام و شارژ حساب'}))}
+ if(studio()&&!STUDIO_PREVIEW)box.append(consultCard());
  if(L==='color'){var bc=baseChooser();if(bc)box.append(bc)}
  var seg=el('div',{class:'seg',role:'tablist'});
  [['salon',0],['catalog',1],['upload',2]].filter(function(x){return x[0]!=='salon'||own}).forEach(function(x){
@@ -2226,6 +2283,9 @@ function poll(id,resumed,line){
     track('result','',true);
     if(window.__trialLeft)window.__trialLeft();
     L().result=d.result_id;if(line===state.line)L().seen=d.result_id;setTimeout(keepStudio,0);L().resultBase=L().genBase||null;L().busy=false;L().idem=null;state.session=false;loadSession().catch(function(){});
+    /* A saved consultant attaches the image she built from its picks — only while it is still
+       the same photo she had analysed. */
+    if(consult&&consult.savedId&&consult.line===line&&consult.photo===lineRef(line).original)api('consults/'+consult.savedId+'/result',{result_id:d.result_id}).catch(function(){});
     try{sessionStorage.removeItem('ayneh-job-'+SLUG+'-'+line)}catch(e){}
     L().rating=(function(){try{return Number(localStorage.getItem('ayneh-rating-'+d.result_id)||0)}catch(e){return 0}})();
     paint();if(line===state.line)setTimeout(function(){var c=$('#flow .compare');if(c&&c.getBoundingClientRect().bottom>innerHeight){var bar=$('#steps'),off=bar?bar.getBoundingClientRect().height+12:12;scrollTo({top:c.getBoundingClientRect().top+pageYOffset-off,behavior:'smooth'})}},120);
@@ -2726,6 +2786,237 @@ function openAsk(){
  openSheet(panel);
 }
 
+/* ---------- consultant: card in the studio → 3-step sheet → save/share ---------- */
+var consult=null,consultPanel=null;
+function consultCard(){
+ return el('button',{class:'consult-card',type:'button',onclick:function(){openConsult()}},[
+  el('span',{class:'consult-card__ico',html:ICO.spark}),
+  el('span',{},[el('b',{text:'نمی‌دونی چی بهت میاد؟ تحلیلش کنیم'}),el('small',{text:'عکست را تحلیل می‌کنیم، چند سؤال می‌پرسیم و ۳ تا پیشنهاد از همین بخش می‌دهیم.'})]),
+  el('span',{class:'consult-card__go',html:ICO.arrow})
+ ]);
+}
+function openConsult(){
+ if(!state.original){toast('اول عکس خودت را اضافه کن');return}
+ consult={step:1,line:state.line,photo:state.original,analysis:null,picked:{},answers:{},picks:null,savedId:null,busy:false,self:false,tried:false,note:''};
+ track('consult',state.line);
+ consultPanel=el('div',{class:'sheet__panel csheet'});
+ openSheet(consultPanel);
+ consultDraw();
+}
+function consultRel(){return CONSULT.r[consult.line]||[]}
+function consultEffFields(){
+ var out={},rel=consultRel(),f=(consult.analysis&&consult.analysis.fields)||{},low=(consult.analysis&&consult.analysis.low)||[];
+ rel.forEach(function(k){
+  if(consult.picked[k]!=null){out[k]=consult.picked[k];return}
+  var v=f[k];
+  if(v&&low.indexOf(k)<0)out[k]=v;
+ });
+ return out;
+}
+function consultFieldDef(k){var out=null;CONSULT.f.forEach(function(x){if(x.key===k)out=x});return out}
+function consultOptLabel(def,val){var out=val;((def&&def.options)||[]).forEach(function(o){if(o[0]===val)out=o[1]});return out}
+function consultDraw(){
+ var p=consultPanel;if(!p||!consult)return;
+ p.replaceChildren();
+ p.append(el('div',{class:'sheet__head'},[h('h2','نمی‌دونی چی بهت میاد؟ تحلیلش کنیم'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]));
+ p.append(el('div',{class:'csteps'},[['تحلیل',1],['پرسش‌نامه',2],['پیشنهاد',3]].map(function(x){return el('span',{class:'cstep'+(consult.step>=x[1]?' is-on':''),text:x[0]})})));
+ if(consult.step===1)consultStep1(p);
+ else if(consult.step===2)consultStep2(p);
+ else consultStep3(p);
+}
+function consultStep1(p){
+ p.append(el('div',{class:'cphoto'},[el('img',{src:state.preview||media(consult.photo),alt:''}),el('div',{},[el('b',{text:'عکس خودت'}),el('small',{text:LINES.label[consult.line]})])]));
+ if(consult.note)p.append(el('p',{class:'cfield__hint',text:consult.note}));
+ if(!consult.analysis&&!consult.self){
+  p.append(el('button',{class:'btn btn--primary btn--block',type:'button',disabled:!!consult.busy,text:consult.busy?'در حال تحلیل…':'شروع تحلیل',onclick:function(){consultAnalyze()}}));
+  p.append(el('p',{class:'cfield__hint',text:'عکست را تحلیل می‌کنیم و ویژگی‌هایش را حدس می‌زنیم؛ هر فیلد کم‌اطمینان را خودت جواب می‌دهی.چیزی ذخیره نمی‌شود مگر خودت بخواهی.'}));
+  return;
+ }
+ var rel=consultRel(),f=(consult.analysis&&consult.analysis.fields)||{},low=(consult.analysis&&consult.analysis.low)||[];
+ rel.forEach(function(k){
+  var def=consultFieldDef(k);if(!def)return;
+  var pickedVal=consult.picked[k],modelVal=f[k];
+  /* A low-confidence (or missing) field is never preselected: the sheet asks her, and the
+     model's guess only travels as a hint. effFields() ignores it until she taps. */
+  var isLow=pickedVal==null&&(low.indexOf(k)>=0||!modelVal);
+  var v=pickedVal!=null?pickedVal:(isLow?null:modelVal);
+  var top=el('div',{class:'cfield__top'},[el('b',{text:def.label})]);
+  if(isLow)top.append(el('span',{class:'cconf is-low',text:consult.self?'بدون تحلیل':'کم‌اطمینان'}));
+  else if(v!=null){
+   var conf=((consult.analysis&&consult.analysis.confidence)||{})[k];
+   if(conf!=null)top.append(el('span',{class:'cconf',text:fa(Math.round(conf*100))+'٪'}));
+  }
+  var box=el('div',{class:'cfield'},[top]);
+  if(isLow)box.append(el('span',{class:'cfield__hint',text:modelVal?('خودت انتخاب کن — پیشنهاد: '+consultOptLabel(def,modelVal)):'خودت انتخاب کن'}));
+  var chips=el('div',{class:'cchips'});
+  def.options.forEach(function(o){
+   var on=v===o[0];
+   var b=el('button',{class:'chip'+(on?' is-on':''),type:'button','aria-pressed':on?'true':'false',text:o[1]});
+   b.addEventListener('click',function(){consult.picked[k]=o[0];consultDraw()});
+   chips.append(b);
+  });
+  box.append(chips);
+  p.append(box);
+ });
+ var miss=rel.filter(function(k){return consultEffFields()[k]==null});
+ p.append(el('button',{class:'btn btn--primary btn--block',type:'button',text:'بعدی: پرسش‌نامه',disabled:!!miss.length||!!consult.busy,onclick:function(){consult.step=2;consultDraw()}}));
+ if(miss.length)p.append(el('p',{class:'cfield__hint',text:'چند گزینه را هنوز انتخاب نکردی.'}));
+}
+function consultStep2(p){
+ p.append(el('p',{class:'cfield__hint',text:'هر کدام را نخواستی رد کن؛ هرچه بیشتر بگویی، پیشنهادها دقیق‌تر می‌شود.'}));
+ CONSULT.q.forEach(function(q){
+  var box=el('div',{class:'cfield'},[el('div',{class:'cfield__top'},[el('b',{text:q.label})])]);
+  var chips=el('div',{class:'cchips'}),cur=consult.answers[q.key];
+  q.options.forEach(function(o){
+   var on=cur===o[0];
+   var b=el('button',{class:'chip'+(on?' is-on':''),type:'button','aria-pressed':on?'true':'false',text:o[1]});
+   b.addEventListener('click',function(){
+    if(consult.answers[q.key]===o[0])delete consult.answers[q.key];else consult.answers[q.key]=o[0];
+    consultDraw();
+   });
+   chips.append(b);
+  });
+  box.append(chips);
+  p.append(box);
+ });
+ p.append(el('button',{class:'btn btn--ghost btn--block',type:'button',text:'برگشت',onclick:function(){consult.step=1;consultDraw()}}));
+ p.append(el('button',{class:'btn btn--primary btn--block',type:'button',disabled:!!consult.busy,text:consult.busy?'در حال محاسبه…':'پیشنهادها را ببین',onclick:function(){consultSuggest()}}));
+}
+function consultStep3(p){
+ if(!consult.picks&&!consult.busy&&!consult.tried){
+  consult.busy=true;consult.tried=true;consultDraw();
+  consultSuggest();
+  return;
+ }
+ if(!consult.picks&&consult.busy){
+  p.append(el('p',{class:'muted',text:'داریم پیشنهادها را آماده می‌کنیم…'}));
+  return;
+ }
+ if(consult.note&&!(consult.picks&&consult.picks.length))p.append(el('p',{class:'cfield__hint',text:consult.note}));
+ if(consult.picks&&consult.picks.length){
+  consult.picks.forEach(function(pk,i){
+   p.append(el('div',{class:'cpick'},[
+    el('b',{text:pk.name}),
+    el('span',{class:'why',text:'چرا به تو میاد: '+pk.why}),
+    el('span',{class:'lim',text:'محدودیت اجرا: '+pk.limit}),
+    el('button',{class:'btn btn--soft btn--sm',type:'button',text:'روی عکسم بساز',onclick:function(){consultBuild(i)}})
+   ]));
+  });
+ }else{
+  p.append(el('p',{class:'muted',text:'پیشنهادی پیدا نشد؛ چند گزینه را عوض کن و دوباره ببین.'}));
+  p.append(el('button',{class:'btn btn--soft btn--block',type:'button',text:'دوباره امتحان کن',onclick:function(){consult.picks=null;consult.tried=false;consult.note='';consultDraw()}}));
+  p.append(el('button',{class:'btn btn--ghost btn--block',type:'button',text:'برگشت به پرسش‌نامه',onclick:function(){consult.step=2;consultDraw()}}));
+  return;
+ }
+ p.append(el('button',{class:'btn btn--ghost btn--block',type:'button',text:'برگشت به پرسش‌نامه',onclick:function(){consult.step=2;consultDraw()}}));
+ if(consult.savedId){
+  p.append(notice('ok','ذخیره شد؛ در پروفایلت می‌بینی.'));
+  p.append(el('button',{class:'btn btn--soft btn--block',type:'button',text:'لینک یک‌بارمصرف برای آرایشگر',onclick:function(){consultShareLink()}}));
+ }else{
+  p.append(el('button',{class:'btn btn--primary btn--block',type:'button',disabled:!!consult.busy,text:consult.busy?'در حال ذخیره…':'ذخیره در مشاوره‌های من',onclick:function(){consultSave()}}));
+ }
+}
+function consultAnalyze(){
+ if(!consult||consult.busy)return;
+ consult.busy=true;consultDraw();
+ ensureSession().then(function(){return api('consult/analyze',{photo_id:consult.photo,line:consult.line})})
+ .then(function(d){
+  consult.busy=false;
+  if(d&&d.ok){consult.analysis={fields:d.fields||{},confidence:d.confidence||{},low:d.low||[]};consult.picked={};consult.note=d.cached?'تحلیل از قبل داشتیم؛ همان را می‌بینی.':''}
+  else{consult.self=true;consult.note='تحلیل عکس در دسترس نیست؛ خودت جواب بده.'}
+  consultDraw();
+ })
+ .catch(function(e){
+  consult.busy=false;consult.self=true;
+  consult.note=(e&&e.message)||'تحلیل عکس در دسترس نیست؛ خودت جواب بده.';
+  consultDraw();
+ });
+}
+function consultSuggest(){
+ if(!consult)return;
+ if(!consult.busy){consult.busy=true;consultDraw()}
+ var body={line:consult.line,analysis:{fields:consultEffFields(),confidence:(consult.analysis&&consult.analysis.confidence)||{}},answers:consult.answers};
+ ensureSession().then(function(){return api('consult/suggest',body)})
+ .then(function(d){consult.busy=false;consult.picks=(d&&d.picks)||[];consult.step=3;consultDraw()})
+ .catch(function(e){consult.busy=false;consult.picks=[];consult.note=(e&&e.message)||'';consult.step=3;consultDraw()});
+}
+function consultSave(){
+ if(!consult)return;
+ if(!state.verified){
+  openSignin(function(){openSheet(consultPanel);consultDraw();consultSave()},state.me&&state.me.phone?'login':'signup','ذخیرهٔ مشاوره مخصوص حساب توست؛ در پروفایلت می‌ماند و لینکش را برای آرایشگرت می‌فرستی.');
+  return;
+ }
+ if(consult.busy)return;
+ consult.busy=true;consultDraw();
+ var body={line:consult.line,photo_id:consult.photo,analysis:{source:consult.self?'self':'vision',fields:consultEffFields(),confidence:(consult.analysis&&consult.analysis.confidence)||{},low:(consult.analysis&&consult.analysis.low)||[]},answers:consult.answers};
+ var res=lineRef(consult.line).result;if(res)body.result_id=res;
+ ensureSession().then(function(){return api('consult',body)})
+ .then(function(d){
+  consult.busy=false;consult.savedId=d.id;
+  if(d.picks&&d.picks.length)consult.picks=d.picks;
+  track('consult_save',consult.line);
+  consultDraw();toast('ذخیره شد؛ در پروفایلت می‌بینی');
+ })
+ .catch(function(e){consult.busy=false;consultDraw();toast((e&&e.message)||'ذخیره نشد؛ دوباره امتحان کن','error')});
+}
+function consultShareLink(){
+ if(!consult||!consult.savedId)return;
+ var id=consult.savedId;
+ ensureSession().then(function(){return api('consults/'+id+'/share',{})})
+ .then(function(d){
+  var url=location.origin+d.path;
+  return copyText(url).then(function(){toast('لینک کپی شد؛ فقط یک بار باز می‌شود')},function(){toast(url)});
+ })
+ .catch(function(e){toast((e&&e.message)||'لینک ساخته نشد','error')});
+}
+function consultBuild(i){
+ var pk=consult&&consult.picks&&consult.picks[i];if(!pk)return;
+ closeSheet();
+ track('look',lookPrefix()+pk.index);
+ if(state.line==='color')track('color',pk.name);
+ chooseLook(function(){
+  state.style=pk.index;state.custom='';state.reference=null;state.refTitle='';
+  if(state.line==='color')state.color='';
+ });
+}
+function openConsultDetail(id){
+ var panel=el('div',{class:'sheet__panel csheet'});
+ openSheet(panel);
+ panel.replaceChildren(el('div',{class:'sheet__head'},[h('h2','مشاوره'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),el('p',{class:'muted',text:'در حال بارگذاری…'}));
+ api('consults/'+id).then(function(d){
+  if(!panel.isConnected)return;
+  panel.replaceChildren(el('div',{class:'sheet__head'},[h('h2','مشاورهٔ '+LINES.label[d.line]),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]));
+  var rel=CONSULT.r[d.line]||[],fields=(d.analysis&&d.analysis.fields)||{};
+  var rows=rel.filter(function(k){return fields[k]}).map(function(k){
+   var def=consultFieldDef(k);
+   return el('div',{class:'cfield__top'},[el('b',{text:def?def.label:k}),el('span',{class:'muted',text:consultOptLabel(def,fields[k])})]);
+  });
+  if(rows.length)panel.append(el('div',{class:'cfield'},[el('div',{class:'cfield__top'},[el('b',{text:'تحلیل عکس'})])].concat(rows)));
+  var ans=d.answers||{},qrows=CONSULT.q.filter(function(q){return ans[q.key]}).map(function(q){
+   return el('div',{class:'cfield__top'},[el('b',{text:q.label}),el('span',{class:'muted',text:consultOptLabel(q,ans[q.key])})]);
+  });
+  if(qrows.length)panel.append(el('div',{class:'cfield'},[el('div',{class:'cfield__top'},[el('b',{text:'پرسش‌نامه'})])].concat(qrows)));
+  (d.picks||[]).forEach(function(pk){
+   panel.append(el('div',{class:'cpick'},[
+    el('b',{text:pk.name}),
+    el('span',{class:'why',text:'چرا به تو میاد: '+pk.why}),
+    el('span',{class:'lim',text:'محدودیت اجرا: '+pk.limit})
+   ]));
+  });
+  if(d.result_id)panel.append(el('img',{class:'consult-img',src:media(d.result_id),alt:'نتیجهٔ ساخته‌شده'}));
+  panel.append(el('button',{class:'btn btn--primary btn--block',type:'button',text:'لینک یک‌بارمصرف برای آرایشگر',onclick:function(e){
+   var b=e.currentTarget;b.disabled=true;b.textContent='در حال ساخت لینک…';
+   api('consults/'+id+'/share',{}).then(function(r){
+    var url=location.origin+r.path;
+    return copyText(url).then(function(){b.textContent='لینک کپی شد ✓';toast('لینک کپی شد؛ فقط یک بار باز می‌شود')},function(){b.disabled=false;b.textContent='لینک یک‌بارمصرف برای آرایشگر';toast(url)});
+   }).catch(function(err){b.disabled=false;b.textContent='لینک یک‌بارمصرف برای آرایشگر';toast((err&&err.message)||'لینک ساخته نشد','error')});
+  }}));
+ }).catch(function(e){
+  if(!panel.isConnected)return;
+  panel.replaceChildren(el('div',{class:'sheet__head'},[h('h2','مشاوره'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),el('p',{class:'hint',text:(e&&e.message)||'پیدا نشد'}));
+ });
+}
+
 /* ---------- sheet ---------- */
 function openSheet(node){
  var d=$('#sheet');
@@ -2774,4 +3065,4 @@ export const customerHTML=String.raw`<!doctype html><html lang="fa" dir="rtl"><h
 <script>__JS__</script>
 </body></html>`
  .replace('__CSS__',()=>baseCSS+customerCSS+embeddedCSS)
- .replace('__JS__',()=>draftScript+';'+clientJS.replace('__STYLES__',()=>JSON.stringify(styles)).replace('__LINES__',()=>LINES_JSON).replace('__MARK__',()=>JSON.stringify(markSVG)));
+ .replace('__JS__',()=>draftScript+';'+clientJS.replace('__STYLES__',()=>JSON.stringify(styles)).replace('__LINES__',()=>LINES_JSON).replace('__MARK__',()=>JSON.stringify(markSVG)).replace('__CONSULT__',()=>JSON.stringify({q:QUESTIONS,f:ANALYSIS_FIELDS,r:RELEVANT})));

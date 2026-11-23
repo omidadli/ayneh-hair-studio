@@ -9,6 +9,7 @@ import {fontResponse} from './fonts.js';
 import {webhook,baleWebhook} from './telegram.js';
 import {favicon,baseCSS} from './design.js';
 import {sharePage} from './share.js';
+import {consultShare,consultShareImage} from './consult.js';
 import {landingHTML,servicePages} from './landing.js';
 import {packsTag} from './regularpage.js';
 import {isBiz,bizOrigin,mainOrigin} from './hosts.js';
@@ -18,7 +19,7 @@ import {refCookie} from './rewards.js';
 import {iphonePage} from './payapp.js';
 const htmlHeaders={'Content-Type':'text/html;charset=utf-8','Cache-Control':'no-store','Referrer-Policy':'no-referrer','X-Content-Type-Options':'nosniff','X-Frame-Options':'DENY','Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; font-src 'self' data:; media-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",'Permissions-Policy':'camera=(self), geolocation=(), microphone=()'};
 // Only real pages are served the app shell; everything else is a 404, never a blank app page.
-const pages=[/^\/admin\/?$/,/^\/admin\/[a-z0-9-]{1,64}\/?$/,/^\/s\/[a-z0-9-]{1,64}\/?$/,/^\/i\/[a-z0-9-]{1,64}\/?$/,/^\/panel\/?$/,/^\/pay\/?$/,/^\/signin-with-chatgpt(\/.*)?$/];
+const pages=[/^\/admin\/?$/,/^\/admin\/[a-z0-9-]{1,64}\/?$/,/^\/s\/[a-z0-9-]{1,64}\/?$/,/^\/i\/[a-z0-9-]{1,64}\/?$/,/^\/panel\/?$/,/^\/pay\/?$/,/^\/signin-with-chatgpt(\/.*)?$/,/^\/share\/[a-f0-9]{64}(\/img)?\/?$/];
 const notFound='<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#e8edeb"><link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/site.webmanifest"><title>صفحه پیدا نشد | آینه</title><style>'+baseCSS+'.nf{min-height:100vh;display:grid;place-items:center;padding:32px 20px;text-align:center}.nf main{display:grid;justify-items:center;gap:18px;max-width:420px}.nf .mirror{width:150px}.nf .mirror__glass{aspect-ratio:3/4}.nf h1{font-family:var(--display);font-weight:800;font-size:32px}.nf p{color:var(--muted);line-height:2}</style></head><body class="nf"><main><div class="mirror"><div class="mirror__glass"></div></div><h1>این صفحه پیدا نشد</h1><p>نشانی اشتباه است یا صفحهٔ سالن برداشته شده. لینک اختصاصی سالن را دوباره باز کنید.</p><a class="btn btn--primary" href="/">صفحهٔ اصلی آینه</a></main></body></html>';
 // Link previews (Telegram, WhatsApp, Instagram, iMessage) read these tags, so each salon page
 // carries its own name, description and cover instead of the generic Ayneh ones.
@@ -97,7 +98,7 @@ export default {
   const biz=isBiz(u),M=mainOrigin(u,env),B=bizOrigin(u,env);
   const page=(html,canon,extra={})=>new Response(html.replaceAll('__ORIGIN__',B).replaceAll('__MAIN__',M).replaceAll('__CANON__',canon),{headers:{...htmlHeaders,'Cache-Control':'no-cache',...refCookie(u,request),...extra}});
   /* Search engines: each side lists its own public pages; panels, the console, the API and salon pages stay out. */
-  if(u.pathname==='/robots.txt')return new Response('User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /panel\nDisallow: /pay\nDisallow: /new\nDisallow: /s/\nDisallow: /app\n\nSitemap: '+(biz?B:M)+'/sitemap.xml\n',{headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'public,max-age=3600'}});
+  if(u.pathname==='/robots.txt')return new Response('User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /panel\nDisallow: /pay\nDisallow: /new\nDisallow: /s/\nDisallow: /share/\nDisallow: /app\n\nSitemap: '+(biz?B:M)+'/sitemap.xml\n',{headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'public,max-age=3600'}});
   if(u.pathname==='/sitemap.xml'){const o=biz?B:M,list=biz?['/','/hair','/color','/nails','/lashes','/salon-panel','/sample']:['/'];return new Response('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+list.map(p=>'<url><loc>'+o+p+'</loc></url>').join('\n')+'\n</urlset>\n',{headers:{'Content-Type':'application/xml; charset=utf-8','Cache-Control':'public,max-age=3600'}});}
   const svc=u.pathname.match(/^\/(hair|color|nails|lashes|salon-panel|sample)\/?$/);
   if(biz){
@@ -132,6 +133,10 @@ export default {
   if(/^\/app\/?$/.test(u.pathname)){let ver='';try{const r=env.ASSETS?await env.ASSETS.fetch(new Request(u.origin+'/app/version.txt')):null;if(r&&r.ok)ver=(await r.text()).trim().slice(0,20)}catch{}return new Response(appPage(!!ver,ver),{headers:{...htmlHeaders,'X-Robots-Tag':'noindex'}});}
   if(!pages.some(r=>r.test(u.pathname)))return new Response(notFound,{status:404,headers:htmlHeaders});
   if(/^\/i\/[a-z0-9-]{1,64}\/?$/.test(u.pathname)){const html=await sharePage(u,env);return new Response(html||notFound,{status:html?200:404,headers:htmlHeaders});}
+ /* The consultant's one-time link for the stylist (worker/consult.js): consumed on first
+    view, dead after the grace window or 72 hours; never indexed, never cached. */
+ if(/^\/share\/[a-f0-9]{64}\/?$/.test(u.pathname)){const r=await consultShare(u,env);return new Response(r.html||notFound,{status:r.status,headers:{...htmlHeaders,'Cache-Control':'no-store','X-Robots-Tag':'noindex'}});}
+ if(/^\/share\/[a-f0-9]{64}\/img\/?$/.test(u.pathname))return consultShareImage(u,env);
   if(/^\/s\/[a-z0-9-]{1,64}\/?$/.test(u.pathname)){const html=await salonPage(u,env);return html?new Response(html,{headers:{...htmlHeaders,'X-Frame-Options':'SAMEORIGIN','Content-Security-Policy':htmlHeaders['Content-Security-Policy'].replace("frame-ancestors 'none'","frame-ancestors 'self'")}}):new Response(notFound,{status:404,headers:htmlHeaders});}
   return new Response(appHTML,{headers:htmlHeaders});
  }catch(e){return errorResponse(e)}},

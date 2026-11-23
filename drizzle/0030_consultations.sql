@@ -1,0 +1,24 @@
+-- Phase 1 — the beauty consultant. Additive only: consultations (saved analyses with the
+-- customer's answers and ranked picks) plus ai_cache (dedup for vision results, keyed by a
+-- hash of the photo bytes — never stores the photo itself).
+CREATE TABLE IF NOT EXISTS consultations(
+  id TEXT PRIMARY KEY,
+  salon_id TEXT NOT NULL,
+  owner TEXT NOT NULL, -- verified mobile only; guests never get a row (their result stays in-session)
+  line TEXT NOT NULL,
+  photo_id TEXT,
+  analysis_json TEXT,
+  answers_json TEXT,
+  picks_json TEXT,
+  result_id TEXT, -- the image she built from a pick, attached after generation
+  share_hash TEXT, -- one-time stylist link: hash of the token, never the token itself
+  share_expires INTEGER,
+  share_used_at INTEGER,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS consultations_owner ON consultations(salon_id, owner, created_at);
+CREATE TABLE IF NOT EXISTS ai_cache(
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);

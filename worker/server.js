@@ -25,6 +25,12 @@ import {spendDemoImage} from './demo.js';
 import {recordTiming} from './timing.js';
 import {attachReferral,refOf} from './rewards.js';
 import {IMAGE_COINS} from './customerprices.js';
+/* Every model call (image jobs and the consultant's vision chat) lives in worker/ai.js:
+   one provider door, one rate limiter, one result cache. */
+import {createImageTask,uploadProvider,IMAGE_MODELS,recordInfo} from './ai.js';
+export {IMAGE_MODELS};
+/* The beauty consultant (phase 1): routes + the stylist's one-time share page. */
+import {consultApi} from './consult.js';
 export {putImage};
 
 const J=(v,s=200,h={})=>new Response(JSON.stringify(v),{status:s,headers:{'Content-Type':'application/json;charset=utf-8','Cache-Control':'no-store',...h}});
@@ -85,7 +91,7 @@ const visitorOf=b=>/^[a-f0-9]{16,32}$/.test(String(b?.v||''))?String(b.v):'';
 const refLink=(env,origin,salon,t)=>(env.APP_ORIGIN||origin)+'/s/'+salon.slug+'?r='+t.ref_code;
 async function teamView(db,env,salon,origin){return Promise.all((await teamOf(db,salon.id)).map(async t=>{const pt=await pendingTransfer(db,salon.id,t.id);return {id:t.id,name:t.name,specialty:t.specialty,telegram:!!t.telegram_chat_id,bale:!!t.bale_chat_id,invite_pending:!!t.invite_hash&&t.invite_expires>Date.now(),ref:refLink(env,origin,salon,t),transfer:pt?{id:pt.id,to:pt.to_staff,expires_at:pt.expires_at,asked:!!pt.notified}:null}}))}
 // Anonymous usage events for the dashboard. The visitor id is random and made by the browser.
-export const TRACK_KINDS=['view','tour_start','tour_done','tour_skip','about','photo','look','color','generate','result','gen_fail','view360','send_open','sent','follow','rating','demo','share_open','share','line','color_on_hair','save','wallet','cta'];
+export const TRACK_KINDS=['view','tour_start','tour_done','tour_skip','about','photo','look','color','generate','result','gen_fail','view360','send_open','sent','follow','rating','demo','share_open','share','line','color_on_hair','save','wallet','cta','consult','consult_save'];
 export async function logEvent(db,salonId,kind,visitor='',meta=''){await run(db,'INSERT INTO events_log(id,salon_id,visitor,kind,meta,created_at) VALUES(?,?,?,?,?,?)',uid(),salonId,/^[a-f0-9]{16,32}$/.test(visitor)?visitor:'',kind,String(meta||'').slice(0,80),Date.now())}
 // Ayneh's own pages (the visitor demo and the /try direct salon) show as «سالن آینه» with the site's
 // logo and cover (owner's decision); the URLs are static assets, never a customer upload.
@@ -118,6 +124,7 @@ async function cleanup(env){const now=Date.now();
  await run(env.DB,'DELETE FROM events_log WHERE created_at<?',now-400*86400000);
  await run(env.DB,'DELETE FROM bot_seen WHERE created_at<?',now-3*86400000);
  await run(env.DB,'DELETE FROM activity WHERE created_at<?',now-400*86400000);
+ await run(env.DB,'DELETE FROM ai_cache WHERE created_at<?',now-30*86400000);
  return {media:0,leads:0};
 }
 export async function tick(env,origin){if(!env.DB)return {ready:false};const delivered=await deliverPending(env,origin);
@@ -129,15 +136,6 @@ export async function tick(env,origin){if(!env.DB)return {ready:false};const del
  const unanswered=await alertUnanswered(env).catch(e=>{console.error('unanswered',e?.message);return 0});
  const digestSent=await maybeDigest(env).catch(e=>{console.error('digest',e?.message);return false});
  const cleaned=await cleanup(env);return {ready:true,delivered,expired,unanswered,digest:digestSent,bookings,weekly,...cleaned};}
-
-async function provider(env,path,body){must(env.KIE_API_KEY,'تولید واقعی هنوز متصل نشده است',503);const res=await fetch('https://api.kie.ai'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+env.KIE_API_KEY,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});const d=await res.json();must(res.ok&&d.code===200,'سرویس تصویر درخواست را نپذیرفت',502);return d.data;}
-// Image model per salon: 'pro' (Nano Banana Pro, best quality, default) or 'fast' (Nano Banana 2.1).
-// A definite rejection of the chosen model (e.g. not enabled on the account) falls back to the
-// previous model; network failures are not retried so a paid task is never created twice.
-export const IMAGE_MODELS={pro:'nano-banana-pro',fast:'nano-banana-2-1'};
-const FALLBACK_MODEL='nano-banana-2';
-async function createImageTask(env,cfg,input){const model=IMAGE_MODELS[cfg.image_model]||IMAGE_MODELS.pro;try{return {...await provider(env,'/api/v1/jobs/createTask',{model,input}),model}}catch(e){if(!(e instanceof Problem)||e.status!==502||model===FALLBACK_MODEL)throw e;return {...await provider(env,'/api/v1/jobs/createTask',{model:FALLBACK_MODEL,input}),model:FALLBACK_MODEL}}}
-async function uploadProvider(env,m){const object=await bucketFor(env).get(m.object_key);must(object,'عکس در دسترس نیست',410);const bytes=new Uint8Array(await object.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.slice(i,i+8192));const res=await fetch('https://kieai.redpandaai.co/api/file-base64-upload',{method:'POST',headers:{Authorization:'Bearer '+env.KIE_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({base64Data:'data:'+m.mime+';base64,'+btoa(binary),uploadPath:'ayneh',fileName:uid()+'.jpg'})});const d=await res.json();must(d.success&&d.data?.downloadUrl,'ارسال عکس انجام نشد',502);return d.data.downloadUrl;}
 
 export async function api(req,env){const u=new URL(req.url),path=u.pathname;must(env.DB,'پایگاه داده هنوز آماده نیست',503);const db=env.DB;
  /* The origin check is what makes the cookie-authenticated routes safe: a browser always
@@ -367,7 +365,8 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  must(salon,'سالن پیدا نشد',404);const route=match[2]||'',cfg=parse(salon.settings),trial=cfg.trial?await trialOf(db,salon.id):null,demo=salon.owner_id==='system';
  if(trial&&!trialLive(trial)&&route!=='public'&&!route.startsWith('owner'))throw new Problem(410,'مهلت ۱۰ ساعتهٔ صفحهٔ آزمایشی تمام شده است؛ برای ادامه با ما تماس بگیرید');
  const readOnly=route==='public'||route==='owner'||route==='requests'||route==='looks'||route==='trending'||route.startsWith('media/')||route.startsWith('generation/');
- must(route==='session'||route==='me'||route==='saves'?['GET','POST'].includes(req.method):req.method===(readOnly?'GET':'POST'),'متد مجاز نیست',405);
+ const consultRoute=route==='consult'||route.startsWith('consult/')||route==='consults'||route.startsWith('consults/');
+ must(route==='session'||route==='me'||route==='saves'||consultRoute?['GET','POST'].includes(req.method):req.method===(readOnly?'GET':'POST'),'متد مجاز نیست',405);
  if(route==='public')return J({salon:publicSalon(salon),portfolio:await all(db,'SELECT id,title,category,description,stylist,staff_id AS maker,line,images,try_on,1 AS published FROM portfolio WHERE salon_id=? AND published=1 AND permission=1 ORDER BY created_at DESC',salon.id),generation:!!env.KIE_API_KEY&&!!cfg.generation_enabled,reference:refOn(cfg),telegram:inboxes(env,salon).length>0||!!planOf(salon)||!!await one(db,'SELECT 1 FROM team WHERE salon_id=? AND active=1',salon.id),follow:Object.keys(followLinks(env,'x')),otp:smsReady(env)&&!demo,notice:'خروجی شبیه‌سازی پیشنهادی است و تضمین اجرا نیست.',trial:trialPublic(trial),demo,direct:isDirect(salon),lines:salonLines(salon)});
  if(route==='session'&&req.method==='POST'){await limited(db,'session:'+salon.id+':'+clientIp(req),30);const {raw}=await newSession(db,salon);return J({ok:true},200,{'Set-Cookie':cookie(raw)});}
  if(route.startsWith('owner')){
@@ -418,6 +417,9 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   return J({score,likes});
  }
  const s=await session(req,db,salon);
+ /* The consultant: analysis, ranked suggestions, saved records and the one-time share link.
+    Everything AI-shaped inside consultApi goes through worker/ai.js (cap + cache). */
+ if(route.startsWith('consult'))return consultApi(req,env,{u,route,salon,s,clientIp});
  if(route==='session')return J({ok:true,verified:!!s.verified_phone,name:s.verified_name||'',phone:s.verified_phone||'',quota:trial||demo||await unlimited(db,s)?null:await (async v=>quotaView(db,env,salon,s,v,{per:QUOTA_PER_LINE,left:quotaLeft(await quotaUsed(db,salon,s,v))}))(/^[a-f0-9]{16,32}$/.test(u.searchParams.get('v')||'')?u.searchParams.get('v'):'')});
  // Mobile verification: a one-time code texted by Melipayamak. Only the hash of the code is stored.
  if(route==='otp/send'){
@@ -599,7 +601,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
    await run(db,"UPDATE generations SET state='waiting',task_id=? WHERE id=?",job.taskId,id);return J({id,state:'waiting'});
   }catch{await run(db,"UPDATE generations SET state='unknown' WHERE id=?",id);throw new Problem(502,'وضعیت ارسال نامشخص است؛ برای جلوگیری از هزینه تکراری، درخواست تازه خودکار ساخته نمی‌شود');}
  }
- if(route.startsWith('generation/')){const id=route.slice(11),g=await one(db,'SELECT * FROM generations WHERE id=? AND salon_id=? AND session_id=?',id,salon.id,s.id);must(g,'درخواست تولید یافت نشد',404);if(g.result_id)return J({state:'success',result_id:g.result_id});if(!g.task_id)return J({state:g.state});const d=await provider(env,'/api/v1/jobs/recordInfo?taskId='+encodeURIComponent(g.task_id));if(d.state==='success'){const link=parse(d.resultJson).resultUrls?.[0];must(link&&new URL(link).protocol==='https:','خروجی سرویس معتبر نیست',502);const res=await fetch(link,{signal:AbortSignal.timeout(20000)});must(res.ok,'دریافت خروجی ممکن نشد',502);must(Number(res.headers.get('content-length')||0)<=12*1024*1024,'خروجی بیش از حد بزرگ است',502);const bytes=new Uint8Array(await res.arrayBuffer());const media=await putImage(env,salon,s,bytes,'simulation');const win=await run(db,"UPDATE generations SET state='success',result_id=?,updated_at=? WHERE id=? AND result_id IS NULL",media,Date.now(),g.id);if(!win.meta.changes){await bucketFor(env).delete(salon.id+'/'+media);await run(db,'DELETE FROM media WHERE id=?',media);}else await recordTiming(db,g,d);const done=await one(db,'SELECT result_id FROM generations WHERE id=?',g.id);return J({state:'success',result_id:done.result_id});}await run(db,'UPDATE generations SET state=?,updated_at=? WHERE id=?',d.state,Date.now(),g.id);return J({state:d.state});}
+ if(route.startsWith('generation/')){const id=route.slice(11),g=await one(db,'SELECT * FROM generations WHERE id=? AND salon_id=? AND session_id=?',id,salon.id,s.id);must(g,'درخواست تولید یافت نشد',404);if(g.result_id)return J({state:'success',result_id:g.result_id});if(!g.task_id)return J({state:g.state});const d=await recordInfo(env,g.task_id);if(d.state==='success'){const link=parse(d.resultJson).resultUrls?.[0];must(link&&new URL(link).protocol==='https:','خروجی سرویس معتبر نیست',502);const res=await fetch(link,{signal:AbortSignal.timeout(20000)});must(res.ok,'دریافت خروجی ممکن نشد',502);must(Number(res.headers.get('content-length')||0)<=12*1024*1024,'خروجی بیش از حد بزرگ است',502);const bytes=new Uint8Array(await res.arrayBuffer());const media=await putImage(env,salon,s,bytes,'simulation');const win=await run(db,"UPDATE generations SET state='success',result_id=?,updated_at=? WHERE id=? AND result_id IS NULL",media,Date.now(),g.id);if(!win.meta.changes){await bucketFor(env).delete(salon.id+'/'+media);await run(db,'DELETE FROM media WHERE id=?',media);}else await recordTiming(db,g,d);const done=await one(db,'SELECT result_id FROM generations WHERE id=?',g.id);return J({state:'success',result_id:done.result_id});}await run(db,'UPDATE generations SET state=?,updated_at=? WHERE id=?',d.state,Date.now(),g.id);return J({state:d.state});}
  throw new Problem(404,'مسیر یافت نشد');
 }
 export function errorResponse(e){if(String(e.message).includes('UNIQUE constraint'))return J({error:'این مورد قبلاً ثبت شده است؛ صفحه را تازه کنید'},409);return J({error:e instanceof Problem?e.message:'خطای داخلی؛ درخواست تازه تکراری ارسال نکنید'},e.status||500);}

@@ -1878,7 +1878,7 @@ function placementRow(){
   var on=p[0]===cur;
   row.append(el('button',{class:'chip'+(on?' is-on':''),type:'button','aria-pressed':on?'true':'false',text:p[1],onclick:function(){state.place=on?'full':p[0];state.result=null;renderFlow();renderDock()}}));
  });
- return el('div',{class:'opt'},[h('p','الگوی قرارگیری رنگ','lbl'),row,h('span',{class:'hint',text:'الگو روی موهایتقرار می‌گیرد؛ اگر عکس مرجع گذاشتی، الگو از همان عکس می‌آید.'})]);
+  return el('div',{class:'opt'},[h('p','الگوی قرارگیری رنگ','lbl'),row,h('span',{class:'hint',text:'الگو روی موهایتِ خودت قرار می‌گیرد؛ اگر عکس مرجع گذاشتی، الگو از همان عکس می‌آید.'})]);
 }
 function renderDockSoon(){clearTimeout(renderDockSoon.t);renderDockSoon.t=setTimeout(function(){renderDock();var b=$('#flow .btn--build');if(b){var c=canGenerate(),r=hasChoice();b.innerHTML=buildLabel(c);b.disabled=!r;var hn=$('#flow .build-hint');if(hn)hn.textContent=buildHint(r,c,quotaLeft())}},60)}
 function typedColor(){return state.line==='color'&&state.style===null&&!state.reference&&String(state.color||'').trim().length>=2}
@@ -2856,7 +2856,7 @@ function consultCard(){
 function condCard(){
  return el('button',{class:'consult-card',type:'button',onclick:function(){openCond()}},[
   el('span',{class:'consult-card__ico',html:ICO.droplet}),
-  el('span',{},[el('b',{text:'وضعیت موهات رو تخمین بزنیم'}),el('small',{text:'سطح پایه، میزان سفیدی و نفوذپذیری موهایت را با عکس و دو سؤال تخمین می‌زنیم؛ این تخمین است، براساس آن تصمیم بگیر.'})]),
+  el('span',{},[el('b',{text:'وضعیت موهات رو تخمین بزنیم'}),el('small',{text:'سطح پایه، میزان سفیدی و نفوذپذیری موهایت را با عکس و دو سؤال تخمین می‌زنیم؛ این تخمین است و قیدِ «تخمینی» دارد، برای مشورت با متخصصت مفید است.'})]),
   el('span',{class:'consult-card__go',html:ICO.arrow})
  ]);
 }
@@ -2884,6 +2884,7 @@ function condStep1(p){
  if(!cond.cond){
   p.append(el('button',{class:'btn btn--primary btn--block',type:'button',disabled:!!cond.busy,text:cond.busy?'در حال تخمین…':'شروع تخمین',onclick:function(){condAnalyze()}}));
   p.append(el('p',{class:'cfield__hint',text:'با عکست و دو سؤال وضعیت موهات را تخمین می‌زنیم؛ تخمین است و قیدِ «تخمینی» دارد، نه نتیجه‌ی دقیق. چیزی ذخیره نمی‌شود.'}));
+  if(cond.note)p.append(el('button',{class:'btn btn--ghost btn--block',type:'button',text:'به پرسش‌نامه برسم',onclick:function(){cond.step=2;condDraw()}}));
   return;
  }
  var c=cond.cond;
@@ -2891,10 +2892,18 @@ function condStep1(p){
  p.append(el('div',{class:'condgrid'},[
   condStat('سطح پایه (۱ تا ۱۰)',c.base_level,cond.low&&cond.low.indexOf('base_level')>=0),
   condStat('سفیدی (٪)',c.gray_percent,cond.low&&cond.low.indexOf('gray_percent')>=0),
-  condStat('نفوذپذیری',{low:'کم',medium:'متوسط',high:'زیاد'}[c.porosity]||'متوسط',cond.low&&cond.low.indexOf('porosity')>=0)
+  condStat('نفوذپذیری',c.porosity?{low:'کم',medium:'متوسط',high:'زیاد'}[c.porosity]:null,cond.low&&cond.low.indexOf('porosity')>=0)
  ]));
  if(cond.low&&cond.low.length){p.append(el('p',{class:'cfield__hint',text:'بعضی موارد اطمینان کمِ کاتب وجود دارد؛ در پرسش‌نامه، جواب تو وزیرِ نظرت باشد.'}))}
  p.append(el('button',{class:'btn btn--primary btn--block',type:'button',text:'بعدی: پرسش‌نامه',onclick:function(){cond.step=2;condDraw()}}));
+}
+function reasonText(code){
+ return {
+  'no-key':'سرویس در این لحظه فعال نیست؛ می‌توانی با پرسش‌نامه‌ی کوتاه، وضعیت موهات را خودت بررسی کنی.',
+  'limited':'در این لحظه محدودیت وجود دارد؛ می‌توانی با پرسش‌نامه‌ی کوتاه، وضعیت موهات را خودت بررسی کنی.',
+  'no-photo':'ابتدا عکس خودت را اضافه کن تا تخمین انجام شود.',
+  'busy':'در این لحظه در حال پاسخگویی هستیم؛ کمی بعد دوباره تلاش کن.'
+ }[code]||'در این باره محدودیت وجود دارد.';
 }
 function condStat(label,value,low){
  return el('div',{class:'condstat'+(low?' is-low':'')},[
@@ -2931,7 +2940,7 @@ function condStep3(p){
   el('div',{class:'condgrid'},[
    condStat('سطح پایه',c.base_level,false),
    condStat('سفیدی',c.gray_percent==null?'ناشناخته':c.gray_percent+'٪',false),
-   condStat('نفوذپذیری (بعد از جواب‌ها)',{low:'کم',medium:'متوسط',high:'زیاد'}[c.porosity]||'متوسط',false)
+   condStat('نفوذپذیری (بعد از جواب‌ها)',c.porosity?{low:'کم',medium:'متوسط',high:'زیاد'}[c.porosity]:null,false)
   ])
  ]));
  p.append(el('button',{class:'btn btn--soft btn--block',type:'button',text:'برگشت به مزایا',onclick:function(){cond.step=1;condDraw()}}));
@@ -2947,7 +2956,7 @@ async function condAnalyze(){
    cond.note='';
    cond.step=3;
   }else{
-   cond.note=(r&&r.reason)?'در این باره محدودیت دارد: '+r.reason:'در این باره محدودیت وجود دارد.';
+   cond.note=(r&&r.reason)?reasonText(r.reason):'در این باره محدودیت وجود دارد.';
    if(r&&r.porosity){cond.cond={base_level:null,gray_percent:null,porosity:r.porosity,confidence:{}};cond.low=[];cond.note='تخمین از عکست انجام نشد، اما با جواب‌های تو نفوذپذیری را حدس زده‌ایم؛ قیدِ «تخمینی» دارد.'}
    cond.tried=false;
   }

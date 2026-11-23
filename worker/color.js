@@ -193,7 +193,11 @@ export async function colorApi(req,env,{u,route,salon,s,clientIp}){
    tryLimit:{key:who+':try',max:phone?60:3,message:'چند بار تلاش کردی؛ کمی بعد دوباره امتحان کن'},
    okLimit:{key:who+':ok',max:phone?30:1,message:'تخمین وضعیت موهای امروز تمام شد؛ فردا دوباره امتحان کن یا وارد حساب شو.'},
    netLimit:phone?null:{key:'colorcond-net:'+(clientIp||'unknown'),max:NET_DAILY,message:'از این شبکه امروز چندین تخمین زده شد؛ فردا دوباره امتحان کن.'}});
-  if(!r.ok)return J({ok:false,fallback:'questionnaire',reason:r.reason});
+  if(!r.ok){
+   /* No key, over a cap or a failed call: never invent a photo analysis. Her own answers still
+      give the porosity estimate (and only when she actually answered — never a bare default). */
+   return J({ok:false,fallback:'questionnaire',reason:r.reason,answers,porosity:Object.keys(answers).length?porosityFrom(null,answers):null});
+  }
   const c=cleanCondition(r.value);
   if(c.base_level===null&&c.gray_percent===null&&!c.porosity)return J({ok:false,fallback:'questionnaire',reason:'invalid'});
   return J({ok:true,base_level:c.base_level,gray_percent:c.gray_percent,porosity:porosityFrom(c.porosity,answers),confidence:c.confidence,low:c.low,answers,cached:!!r.cached,estimate:true});

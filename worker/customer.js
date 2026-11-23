@@ -2,6 +2,7 @@ import {draftScript} from './draft.js';
 import {styles} from './legacy.js';
 import {NAIL_STYLES,LASH_STYLES,COLOR_STYLES,COLOR_SWATCHES,LINE_OPTIONS,LINE_COLORS,LINE_POPULAR,LINE_FILTERS,LINE_PHOTO,LINE_LABEL,PLACEMENTS,PLACEMENT_KEYS} from './lines.js';
 import {QUESTIONS,ANALYSIS_FIELDS,RELEVANT} from './consult.js';
+import {CONDITION_QUESTIONS,CONDITION_PROBLEMS} from './color.js';
 const lineJSON=(line,list)=>({styles:list.map(x=>[x[0],x[1],x[2]]),filters:LINE_FILTERS[line],options:(LINE_OPTIONS[line]||[]).map(o=>({key:o.key,label:o.label,items:o.items.map(i=>i[0])})),colors:(LINE_COLORS[line]||[]).map(c=>[c[0],c[1]]),popular:LINE_POPULAR[line]||[]});
 const LINES_JSON=JSON.stringify({label:LINE_LABEL,photo:LINE_PHOTO,placements:PLACEMENTS.map(p=>[p[0],p[1]]),color:{...lineJSON('color',COLOR_STYLES),swatches:COLOR_SWATCHES},nails:lineJSON('nails',NAIL_STYLES),lashes:lineJSON('lashes',LASH_STYLES)});
 import {baseCSS,markSVG} from './design.js';
@@ -782,6 +783,14 @@ body.is-studio .result-actions>:last-child:nth-child(odd){grid-column:1/-1}
 .cfield__top b{font-size:13.5px}
 .cconf{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--accent-soft,#E4F1EC);color:var(--accent-ink,#0b5c46);white-space:nowrap}
 .cconf.is-low{background:var(--warn-soft);color:var(--warn)}
+/* Phase 2 — the colour-condition estimate sheet */
+.condgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.condstat{display:flex;flex-direction:column;gap:4px;align-items:flex-start;padding:12px;border-radius:14px;background:var(--surface-2,#f2f5f7);border:1px solid var(--line,#e5e9ee)}
+.condstat.is-low{border-color:var(--warn-soft)}
+.condstat__l{font-size:11.5px;color:var(--muted)}
+.condstat__v{font-size:18px;font-weight:800}
+.condresult{margin-bottom:16px}
+.condresult__banner{font-size:12.5px;color:var(--muted);background:var(--surface-2,#f2f5f7);border:1px solid var(--line,#e5e9ee);border-radius:12px;padding:10px 12px}
 .cfield__hint{font-size:12px;color:var(--muted);line-height:1.7}
 .cchips{display:flex;flex-wrap:wrap;gap:6px}
 .cpick{border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:10px;background:var(--surface);display:grid;gap:6px}
@@ -837,6 +846,7 @@ var ICO={
  globe:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.4 3.6 5.4 3.6 8.5S14.4 18.1 12 20.5c-2.4-2.4-3.6-5.4-3.6-8.5S9.6 5.9 12 3.5z"/></svg>',
  send:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4 3.5 10.6l6.3 2.6 2.6 6.3z"/><path d="M20 4l-7.6 15.5"/></svg>',
  spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z"/><path d="M18.5 16.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg>',
+ droplet:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8s6 6.6 6 10.2A6 6 0 0 1 6 14c0-3.6 6-10.2 6-10.2Z"/><path d="M9.5 13.5a2.6 2.6 0 0 0 2.5 2.6"/></svg>',
  download:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7.5 11 4.5 4.5L16.5 11"/><path d="M4.5 19.5h15"/></svg>',
  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7"/></svg>',
  info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.4"/></svg>',
@@ -1643,6 +1653,9 @@ function stepModel(){
  /* The consultant analyses hair and colour only: a nails or lashes close-up says nothing about
     a hairstyle, so the card — and the paid vision behind it — is absent on both lines. */
  if(studio()&&!STUDIO_PREVIEW&&L!=='nails'&&L!=='lashes')box.append(consultCard());
+ /* The colour-condition estimate lives on the colour line only; like the consultant, the paid
+    vision behind it never shows on a studio preview page. */
+ if(studio()&&!STUDIO_PREVIEW&&L==='color')box.append(condCard());
  if(L==='color'){var bc=baseChooser();if(bc)box.append(bc)}
  var seg=el('div',{class:'seg',role:'tablist'});
  [['salon',0],['catalog',1],['upload',2]].filter(function(x){return x[0]!=='salon'||own}).forEach(function(x){
@@ -2832,12 +2845,129 @@ function openAsk(){
 
 /* ---------- consultant: card in the studio → 3-step sheet → save/share ---------- */
 var consult=null,consultPanel=null;
+var cond=null,condPanel=null;
 function consultCard(){
  return el('button',{class:'consult-card',type:'button',onclick:function(){openConsult()}},[
   el('span',{class:'consult-card__ico',html:ICO.spark}),
   el('span',{},[el('b',{text:'نمی‌دونی چی بهت میاد؟ تحلیلش کنیم'}),el('small',{text:'عکست را تحلیل می‌کنیم، چند سؤال می‌پرسیم و ۳ تا ۶ پیشنهاد از همین بخش می‌دهیم.'})]),
   el('span',{class:'consult-card__go',html:ICO.arrow})
  ]);
+}
+function condCard(){
+ return el('button',{class:'consult-card',type:'button',onclick:function(){openCond()}},[
+  el('span',{class:'consult-card__ico',html:ICO.droplet}),
+  el('span',{},[el('b',{text:'وضعیت موهات رو تخمین بزنیم'}),el('small',{text:'سطح پایه، میزان سفیدی و نفوذپذیری موهایت را با عکس و دو سؤال تخمین می‌زنیم؛ این تخمین است، براساس آن تصمیم بگیر.'})]),
+  el('span',{class:'consult-card__go',html:ICO.arrow})
+ ]);
+}
+function openCond(){
+ if(!state.original){toast('اول عکس خودت را اضافه کن');return}
+ if(state.line!=='color'){toast('این بخش برای رنگ مو است');return}
+ cond={step:1,photo:state.original,cond:null,answers:{},busy:false,note:'',tried:false};
+ track('color_condition',state.line);
+ condPanel=el('div',{class:'sheet__panel csheet'});
+ openSheet(condPanel);
+ condDraw();
+}
+function condDraw(){
+ var p=condPanel;if(!p||!cond)return;
+ p.replaceChildren();
+ p.append(el('div',{class:'sheet__head'},[h('h2','وضعیت موهات رو تخمین بزنیم'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]));
+ p.append(el('div',{class:'csteps'},[['تحلیل',1],['پرسش‌نامه',2],['نتایج',3]].map(function(x){return el('span',{class:'cstep'+(cond.step>=x[1]?' is-on':''),text:x[0]})})));
+ if(cond.step===1)condStep1(p);
+ else if(cond.step===2)condStep2(p);
+ else condStep3(p);
+}
+function condStep1(p){
+ p.append(el('div',{class:'cphoto'},[el('img',{src:state.preview||media(cond.photo),alt:''}),el('div',{},[el('b',{text:'عکس خودت'}),el('small',{text:'رنگ مو'})])]));
+ if(cond.note)p.append(el('p',{class:'cfield__hint',text:cond.note}));
+ if(!cond.cond){
+  p.append(el('button',{class:'btn btn--primary btn--block',type:'button',disabled:!!cond.busy,text:cond.busy?'در حال تخمین…':'شروع تخمین',onclick:function(){condAnalyze()}}));
+  p.append(el('p',{class:'cfield__hint',text:'با عکست و دو سؤال وضعیت موهات را تخمین می‌زنیم؛ تخمین است و قیدِ «تخمینی» دارد، نه نتیجه‌ی دقیق. چیزی ذخیره نمی‌شود.'}));
+  return;
+ }
+ var c=cond.cond;
+ p.append(el('p',{class:'cfield__hint',text:'تخمین اولیه از عکست:'}));
+ p.append(el('div',{class:'condgrid'},[
+  condStat('سطح پایه (۱ تا ۱۰)',c.base_level,cond.low&&cond.low.indexOf('base_level')>=0),
+  condStat('سفیدی (٪)',c.gray_percent,cond.low&&cond.low.indexOf('gray_percent')>=0),
+  condStat('نفوذپذیری',{low:'کم',medium:'متوسط',high:'زیاد'}[c.porosity]||'متوسط',cond.low&&cond.low.indexOf('porosity')>=0)
+ ]));
+ if(cond.low&&cond.low.length){p.append(el('p',{class:'cfield__hint',text:'بعضی موارد اطمینان کمِ کاتب وجود دارد؛ در پرسش‌نامه، جواب تو وزیرِ نظرت باشد.'}))}
+ p.append(el('button',{class:'btn btn--primary btn--block',type:'button',text:'بعدی: پرسش‌نامه',onclick:function(){cond.step=2;condDraw()}}));
+}
+function condStat(label,value,low){
+ return el('div',{class:'condstat'+(low?' is-low':'')},[
+  el('span',{class:'condstat__l',text:label}),
+  el('b',{class:'condstat__v',text:value==null?'ناشناخته':String(value)}),
+  low?el('span',{class:'cconf is-low',text:'کم‌اطمینان'}):null
+ ]);
+}
+function condStep2(p){
+ p.append(el('p',{class:'cfield__hint',text:'هر کدام را نخواستی رد کن؛ در صورت امکان، جواب‌های تو نفوذپذیری را دقیق‌تر می‌کند.'}));
+ CONDITION_QUESTIONS.forEach(function(q){
+  var box=el('div',{class:'cfield'},[el('div',{class:'cfield__top'},[el('b',{text:q.label})])]);
+  var chips=el('div',{class:'cchips'}),cur=cond.answers[q.key];
+  q.options.forEach(function(o){
+   var on=cur===o[0];
+   var b=el('button',{class:'chip'+(on?' is-on':''),type:'button','aria-pressed':on?'true':'false',text:o[1]});
+   b.addEventListener('click',function(){
+    if(cond.answers[q.key]===o[0])delete cond.answers[q.key];else cond.answers[q.key]=o[0];
+    condDraw();
+   });
+   chips.append(b);
+  });
+  box.append(chips);
+  p.append(box);
+ });
+ p.append(el('button',{class:'btn btn--ghost btn--block',type:'button',text:'برگشت',onclick:function(){cond.step=1;condDraw()}}));
+ p.append(el('button',{class:'btn btn--primary btn--block',type:'button',disabled:!!cond.busy,text:cond.busy?'در حال محاسبه…':'نتایج را ببین',onclick:function(){condShow()}}));
+}
+function condStep3(p){
+ if(!cond.cond){p.append(el('p',{class:'muted',text:'نتایجی برای نمایش نیست.'}));return}
+ var c=cond.cond;
+ p.append(el('div',{class:'condresult'},[
+  el('p',{class:'condresult__banner',text:'این تخمین است — و قیدِ «تخمینی» دارد. برای حساس‌تر شدن جواب‌ها و عکست مهم است، نه جایگزین دست‌رسِ متخصص.'}),
+  el('div',{class:'condgrid'},[
+   condStat('سطح پایه',c.base_level,false),
+   condStat('سفیدی',c.gray_percent==null?'ناشناخته':c.gray_percent+'٪',false),
+   condStat('نفوذپذیری (بعد از جواب‌ها)',{low:'کم',medium:'متوسط',high:'زیاد'}[c.porosity]||'متوسط',false)
+  ])
+ ]));
+ p.append(el('button',{class:'btn btn--soft btn--block',type:'button',text:'برگشت به مزایا',onclick:function(){cond.step=1;condDraw()}}));
+}
+async function condAnalyze(){
+ cond.busy=true;cond.tried=true;condDraw();
+ try{
+  var r=await api('/api/color/analyze',{method:'POST',body:{line:'color',photo_id:cond.photo,v:state.v,answers:cond.answers}});
+  if(r&&r.ok&&r.estimate){
+   cond.cond={base_level:r.base_level,gray_percent:r.gray_percent,porosity:r.porosity,confidence:r.confidence||{}};
+   cond.low=r.low||[];
+   cond.answers=r.answers||cond.answers;
+   cond.note='';
+   cond.step=3;
+  }else{
+   cond.note=(r&&r.reason)?'در این باره محدودیت دارد: '+r.reason:'در این باره محدودیت وجود دارد.';
+   if(r&&r.porosity){cond.cond={base_level:null,gray_percent:null,porosity:r.porosity,confidence:{}};cond.low=[];cond.note='تخمین از عکست انجام نشد، اما با جواب‌های تو نفوذپذیری را حدس زده‌ایم؛ قیدِ «تخمینی» دارد.'}
+   cond.tried=false;
+  }
+ }catch(e){cond.note='در این باره محدودیت وجود دارد.';cond.tried=false}
+ cond.busy=false;condDraw();
+}
+async function condShow(){
+ cond.busy=true;cond.tried=true;condDraw();
+ try{
+  var r=await api('/api/color/analyze',{method:'POST',body:{line:'color',photo_id:cond.photo,v:state.v,answers:cond.answers}});
+  if(r&&r.ok&&r.estimate){
+   cond.cond={base_level:r.base_level,gray_percent:r.gray_percent,porosity:r.porosity,confidence:r.confidence||{}};
+   cond.low=r.low||[];cond.answers=r.answers||cond.answers;cond.note='';cond.step=3;
+  }else{
+   cond.note=(r&&r.reason)?'در این باره محدودیت دارد: '+r.reason:'در این باره محدودیت وجود دارد.';
+   if(r&&r.porosity){cond.cond={base_level:null,gray_percent:null,porosity:r.porosity,confidence:{}};cond.low=[];cond.note='تخمین از عکست انجام نشد، اما با جواب‌های تو نفوذپذیری را حدس زده‌ایم؛ قیدِ «تخمینی» دارد.'}
+   cond.tried=false;
+  }
+ }catch(e){cond.note='در این باره محدودیت وجود دارد.';cond.tried=false}
+ cond.busy=false;condDraw();
 }
 function openConsult(){
  if(!state.original){toast('اول عکس خودت را اضافه کن');return}
@@ -3145,4 +3275,4 @@ export const customerHTML=String.raw`<!doctype html><html lang="fa" dir="rtl"><h
 <script>__JS__</script>
 </body></html>`
  .replace('__CSS__',()=>baseCSS+customerCSS+embeddedCSS)
- .replace('__JS__',()=>draftScript+';'+clientJS.replace('__STYLES__',()=>JSON.stringify(styles)).replace('__LINES__',()=>LINES_JSON).replace('__MARK__',()=>JSON.stringify(markSVG)).replace('__CONSULT__',()=>JSON.stringify({q:QUESTIONS,f:ANALYSIS_FIELDS,r:RELEVANT})));
+ .replace('__JS__',()=>draftScript+';'+clientJS.replace('__STYLES__',()=>JSON.stringify(styles)).replace('__LINES__',()=>LINES_JSON).replace('__MARK__',()=>JSON.stringify(markSVG)).replace('__CONSULT__',()=>JSON.stringify({q:QUESTIONS,f:ANALYSIS_FIELDS,r:RELEVANT,c:{q:CONDITION_QUESTIONS,p:CONDITION_PROBLEMS}})));

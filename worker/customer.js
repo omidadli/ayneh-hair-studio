@@ -788,7 +788,7 @@ body.is-studio .result-actions>:last-child:nth-child(odd){grid-column:1/-1}
 .clist__row{display:flex;gap:12px;align-items:center;width:100%;padding:12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);text-align:start;cursor:pointer;font:inherit;color:var(--ink)}
 .clist__row:hover{border-color:var(--accent)}
 .clist__row img{width:48px;height:60px;object-fit:cover;border-radius:10px;background:var(--surface-2);flex:0 0 auto}
-.clist__row>span{flex:1;min-width:0}
+.clist__row>.clist__txt{flex:1;min-width:0}
 .clist__row b{display:block;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .clist__row small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
 .clist__row .ico{color:var(--muted)}.clist__row .ico svg{width:18px;height:18px}
@@ -1135,7 +1135,7 @@ function profilePage(card){
   var w=el('div',{class:'wallet',id:'wallet'});
   var walletBox=el('section',{class:'panel profile__sec'},[el('div',{class:'profile__sechead'},[el('h2',{text:'کیف سکه'})]),w]);
   var tabsBar=el('div',{class:'seg',role:'tablist'}),tabBody=el('div',{class:'profile__tab'});
-  var TABS=[['album','آلبوم'],['saved','ذخیره‌ها'],['liked','پسندیده‌ها'],['consult','مشاوره‌های من'],['history','تراکنش‌ها']],cur='album';
+  var TABS=[['album','آلبوم'],['saved','ذخیره‌ها'],['liked','پسندیده‌ها'],['consult','مشاوره‌ها'],['history','تراکنش‌ها']],cur='album';
   function drawTabs(){
    tabsBar.replaceChildren.apply(tabsBar,TABS.map(function(t){return el('button',{type:'button',role:'tab','aria-selected':String(cur===t[0]),text:t[1],onclick:function(){cur=t[0];drawTabs()}})}));
    if(cur==='album')tabBody.replaceChildren(looks&&looks.length?el('div',{class:'pgrid'},looks.map(function(l){return el('button',{class:'pgrid__item',type:'button',onclick:function(){openLook(l)}},[el('img',{src:media(l.image),alt:'',loading:'lazy'}),el('span',{},[el('b',{text:lookTitle(l)}),el('small',{text:LINES.label[l.line]+'، '+lookDate(l.at)})])])})):empty('هنوز عکسی نساختی','از استودیو یک مدل انتخاب کن و روی عکس خودت ببین.','/','رفتن به استودیو'));
@@ -1149,7 +1149,7 @@ function profilePage(card){
      tabBody.replaceChildren(el('div',{class:'clist'},items.map(function(c){
       return el('button',{class:'clist__row',type:'button',onclick:function(){openConsultDetail(c.id)}},[
        c.result_id?el('img',{src:media(c.result_id),alt:'',loading:'lazy'}):el('span',{class:'consult-card__ico',html:ICO.spark}),
-       el('span',{},[el('b',{text:c.top||LINES.label[c.line]}),el('small',{text:LINES.label[c.line]+'، '+lookDate(c.at)})]),
+       el('span',{class:'clist__txt'},[el('b',{text:c.top||LINES.label[c.line]}),el('small',{text:LINES.label[c.line]+'، '+lookDate(c.at)})]),
        el('span',{class:'ico',html:ICO.arrow})
       ]);
      })));
@@ -2791,7 +2791,7 @@ var consult=null,consultPanel=null;
 function consultCard(){
  return el('button',{class:'consult-card',type:'button',onclick:function(){openConsult()}},[
   el('span',{class:'consult-card__ico',html:ICO.spark}),
-  el('span',{},[el('b',{text:'نمی‌دونی چی بهت میاد؟ تحلیلش کنیم'}),el('small',{text:'عکست را تحلیل می‌کنیم، چند سؤال می‌پرسیم و ۳ تا پیشنهاد از همین بخش می‌دهیم.'})]),
+  el('span',{},[el('b',{text:'نمی‌دونی چی بهت میاد؟ تحلیلش کنیم'}),el('small',{text:'عکست را تحلیل می‌کنیم، چند سؤال می‌پرسیم و ۳ تا ۶ پیشنهاد از همین بخش می‌دهیم.'})]),
   el('span',{class:'consult-card__go',html:ICO.arrow})
  ]);
 }
@@ -2829,7 +2829,7 @@ function consultStep1(p){
  if(consult.note)p.append(el('p',{class:'cfield__hint',text:consult.note}));
  if(!consult.analysis&&!consult.self){
   p.append(el('button',{class:'btn btn--primary btn--block',type:'button',disabled:!!consult.busy,text:consult.busy?'در حال تحلیل…':'شروع تحلیل',onclick:function(){consultAnalyze()}}));
-  p.append(el('p',{class:'cfield__hint',text:'عکست را تحلیل می‌کنیم و ویژگی‌هایش را حدس می‌زنیم؛ هر فیلد کم‌اطمینان را خودت جواب می‌دهی.چیزی ذخیره نمی‌شود مگر خودت بخواهی.'}));
+  p.append(el('p',{class:'cfield__hint',text:'عکست را تحلیل می‌کنیم و ویژگی‌هایش را حدس می‌زنیم؛ هر فیلد کم‌اطمینان را خودت جواب می‌دهی. چیزی ذخیره نمی‌شود مگر خودت بخواهی.'}));
   return;
  }
  var rel=consultRel(),f=(consult.analysis&&consult.analysis.fields)||{},low=(consult.analysis&&consult.analysis.low)||[];

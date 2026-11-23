@@ -30,7 +30,7 @@ test('analysis fields and the six skippable questions are one source of truth fo
  for(const line of LINE_KEYS)assert.ok(RELEVANT[line].length>=1&&RELEVANT[line].length<=6,line);
  // The embedded client copy is present and the placeholder is replaced.
  assert.match(customerHTML,/نمی‌دونی چی بهت میاد\؟ تحلیلش کنیم/);
- assert.match(customerHTML,/مشاوره‌های من/);
+ assert.match(customerHTML,/\['consult','مشاوره‌ها'\]/);
  assert.match(customerHTML,/روی عکسم بساز/);
  assert.doesNotMatch(customerHTML,/__CONSULT__/);
 });

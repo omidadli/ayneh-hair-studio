@@ -183,7 +183,7 @@ async function ownPhoto(db,s,id){
  return m;
 }
 async function ownResult(db,s,id){
- must(/^[a-f0-9-]{36}$/.test(String(id||'')),'عکس معتبر نіست',400);
+ must(/^[a-f0-9-]{36}$/.test(String(id||'')),'عکس معتبر نیست',400);
  const m=await db.prepare('SELECT * FROM media WHERE id=? AND salon_id=?').bind(id,s.salon_id).first();
  must(m&&m.kind==='simulation','نتیجه پیدا نشد',404);
  const linked=m.session_id===s.id||(s.verified_phone&&m.session_id&&await db.prepare('SELECT 1 FROM sessions WHERE id=? AND salon_id=? AND verified_phone=?').bind(m.session_id,s.salon_id,s.verified_phone).first());

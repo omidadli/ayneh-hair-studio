@@ -9,6 +9,7 @@ import {must,Problem,uid,token,hash,limited} from './domain.js';
 import {LINE_KEYS,LINE_LABEL,COLOR_STYLES,NAIL_STYLES,LASH_STYLES} from './lines.js';
 import {styles} from './legacy.js';
 import {visionJSON} from './ai.js';
+import {isDirect} from './customers.js';
 import {bucketFor} from './storage.js';
 import {baseCSS} from './design.js';
 
@@ -39,6 +40,13 @@ export const ANALYSIS_FIELDS=[
 export const RELEVANT={hair:['face_shape','hair_texture','hair_length','hair_density','skin_undertone','hair_color'],color:['skin_undertone','hair_color','hair_texture','hair_length'],nails:['skin_undertone'],lashes:['face_shape','skin_undertone']};
 const ENUMS=Object.fromEntries(ANALYSIS_FIELDS.map(f=>[f.key,new Set(f.options.map(o=>o[0]))]));
 const PROMPT_V='v1';
+/* One network (IP) may push at most this many vision attempts a day for a guest — the same
+   idea as DEMO_IP_DAILY: a farm of free browser ids behind one address stops here. Signed-in
+   customers are bounded by their phone key instead, so they carry no network counter. */
+const NET_DAILY=10;
+/* Cache key component: SHA-256 of the photo BYTES, so the same picture re-uploaded under a
+   new media id is still free (domain hash() takes strings, not bytes). */
+const hashBytes=async b=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',b)),x=>x.toString(16).padStart(2,'0')).join('');
 const SYSTEM='You are a beauty-analysis engine of Ayneh, a Persian salon try-on app. Analyse the photo and reply with ONE JSON object only — no markdown, no commentary. Schema: {"face_shape":"oval|round|heart|square|oblong|diamond","hair_texture":"straight|wavy|curly","hair_length":"short|medium|long","hair_density":"low|medium|high","skin_undertone":"warm|cool|neutral","hair_color":"black|dark_brown|brown|blonde|gray|red|other","confidence":{each of those six keys: a number 0.0-1.0}}. Rules: styling advice only, never a medical or diagnostic judgement; do not guess age or health; if a feature is not visible in the photo (for example only a hand is shown), still return the JSON but give every invisible field a confidence of 0.05; confidence below 0.6 means you are unsure and the customer will be asked.';
 const USER='Analyse this photo for a beauty consultation.';
 
@@ -194,20 +202,25 @@ async function ownResult(db,s,id){
 /* ---------- routes (called from server.js api() after the session is resolved) ---------- */
 export async function consultApi(req,env,{u,route,salon,s,clientIp}){
  const db=env.DB,phone=s.verified_phone;
+ /* The consultant card lives only on the direct studio salon — the vision routes are not
+    reachable (and can never spend) anywhere else. */
+ if(route.startsWith('consult/'))must(isDirect(salon),'این بخش فقط در استودیوی آینه فعال است',404);
  if(route==='consult/analyze'&&req.method==='POST'){
   const b=await req.json().catch(()=>({}));
   const line=LINE_KEYS.includes(b.line)?b.line:'hair';
   const m=await ownPhoto(db,s,b.photo_id);
-  /* Attempts are capped for everyone (protects the provider key); a successful analysis has
-     its own stricter daily cap: 1 for a guest, 30 for a signed-in customer. Cache hits are
-     free and skip both. */
-  const who='consult:'+(phone?'p:'+phone:'s:'+s.id)+':'+salon.id;
+  /* Caps follow the customer, not the salon: a signed-in one by phone, a guest by browser id
+     plus the hashed network — so a farm cannot reset the counter by opening another page,
+     another browser session or another salon. Cache hits are free and skip every counter. */
+  const v=/^[a-f0-9]{16,32}$/.test(String(b.v||''))?String(b.v):'';
+  const who=phone?'consult:p:'+phone:'consult:g:'+(v||s.id)+':'+await hash(clientIp||'unknown');
   const object=await bucketFor(env).get(m.object_key);
   must(object,'عکس در دسترس نیست',410);
   const bytes=new Uint8Array(await object.arrayBuffer());
-  const r=await visionJSON(env,db,{cacheKey:'consult:'+PROMPT_V+':'+m.id,system:SYSTEM,user:USER,image:{mime:m.mime,bytes},
+  const r=await visionJSON(env,db,{cacheKey:'consult:'+PROMPT_V+':'+await hashBytes(bytes),system:SYSTEM,user:USER,image:{mime:m.mime,bytes},
    tryLimit:{key:who+':try',max:phone?60:3,message:'چند بار تلاش کردی؛ کمی بعد دوباره امتحان کن'},
-   okLimit:{key:who+':ok',max:phone?30:1,message:'تحلیل عکس امروز تمام شد؛ فردا دوباره امتحان کن یا وارد حساب شو.'}});
+   okLimit:{key:who+':ok',max:phone?30:1,message:'تحلیل عکس امروز تمام شد؛ فردا دوباره امتحان کن یا وارد حساب شو.'},
+   netLimit:phone?null:{key:'consult-net:'+(clientIp||'unknown'),max:NET_DAILY,message:'از این شبکه امروز چندین تحلیل زده شد؛ فردا دوباره امتحان کن.'}});
   if(!r.ok)return J({ok:false,fallback:'questionnaire',reason:r.reason});
   const a=cleanAnalysis(r.value,line);
   if(!Object.keys(a.fields).length)return J({ok:false,fallback:'questionnaire',reason:'invalid'});

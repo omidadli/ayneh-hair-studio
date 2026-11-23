@@ -12,10 +12,17 @@ const migrations=readdirSync(new URL('../drizzle/',import.meta.url)).filter(f=>f
 function fixture(){const DB=database();for(const f of migrations)DB.sql.exec(readFileSync(new URL('../drizzle/'+f,import.meta.url),'utf8'));return {DB,BUCKET:memoryBucket(),OWNER_EMAIL:'owner@test',JOB_TOKEN:'job-test',TRUST_PLATFORM_IDENTITY:'true'};}
 const OWNER={user:'owner-a',email:'owner@test'};
 async function call(env,path,body,{cookie='',user='owner-a',email='owner@test'}={}){const headers={origin,'oai-authenticated-user-id':user,'oai-authenticated-user-email':email,cookie};let payload;if(body!==undefined){if(body instanceof Uint8Array){payload=body}else{headers['content-type']='application/json';payload=JSON.stringify(body)}}const res=await app.fetch(new Request(origin+path,{method:body===undefined?'GET':'POST',headers,body:payload}),env);let d;try{d=await res.json()}catch{d=null}return {status:res.status,data:d,headers:res.headers,cookie:res.headers.get('set-cookie')?.split(';')[0]};}
-async function salon(env,slug='salon-a'){const r=await call(env,'/api/salons',{slug,name:'سالن '+slug},OWNER);assert.equal(r.status,200,JSON.stringify(r));return {id:r.data.id,slug};}
+/* Every test salon IS the direct studio salon: the consultant card (and its paid vision
+   routes) exist only there, so the fixture flips the row it just created instead of making a
+   second one — every slug path below keeps working unchanged. */
+async function salon(env,slug='salon-a'){const r=await call(env,'/api/salons',{slug,name:'سالن '+slug},OWNER);assert.equal(r.status,200,JSON.stringify(r));
+ const u=await env.DB.prepare('UPDATE salons SET id=?,owner_id=? WHERE id=?').bind('ayneh-direct','direct',r.data.id).run();
+ assert.equal(u.meta.changes,1,'the salon becomes the direct studio salon');return {id:'ayneh-direct',slug};}
 async function guest(env,s){const r=await call(env,'/api/s/'+s.slug+'/session',{});assert.equal(r.status,200);return {cookie:r.cookie};}
-const png=()=>{const b=new Uint8Array(150);b.set([137,80,78,71,13,10,26,10]);return b};
-async function upload(env,s,g,kind='original'){const r=await call(env,'/api/s/'+s.slug+'/upload?kind='+kind,png(),g);assert.equal(r.status,200,JSON.stringify(r));return r.data.id;}
+/* Unique bytes per call (PNG magic kept, tail random): identical bytes would hit the photo-hash
+   cache and skip the very counters a test is trying to spend. */
+const png=()=>{const b=new Uint8Array(150);b.set([137,80,78,71,13,10,26,10]);crypto.getRandomValues(b.subarray(8));return b};
+async function upload(env,s,g,kind='original',data){const r=await call(env,'/api/s/'+s.slug+'/upload?kind='+kind,data||png(),g);assert.equal(r.status,200,JSON.stringify(r));return r.data.id;}
 const otpBody=(extra={})=>({first_name:'سارا',last_name:'محمدی',phone:'۰۹۱۲۱۲۳۴۵۶۷',...extra});
 /* A verified customer without touching the network: MELIPAYAMAK_TOKEN=dev-mock answers locally. */
 async function verified(env,s,phone='۰۹۱۲۱۲۳۴۵۶۷'){const g=await guest(env,s);env.MELIPAYAMAK_TOKEN='dev-mock';const sent=await call(env,'/api/s/'+s.slug+'/otp/send',otpBody({phone}),g);assert.equal(sent.status,200,JSON.stringify(sent));const ok=await call(env,'/api/s/'+s.slug+'/otp/verify',{code:'12345'},g);assert.equal(ok.status,200,JSON.stringify(ok));return g;}
@@ -118,6 +125,89 @@ test('a guest analyses through the caps and cache; without a key or over the cap
  // A reference photo is not «her own».
  const ref=await upload(e,s,g,'reference');
  assert.equal((await call(e,'/api/s/salon-a/consult/analyze',{photo_id:ref,line:'hair'},g)).status,404);
+});
+
+test('the consultant’s paid routes are closed everywhere except the direct studio salon',async()=>{
+ const e=fixture();
+ const r=await call(e,'/api/salons',{slug:'salon-b',name:'سالن ب'},OWNER);
+ assert.equal(r.status,200,JSON.stringify(r));
+ const s={id:r.data.id,slug:'salon-b'},g=await guest(e,s);
+ const photo=await upload(e,s,g);
+ e.KIE_API_KEY='mock';
+ const kv=mockVision(MODEL_JSON);
+ try{
+  const an=await call(e,'/api/s/salon-b/consult/analyze',{photo_id:photo,line:'hair'},g);
+  assert.equal(an.status,404,JSON.stringify(an));
+  assert.match(an.data.error,/استودیوی آینه/);
+  const sg=await call(e,'/api/s/salon-b/consult/suggest',{line:'hair',analysis:{},answers:{}},g);
+  assert.equal(sg.status,404,JSON.stringify(sg));
+  assert.match(sg.data.error,/استودیوی آینه/);
+  assert.equal(kv.calls.length,0,'a closed salon can never reach the provider');
+ }finally{kv.restore()}
+ // The ungated profile routes keep their own answers — 401, never the gate’s 404.
+ const save=await call(e,'/api/s/salon-b/consult',{line:'hair',photo_id:photo,analysis:{source:'self',fields:{face_shape:'round'}},answers:{}},g);
+ assert.equal(save.status,401,JSON.stringify(save));
+ assert.equal((await call(e,'/api/s/salon-b/consults',undefined,g)).status,401);
+});
+
+test('a failed vision call gives the paid slot back — the same photo can be retried',async()=>{
+ const e=fixture(),s=await salon(e),g=await guest(e,s);
+ const photo=await upload(e,s,g);
+ e.KIE_API_KEY='mock';
+ let kv=mockVision('این متن JSON نیست');
+ try{
+  const bad=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line:'hair'},g);
+  assert.equal(bad.status,200,JSON.stringify(bad));
+  assert.equal(bad.data.ok,false);assert.equal(bad.data.fallback,'questionnaire');
+  assert.equal(kv.calls.length,1);
+ }finally{kv.restore()}
+ kv=mockVision(MODEL_JSON);
+ try{
+  const good=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line:'hair'},g);
+  assert.equal(good.status,200,JSON.stringify(good));
+  assert.equal(good.data.ok,true);assert.equal(good.data.cached,false);
+  assert.equal(good.data.fields.hair_color,'black');
+  assert.equal(kv.calls.length,1,'a fresh provider call — the refunded slot let the retry through at all');
+ }finally{kv.restore()}
+});
+
+test('one network gets at most 10 paid analyses a day — a farm cannot loop them',async()=>{
+ const e=fixture(),s=await salon(e);
+ e.KIE_API_KEY='mock';
+ const kv=mockVision(MODEL_JSON);
+ try{
+  for(let i=0;i<10;i++){
+   const g=await guest(e,s),photo=await upload(e,s,g);
+   const r=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line:'hair',v:i.toString(16).padStart(16,'0')},g);
+   assert.equal(r.status,200,`guest ${i}: `+JSON.stringify(r));
+   assert.equal(r.data.ok,true);
+  }
+  assert.equal(kv.calls.length,10);
+  const g=await guest(e,s),photo=await upload(e,s,g);
+  const over=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line:'hair',v:'f'.repeat(16)},g);
+  assert.equal(over.status,429,JSON.stringify(over));
+  assert.match(over.data.error,/از این شبکه/);
+  assert.equal(kv.calls.length,10,'the network cap refuses before paying');
+ }finally{kv.restore()}
+});
+
+test('the cache keys on the photo bytes — the same picture is never paid for twice',async()=>{
+ const e=fixture(),s=await salon(e),g=await guest(e,s);
+ const bytes=png();
+ const photo1=await upload(e,s,g,'original',bytes);
+ const photo2=await upload(e,s,g,'original',bytes);
+ assert.notEqual(photo1,photo2,'two uploads, two ids');
+ e.KIE_API_KEY='mock';
+ const kv=mockVision(MODEL_JSON);
+ try{
+  const first=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo1,line:'hair'},g);
+  assert.equal(first.status,200,JSON.stringify(first));
+  assert.equal(first.data.cached,false);assert.equal(kv.calls.length,1);
+  const again=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo2,line:'hair'},g);
+  assert.equal(again.status,200,JSON.stringify(again));
+  assert.equal(again.data.cached,true);assert.equal(kv.calls.length,1,'identical bytes hit the cache');
+  assert.equal(e.DB.sql.prepare('SELECT count(*) n FROM ai_cache').get().n,1);
+ }finally{kv.restore()}
 });
 
 test('suggestions are open to guests; saving a consultation needs a verified mobile',async()=>{
@@ -280,7 +370,8 @@ test('the built result attaches to the consultation and travels through the shar
  const id=save.data.id;
  // A simulation result of her own session (as the generate route would store).
  const simId=crypto.randomUUID(),key='sim/'+simId+'.png';
- e.BUCKET.put(key,png());
+ const simBytes=png();
+ e.BUCKET.put(key,simBytes);
  const sid=e.DB.sql.prepare('SELECT id FROM sessions WHERE verified_phone IS NOT NULL').get().id;
  e.DB.prepare('INSERT INTO media(id,salon_id,session_id,kind,object_key,mime,created_at) VALUES(?,?,?,?,?,?,?)').bind(simId,s.id,sid,'simulation',key,'image/png',Date.now()).run();
  // A foreign simulation is refused.
@@ -302,7 +393,7 @@ test('the built result attaches to the consultation and travels through the shar
  assert.equal(img.status,200);
  assert.equal(img.headers.get('Content-Type'),'image/png');
  assert.match(img.headers.get('Cache-Control'),/no-store/);
- assert.deepEqual(new Uint8Array(await img.arrayBuffer()),png(),'the actual bytes come from the bucket');
+ assert.deepEqual(new Uint8Array(await img.arrayBuffer()),simBytes,'the actual bytes come from the bucket');
  assert.equal((await app.fetch(new Request(origin+'/share/'+'a'.repeat(64)+'/img'),e)).status,410);
 });
 

@@ -2928,7 +2928,7 @@ function consultStep3(p){
 function consultAnalyze(){
  if(!consult||consult.busy)return;
  consult.busy=true;consultDraw();
- ensureSession().then(function(){return api('consult/analyze',{photo_id:consult.photo,line:consult.line})})
+ ensureSession().then(function(){return api('consult/analyze',{photo_id:consult.photo,line:consult.line,v:VISITOR})})
  .then(function(d){
   consult.busy=false;
   if(d&&d.ok){consult.analysis={fields:d.fields||{},confidence:d.confidence||{},low:d.low||[]};consult.picked={};consult.note=d.cached?'تحلیل از قبل داشتیم؛ همان را می‌بینی.':''}

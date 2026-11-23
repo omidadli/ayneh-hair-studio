@@ -214,12 +214,16 @@ async function ownPhoto(db,s,id){
  must(linked,'عکس متعلق به این حساب نیست',403);
  return m;
 }
-async function ownResult(db,s,id){
+async function ownResult(db,s,id,photo,line){
  must(/^[a-f0-9-]{36}$/.test(String(id||'')),'عکس معتبر نیست',400);
  const m=await db.prepare('SELECT * FROM media WHERE id=? AND salon_id=?').bind(id,s.salon_id).first();
  must(m&&m.kind==='simulation','نتیجه پیدا نشد',404);
  const linked=m.session_id===s.id||(s.verified_phone&&m.session_id&&await db.prepare('SELECT 1 FROM sessions WHERE id=? AND salon_id=? AND verified_phone=?').bind(m.session_id,s.salon_id,s.verified_phone).first());
  must(linked,'این نتیجه متعلق به این حساب نیست',403);
+ /* Same customer is not enough: the generation must be a build of THIS record's photo and
+    line — a result of another photo (or another service) never travels with this record. */
+ const gen=await db.prepare('SELECT 1 FROM generations WHERE result_id=? AND original_id=? AND line=?').bind(id,photo,line).first();
+ must(gen,'این نتیجه برای همین عکس و همین بخش ساخته نشده است',404);
  return m;
 }
 
@@ -274,7 +278,7 @@ export async function consultApi(req,env,{u,route,salon,s,clientIp}){
   const answers=cleanAnswers(b.answers);
   const picks=suggest(b.line,{fields:a.fields},answers).picks;
   let resultId=null;
-  if(b.result_id){resultId=(await ownResult(db,s,b.result_id)).id}
+  if(b.result_id){resultId=(await ownResult(db,s,b.result_id,m.id,b.line)).id}
   const id=uid();
   await db.prepare('INSERT INTO consultations(id,salon_id,owner,line,photo_id,analysis_json,answers_json,picks_json,result_id,created_at) VALUES(?,?,?,?,?,?,?,?,?,?)')
    .bind(id,salon.id,phone,b.line,m.id,JSON.stringify({source,fields:a.fields,confidence:a.confidence,low:a.low,self_keys:selfKeys}),JSON.stringify(answers),JSON.stringify(picks),resultId,Date.now()).run();
@@ -298,7 +302,7 @@ export async function consultApi(req,env,{u,route,salon,s,clientIp}){
   if(rest.endsWith('/result')&&req.method==='POST'){
    must(phone&&row&&row.owner===phone,'مشاوره پیدا نشد',404);
    const b=await req.json().catch(()=>({}));
-   const m=await ownResult(db,s,b.result_id);
+   const m=await ownResult(db,s,b.result_id,row.photo_id,row.line);
    await db.prepare('UPDATE consultations SET result_id=? WHERE id=?').bind(m.id,row.id).run();
    return J({ok:true});
   }

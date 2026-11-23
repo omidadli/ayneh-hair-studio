@@ -497,6 +497,8 @@ test('the built result attaches to the consultation and travels through the shar
  e.BUCKET.put(key,simBytes);
  const sid=e.DB.sql.prepare('SELECT id FROM sessions WHERE verified_phone IS NOT NULL').get().id;
  e.DB.prepare('INSERT INTO media(id,salon_id,session_id,kind,object_key,mime,created_at) VALUES(?,?,?,?,?,?,?)').bind(simId,s.id,sid,'simulation',key,'image/png',Date.now()).run();
+ // …and the generation that built it, from this very photo and line.
+ e.DB.prepare('INSERT INTO generations(id,salon_id,session_id,idem,state,original_id,result_id,style,created_at,updated_at,line) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),s.id,sid,'consult-sim-1','success',photo,simId,0,Date.now(),Date.now(),'hair').run();
  // A foreign simulation is refused.
  const other=await guest(e,s);
  const otherSid=e.DB.sql.prepare('SELECT id FROM sessions WHERE verified_phone IS NULL ORDER BY created_at DESC').get().id;
@@ -509,6 +511,19 @@ test('the built result attaches to the consultation and travels through the shar
  assert.equal(e.DB.sql.prepare('SELECT result_id FROM consultations WHERE id=?').get(id).result_id,simId);
  const detail=await call(e,'/api/s/salon-a/consults/'+id,undefined,g);
  assert.equal(detail.data.result_id,simId,'the detail shows the built image');
+ // Same customer, same line, but built from ANOTHER photo: it never travels with this record —
+ // neither through the attach route nor through a save that carries result_id.
+ const otherPhoto=await upload(e,s,g);
+ const wrongSim=crypto.randomUUID();
+ e.BUCKET.put('sim/'+wrongSim+'.png',png());
+ e.DB.prepare('INSERT INTO media(id,salon_id,session_id,kind,object_key,mime,created_at) VALUES(?,?,?,?,?,?,?)').bind(wrongSim,s.id,sid,'simulation','sim/'+wrongSim+'.png','image/png',Date.now()).run();
+ e.DB.prepare('INSERT INTO generations(id,salon_id,session_id,idem,state,original_id,result_id,style,created_at,updated_at,line) VALUES(?,?,?,?,?,?,?,?,?,?,?)').bind(crypto.randomUUID(),s.id,sid,'consult-sim-2','success',otherPhoto,wrongSim,0,Date.now(),Date.now(),'hair').run();
+ assert.equal((await call(e,'/api/s/salon-a/consults/'+id+'/result',{result_id:wrongSim},g)).status,404,'another photo never attaches');
+ const badSave=await call(e,'/api/s/salon-a/consult',{line:'hair',photo_id:otherPhoto,analysis:{source:'self',fields:{face_shape:'round'}},answers:{},result_id:simId},g);
+ assert.equal(badSave.status,404,JSON.stringify(badSave),'a save carrying another photo’s build is refused');
+ const goodSave=await call(e,'/api/s/salon-a/consult',{line:'hair',photo_id:photo,analysis:{source:'self',fields:{face_shape:'round'}},answers:{},result_id:simId},g);
+ assert.equal(goodSave.status,200,JSON.stringify(goodSave));
+ assert.equal(goodSave.data.result_id,simId,'the matching build attaches on save too');
  // Before the share exists there is no image route; after it, the image is private and no-store.
  const share=await call(e,'/api/s/salon-a/consults/'+id+'/share',{},g);
  const token=share.data.path.split('/')[2];

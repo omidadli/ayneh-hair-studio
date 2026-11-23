@@ -18,6 +18,10 @@ CREATE TABLE IF NOT EXISTS consultations(
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS consultations_owner ON consultations(salon_id, owner, created_at);
+-- Every /share/<token> lookup hashes the token and queries by it (and by the replaced token,
+-- which must answer 410): both columns are looked up on every request, so both are indexed.
+CREATE INDEX IF NOT EXISTS consultations_share_hash ON consultations(share_hash);
+CREATE INDEX IF NOT EXISTS consultations_share_hash_prev ON consultations(share_hash_prev);
 CREATE TABLE IF NOT EXISTS ai_cache(
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL,

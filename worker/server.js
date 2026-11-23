@@ -419,7 +419,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  const s=await session(req,db,salon);
  /* The consultant: analysis, ranked suggestions, saved records and the one-time share link.
     Everything AI-shaped inside consultApi goes through worker/ai.js (cap + cache). */
- if(route.startsWith('consult'))return consultApi(req,env,{u,route,salon,s,clientIp});
+ if(route.startsWith('consult'))return consultApi(req,env,{u,route,salon,s,clientIp:clientIp(req)});
  if(route==='session')return J({ok:true,verified:!!s.verified_phone,name:s.verified_name||'',phone:s.verified_phone||'',quota:trial||demo||await unlimited(db,s)?null:await (async v=>quotaView(db,env,salon,s,v,{per:QUOTA_PER_LINE,left:quotaLeft(await quotaUsed(db,salon,s,v))}))(/^[a-f0-9]{16,32}$/.test(u.searchParams.get('v')||'')?u.searchParams.get('v'):'')});
  // Mobile verification: a one-time code texted by Melipayamak. Only the hash of the code is stored.
  if(route==='otp/send'){

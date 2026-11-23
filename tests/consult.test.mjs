@@ -11,7 +11,7 @@ const origin='https://test.example';
 const migrations=readdirSync(new URL('../drizzle/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort();
 function fixture(){const DB=database();for(const f of migrations)DB.sql.exec(readFileSync(new URL('../drizzle/'+f,import.meta.url),'utf8'));return {DB,BUCKET:memoryBucket(),OWNER_EMAIL:'owner@test',JOB_TOKEN:'job-test',TRUST_PLATFORM_IDENTITY:'true'};}
 const OWNER={user:'owner-a',email:'owner@test'};
-async function call(env,path,body,{cookie='',user='owner-a',email='owner@test'}={}){const headers={origin,'oai-authenticated-user-id':user,'oai-authenticated-user-email':email,cookie};let payload;if(body!==undefined){if(body instanceof Uint8Array){payload=body}else{headers['content-type']='application/json';payload=JSON.stringify(body)}}const res=await app.fetch(new Request(origin+path,{method:body===undefined?'GET':'POST',headers,body:payload}),env);let d;try{d=await res.json()}catch{d=null}return {status:res.status,data:d,headers:res.headers,cookie:res.headers.get('set-cookie')?.split(';')[0]};}
+async function call(env,path,body,{cookie='',user='owner-a',email='owner@test',headers:extra}={}){const headers={origin,'oai-authenticated-user-id':user,'oai-authenticated-user-email':email,cookie,...(extra||{})};let payload;if(body!==undefined){if(body instanceof Uint8Array){payload=body}else{headers['content-type']='application/json';payload=JSON.stringify(body)}}const res=await app.fetch(new Request(origin+path,{method:body===undefined?'GET':'POST',headers,body:payload}),env);let d;try{d=await res.json()}catch{d=null}return {status:res.status,data:d,headers:res.headers,cookie:res.headers.get('set-cookie')?.split(';')[0]};}
 /* Every test salon IS the direct studio salon: the consultant card (and its paid vision
    routes) exist only there, so the fixture flips the row it just created instead of making a
    second one — every slug path below keeps working unchanged. */
@@ -207,6 +207,59 @@ test('the cache keys on the photo bytes — the same picture is never paid for t
   assert.equal(again.status,200,JSON.stringify(again));
   assert.equal(again.data.cached,true);assert.equal(kv.calls.length,1,'identical bytes hit the cache');
   assert.equal(e.DB.sql.prepare('SELECT count(*) n FROM ai_cache').get().n,1);
+ }finally{kv.restore()}
+});
+
+test('the network counter follows the real client IP; a changing browser id cannot reset it',async()=>{
+ const e=fixture(),s=await salon(e);
+ e.KIE_API_KEY='mock';
+ const kv=mockVision(MODEL_JSON);
+ const H=ip=>({'cf-connecting-ip':ip});
+ try{
+  // Ten different browser ids on ONE network all succeed — the ids differ, the network is the same.
+  for(let i=0;i<10;i++){
+   const g=await guest(e,s),photo=await upload(e,s,g);
+   const r=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line:'hair',v:i.toString(16).padStart(16,'0')},{cookie:g.cookie,headers:H('203.0.113.7')});
+   assert.equal(r.status,200,`ip1 guest ${i}: `+JSON.stringify(r));
+  }
+  assert.equal(kv.calls.length,10);
+  // An eleventh id on that same network is refused even though the id changed.
+  const g11=await guest(e,s),p11=await upload(e,s,g11);
+  const over=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:p11,line:'hair',v:'f'.repeat(16)},{cookie:g11.cookie,headers:H('203.0.113.7')});
+  assert.equal(over.status,429,JSON.stringify(over));
+  assert.match(over.data.error,/از این شبکه/);
+  assert.equal(kv.calls.length,10,'refused before paying');
+  // Another network is untouched — one counter per IP, never one for the whole site.
+  const g2=await guest(e,s),p2=await upload(e,s,g2);
+  const other=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:p2,line:'hair',v:'a'.repeat(16)},{cookie:g2.cookie,headers:H('198.51.100.23')});
+  assert.equal(other.status,200,JSON.stringify(other));
+  assert.equal(kv.calls.length,11);
+ }finally{kv.restore()}
+});
+
+test('a provider failure gives every counter back — the customer is never billed for our fault',async()=>{
+ const e=fixture(),s=await salon(e),g=await guest(e,s);
+ e.KIE_API_KEY='mock';
+ let kv=mockVision('این متن جیسون نیست');
+ try{
+  // Eleven rubbish answers in a row: without the refunds the attempt cap would trip at 4 and
+  // the network cap at 11 — every attempt must reach the provider and come back free.
+  for(let i=0;i<11;i++){
+   const photo=await upload(e,s,g);
+   const r=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line:'hair'},g);
+   assert.equal(r.status,200,`attempt ${i}: `+JSON.stringify(r));
+   assert.equal(r.data.ok,false);
+  }
+  assert.equal(kv.calls.length,11,'success, attempt and network slots were all refunded');
+ }finally{kv.restore()}
+ // And the very next real answer still works — the success slot is back too.
+ kv=mockVision(MODEL_JSON);
+ try{
+  const photo=await upload(e,s,g);
+  const r=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line:'hair'},g);
+  assert.equal(r.status,200,JSON.stringify(r));
+  assert.equal(r.data.ok,true);
+  assert.equal(kv.calls.length,1);
  }finally{kv.restore()}
 });
 

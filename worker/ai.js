@@ -29,9 +29,10 @@ export async function uploadProvider(env,m){const object=await bucketFor(env).ge
    a re-analysis of the same picture free and skips every cap. Costs are guarded BEFORE the
    provider is paid: the daily success slot (`okLimit`) is reserved atomically — limited()
    increments and rejects in one step, so concurrent requests cannot both slip through — and
-   refunded whenever the call does not come back, so a failure never eats the customer's one
-   free result. `tryLimit` counts attempts (protects the provider key) and `netLimit` bounds a
-   whole network per day (the DEMO_IP_DAILY idea). A paid, successful result is never discarded:
+   every slot (success, attempt and network) is refunded whenever the call does not come back,
+   so a provider fault never eats the customer's budget. `tryLimit` counts attempts (protects
+   the provider key) and `netLimit` bounds a whole network per day (the DEMO_IP_DAILY idea).
+   A paid, successful result is never discarded:
    no limit runs after the value exists and the cache write is best-effort. Returns
    {ok:true,value,cached} or {ok:false,reason} — the caller falls back to the questionnaire and
    never invents a result. KIE reports errors as HTTP 200 with {code,msg}, so the body is
@@ -52,20 +53,23 @@ export async function visionJSON(env,db,{cacheKey,system,user,image,tryLimit,okL
   if(tryLimit)await limited(db,tryLimit.key,tryLimit.max,tryLimit.message||'چند بار تلاش کردی؛ کمی بعد دوباره امتحان کن');
   if(netLimit)await limited(db,netLimit.key,netLimit.max,netLimit.message||'از این شبکه امروز چندین تحلیل زده شد؛ فردا دوباره امتحان کن.');
  }catch(e){if(okLimit)await refund(okLimit.key);throw e}
+ /* From here on a failure is the provider's fault, never the customer's: every slot that was
+   reserved — success, attempt and network — goes back before we answer. */
+ const giveBack=async()=>{if(okLimit)await refund(okLimit.key);if(tryLimit)await refund(tryLimit.key);if(netLimit)await refund(netLimit.key)};
  const url='data:'+(image.mime||'image/jpeg')+';base64,'+toBase64(image.bytes);
  try{
   const res=await fetch(VISION_URL,{method:'POST',headers:{Authorization:'Bearer '+env.KIE_API_KEY,'Content-Type':'application/json'},signal:AbortSignal.timeout(25000),body:JSON.stringify({model:VISION_MODEL,stream:false,reasoning_effort:'low',messages:[{role:'system',content:system},{role:'user',content:[{type:'text',text:user},{type:'image_url',image_url:{url}}]}]})});
   const d=await res.json().catch(()=>null);
-  if(!res.ok||(d&&d.code&&d.code!==200)){if(okLimit)await refund(okLimit.key);return {ok:false,reason:'provider'}}
+  if(!res.ok||(d&&d.code&&d.code!==200)){await giveBack();return {ok:false,reason:'provider'}}
   const content=d&&d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content;
-  if(typeof content!=='string'||!content.trim()){if(okLimit)await refund(okLimit.key);return {ok:false,reason:'empty'}}
+  if(typeof content!=='string'||!content.trim()){await giveBack();return {ok:false,reason:'empty'}}
   const first=content.indexOf('{'),last=content.lastIndexOf('}');
-  if(first<0||last<=first){if(okLimit)await refund(okLimit.key);return {ok:false,reason:'invalid'}}
+  if(first<0||last<=first){await giveBack();return {ok:false,reason:'invalid'}}
   const value=JSON.parse(content.slice(first,last+1)); // paid — never discarded from here on
   if(cacheKey){try{await db.prepare('INSERT INTO ai_cache(key,value,created_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,created_at=excluded.created_at').bind(cacheKey,JSON.stringify(value),Date.now()).run()}catch{}}
   return {ok:true,value,cached:false};
  }catch(e){
-  if(okLimit)await refund(okLimit.key);
+  await giveBack();
   if(e instanceof Problem)throw e;
   return {ok:false,reason:e&&e.name==='TimeoutError'?'timeout':'invalid'};
  }

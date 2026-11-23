@@ -4,7 +4,7 @@ import {styles} from './legacy.js';
 import {identity,issueCookie,clearCookie,same,passwordLoginEnabled} from './auth.js';
 import {bucketFor,putImage} from './storage.js';
 import {botReady,deliverLead,deliverPending,newLinkCode,setWebhook,inboxes,followLinks,PLATFORMS,platformReady,baleSecret,staffInvite,notifyConflict,expireStates,askTransfer,transferTick} from './telegram.js';
-import {LINE_KEYS,lineStyles,cleanOptions,linePrompt,optionText,LINE_LABEL} from './lines.js';
+import {LINE_KEYS,lineStyles,cleanOptions,linePrompt,optionText,LINE_LABEL,PLACEMENT_KEYS} from './lines.js';
 import {ownerLink,alertUnanswered,maybeDigest,setupStatus,digest,notifyOwner,setting} from './alerts.js';
 import {attribute,ownerFor,createStaff,requestTransfer,cancelTransfer,pendingTransfer,report,team as teamOf,liveStaff,SPECIALTIES} from './referral.js';
 import {stats} from './stats.js';
@@ -553,6 +553,11 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   const old=await one(db,'SELECT * FROM generations WHERE session_id=? AND idem=?',s.id,b.idem);if(old)return J({id:old.id,state:old.state});
   const original=await ownMedia(db,s,b.original_id);must(original.kind==='original','عکس چهره لازم است');
   const color=text(String(b.color||'').slice(0,120),120),opts=cleanOptions(line,b.opts),ratio=RATIOS.includes(b.ratio)?b.ratio:'3:4';
+  // Phase 2: where the colour sits (كل مو / ریشه / …). Validated against the pattern list;
+  // it only reaches the prompt on the colour line, and only for a catalog or typed colour —
+  // a reference photo carries its own placement.
+  const placement=PLACEMENT_KEYS.includes(b.placement)?b.placement:null;
+  if(line==='color'&&placement)opts.placement=placement;
   let reference=null;
   // A salon work with a written look is tried on from the text alone: one photo, hers.
   let look='';
@@ -595,7 +600,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
    const images=[await uploadProvider(env,base)];if(reference)images.push(await uploadProvider(env,reference));
    const prompt=look?(line==='hair'?transferPrompt('catalog',look,''):line==='color'?linePrompt('color','catalog',look,{},''):linePrompt(line,line==='nails'?'salon':'catalog',look,opts,color))
     :line==='hair'?transferPrompt(reference?'style':'catalog',styles[b.style]?.[1]||'',demo&&b.apply_color===true?color:'')
-    :line==='color'?linePrompt('color',mode,mode==='catalog'?lineStyles('color')[b.style][3]:'',{},color)
+    :line==='color'?linePrompt('color',mode,mode==='catalog'?lineStyles('color')[b.style][3]:'',{},color,placement)
     :linePrompt(line,reference?'reference':'catalog',reference?'':lineStyles(line)[b.style][3],opts,color);
    const job=await createImageTask(env,cfg,{prompt,image_input:images,aspect_ratio:ratio,resolution:'2K',output_format:'jpg'});
    await run(db,"UPDATE generations SET state='waiting',task_id=? WHERE id=?",job.taskId,id);return J({id,state:'waiting'});

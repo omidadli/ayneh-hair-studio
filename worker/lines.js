@@ -225,8 +225,8 @@ export function colorPrompt(mode,style,color,placement){
   what+placementLine+
   '\nREALISM: salon-quality colour with natural dimension, believable roots and shine, the colour following every strand and wave, light and shadow matching the original photo\'s light direction and colour temperature. Keep brows and lashes their natural colour. Seamless edges, no halo, no wig look, no painted or plastic texture.'+OUT;
 }
-export function linePrompt(line,mode,style,opts,color){
- if(line==='color')return colorPrompt(mode,style,color);
+export function linePrompt(line,mode,style,opts,color,placement){
+ if(line==='color')return colorPrompt(mode,style,color,placement);
  if(line==='nails'){
   const shape=optEn('nails','shape',opts.shape),len=optEn('nails','length',opts.length);
   return 'Professional nail-salon consultation preview. Photo 1 is the client\'s hand. Edit ONLY her fingernails.\n'+

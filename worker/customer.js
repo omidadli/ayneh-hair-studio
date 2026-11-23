@@ -1739,7 +1739,7 @@ function stepModel(){
   if(Q&&!shown)box.append(h('p','نمونهٔ آماده‌ای با این نام نداریم؛ دکمهٔ بالا همین را برایتان می‌سازد.','hint'));
   if(state.custom&&!state.reference)box.append(pickedBar('انتخاب شما: '+state.custom,function(){pickLook(function(){state.custom=''})}));
   if(state.style!==null&&!state.reference){var pk=(L==='color'?'رنگ انتخابی: ':L==='nails'?'طرح انتخابی: ':'مدل انتخابی: ')+LIST[state.style][0],ex=null;
-  if(L==='color'){var sd=shadeOf(LIST[state.style][0]);if(sd){pk+=' · '+sd.brand+' · '+sd.code;if(sd.link)ex=el('a',{class:'picked__buy',href:sd.link,target:'_blank',rel:'noopener',text:'کجا بخرم'})}}
+  if(L==='color'){var sd=shadeOf(LIST[state.style][0]);if(sd){pk+=' · '+sd.brand+' · '+sd.code;if(sd.link)ex=el('a',{class:'picked__buy',href:sd.link,target:'_blank',rel:'noopener noreferrer nofollow',text:'کجا بخرم'})}}
   box.append(pickedBar(pk,function(){pickLook(function(){state.style=null})},ex))}
  }else{
   if(!state.reference||state.refTitle){

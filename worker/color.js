@@ -29,6 +29,9 @@ export const CONDITION_PROBLEMS=[
  ['streak','رگه می‌شود'],['inconsistent','رنگ ناهمگون است'],['bleached','دکلره شده']
 ];
 const PROMPT_V='v1';
+/* The formula-suggest draft cache (ai_cache, keyed by target colour) is bounded to this many
+   rows per prompt version: the 30-day cleanup alone would let it grow without limit. */
+const FORMULA_CACHE_MAX=200;
 /* One network (IP) may push at most this many condition attempts a day for a guest — the same
    idea as the consultant's NET_DAILY and the demo counter. */
 const NET_DAILY=10;
@@ -224,6 +227,10 @@ export async function colorApi(req,env,{u,route,salon,s,clientIp}){
    okLimit:{key:'colorformula-ok:'+(phone||s.id),max:phone?30:5,message:'فرمول‌های امروز تمام شد؛ فردا دوباره امتحان کن'},
    netLimit:{key:'colorformula-net:'+(clientIp||'unknown'),max:NET_DAILY,message:'از این شبکه امروز چندین فرمول درخواست شد؛ فردا دوباره امتحان کن.'}});
   const draft=r.ok?cleanFormulaDraft(r.value,rule,target):{...rule,target_color:target,draft:true};
+  // Bound the formula-suggest cache: a new model result writes one ai_cache row keyed by
+  // target colour, and the 30-day cleanup alone would let it grow without limit. Keep only
+  // the newest FORMULA_CACHE_MAX rows for this prompt version.
+  if(r.ok&&!r.cached){try{await db.prepare("DELETE FROM ai_cache WHERE key LIKE ? AND key NOT IN(SELECT key FROM ai_cache WHERE key LIKE ? ORDER BY created_at DESC LIMIT ?)").bind('colorformula:'+PROMPT_V+':%','colorformula:'+PROMPT_V+':%',FORMULA_CACHE_MAX).run()}catch{}}
   return J({draft:true,formula:draft,source:r.ok?(r.cached?'cache':'model'):'rules'});
  }
  /* The stylist's formula cards: one per customer phone per salon. The manager console owns

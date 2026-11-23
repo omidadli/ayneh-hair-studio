@@ -1,9 +1,9 @@
 import {draftScript} from './draft.js';
 import {styles} from './legacy.js';
-import {NAIL_STYLES,LASH_STYLES,COLOR_STYLES,COLOR_SWATCHES,LINE_OPTIONS,LINE_COLORS,LINE_POPULAR,LINE_FILTERS,LINE_PHOTO,LINE_LABEL} from './lines.js';
+import {NAIL_STYLES,LASH_STYLES,COLOR_STYLES,COLOR_SWATCHES,LINE_OPTIONS,LINE_COLORS,LINE_POPULAR,LINE_FILTERS,LINE_PHOTO,LINE_LABEL,PLACEMENTS,PLACEMENT_KEYS} from './lines.js';
 import {QUESTIONS,ANALYSIS_FIELDS,RELEVANT} from './consult.js';
 const lineJSON=(line,list)=>({styles:list.map(x=>[x[0],x[1],x[2]]),filters:LINE_FILTERS[line],options:(LINE_OPTIONS[line]||[]).map(o=>({key:o.key,label:o.label,items:o.items.map(i=>i[0])})),colors:(LINE_COLORS[line]||[]).map(c=>[c[0],c[1]]),popular:LINE_POPULAR[line]||[]});
-const LINES_JSON=JSON.stringify({label:LINE_LABEL,photo:LINE_PHOTO,color:{...lineJSON('color',COLOR_STYLES),swatches:COLOR_SWATCHES},nails:lineJSON('nails',NAIL_STYLES),lashes:lineJSON('lashes',LASH_STYLES)});
+const LINES_JSON=JSON.stringify({label:LINE_LABEL,photo:LINE_PHOTO,placements:PLACEMENTS.map(p=>[p[0],p[1]]),color:{...lineJSON('color',COLOR_STYLES),swatches:COLOR_SWATCHES},nails:lineJSON('nails',NAIL_STYLES),lashes:lineJSON('lashes',LASH_STYLES)});
 import {baseCSS,markSVG} from './design.js';
 
 const customerCSS=String.raw`
@@ -1398,7 +1398,7 @@ function openAbout(){
 /* ---------- steps ---------- */
 /* ---------- service lines: hairstyle, hair colour, nails, lashes ---------- */
 // Each line keeps its own photo, choices and result; switching is one tap and loses nothing.
-var LINE_FIELDS=['busy','rating','seen','step','original','preview','ratio','reference','refTitle','style','custom','q','tab','transfer','color','opts','result','gen','genState','views','viewsIdem','idem','filter','error','justUploaded','base','genBase','resultBase','genT0'];
+var LINE_FIELDS=['busy','rating','seen','step','original','preview','ratio','reference','refTitle','style','custom','q','tab','transfer','color','opts','place','result','gen','genState','views','viewsIdem','idem','filter','error','justUploaded','base','genBase','resultBase','genT0'];
 var LINE_LIST=[['hair','مدل مو','scissors'],['color','رنگ مو','drop'],['nails','ناخن','nails'],['lashes','مژه','lashes']];
 /* «مدل مو، رنگ مو، طرح ناخن یا مژه» — only the lines this salon offers. */
 var LINE_WORDS={hair:'مدل مو',color:'رنگ مو',nails:'طرح ناخن',lashes:'مژه'};
@@ -1406,7 +1406,7 @@ function offerText(ez){var w=LINE_LIST.map(function(x){return LINE_WORDS[x[0]]})
 var FACE=['hair','color','lashes'];
 var lineStore={};
 function hasLineWork(line){return (state.pub&&state.pub.portfolio||[]).some(function(p){return (p.published||p.try_on)&&(p.line||'hair')===line})}
-function lineDefaults(to){return {busy:false,rating:0,seen:null,custom:'',q:'',step:1,original:null,preview:null,ratio:'',reference:null,refTitle:'',style:null,tab:hasLineWork(to)?'salon':'catalog',transfer:'both',color:'',opts:{},result:null,gen:null,genState:null,views:null,viewsIdem:null,idem:null,filter:'همه',error:'',justUploaded:false,base:'hair',genBase:null,resultBase:null,genT0:0,fromConsult:null}}
+function lineDefaults(to){return {busy:false,rating:0,seen:null,custom:'',q:'',step:1,original:null,preview:null,ratio:'',reference:null,refTitle:'',style:null,tab:hasLineWork(to)?'salon':'catalog',transfer:'both',color:'',opts:{},place:'full',result:null,gen:null,genState:null,views:null,viewsIdem:null,idem:null,filter:'همه',error:'',justUploaded:false,base:'hair',genBase:null,resultBase:null,genT0:0,fromConsult:null}}
 function LP(){return LINES.photo[state.line]||LINES.photo.hair}
 function lineCat(){return state.line==='hair'?null:LINES[state.line]}
 function catalogImg(i){return '/catalog/'+(state.line==='hair'?'':state.line+'/')+String(i+1).padStart(2,'0')+'.webp'}
@@ -1445,7 +1445,7 @@ function switchLine(to,opts){
  if(!(opts&&opts.silent)&&from!==to&&opts&&opts.scroll)focusFlow();
 }
 /* Studio: her photo, choices and results per service survive a trip to the profile (this tab only). */
-var KEEP=['original','ratio','result','resultBase','style','reference','refTitle','custom','base','gen','color','opts','filter','tab','seen','rating'];
+var KEEP=['original','ratio','result','resultBase','style','reference','refTitle','custom','base','gen','color','opts','place','filter','tab','seen','rating'];
 function keepStudio(){if(!studio()||accountMode())return;try{var o={line:state.line,lines:{}};LINE_LIST.forEach(function(x){var d=lineData(x[0]);if(!d||!d.original)return;var k={};KEEP.forEach(function(f){k[f]=d[f]});k.step=d.result?3:2;o.lines[x[0]]=k});sessionStorage.setItem('ayneh-studio-'+SLUG,JSON.stringify(o))}catch(e){}}
 window.addEventListener('pagehide',function(){keepStudio()});
 function restoreStudio(){try{var o=JSON.parse(sessionStorage.getItem('ayneh-studio-'+SLUG)||'null');if(!o||!o.lines)return false;Object.keys(o.lines).forEach(function(k){if(!LINES.label[k])return;var d=Object.assign(lineDefaults(k),o.lines[k]);if(k===state.line)Object.assign(state,d);else lineStore[k]=d});return true}catch(e){return false}}
@@ -1749,6 +1749,9 @@ function stepModel(){
  });
  // Nails and lashes: a colour box for every way of choosing. Hair colour: a colour can also just be typed.
  if(L!=='hair'||state.pub.demo)box.append(colorPicker());
+ // Phase 2: the colour placement pattern, on the colour line without a reference photo.
+ if(L==='color'&&!state.reference)box.append(placementRow());
+ if(L==='color'&&state.reference)box.append(h('p','الگوی رنگ از عکس مرجع می‌آید؛ در عکس خودت الگوی انتخابی را می‌بینی.','hint'));
  if(state.reference&&!state.pub.reference&&state.pub.generation)box.append(notice('warn','ساخت تصویر از عکس مرجع یا کار سالن هنوز برای این سالن فعال نشده. می‌توانی از موارد آماده انتخاب کنی، یا همین را بدون شبیه‌سازی برای '+artist()+' بفرستی.'));
  var can=canGenerate()||!!state.tourDemo,ready=hasChoice()||!!state.tourDemo,left=quotaLeft();
  box.append(el('div',{class:'flow__nav'},[
@@ -1844,6 +1847,19 @@ function colorPicker(){
  return wrap;
 }
 
+/* Phase 2 — where the colour sits: one chip per placement pattern, single-select. The chip
+   row only appears on the colour line without a reference photo: a reference carries its own
+   placement, so picking one there would be ignored by the prompt. Tapping the active chip
+   resets to «کل مو» (the default), never to "nothing". */
+function placementRow(){
+ var P=LINES.placements||[],cur=PLACEMENT_KEYS.indexOf(state.place)>=0?state.place:'full';
+ var row=el('div',{class:'filters opt-row',role:'group','aria-label':'الگوی قرارگیری رنگ'});
+ P.forEach(function(p){
+  var on=p[0]===cur;
+  row.append(el('button',{class:'chip'+(on?' is-on':''),type:'button','aria-pressed':on?'true':'false',text:p[1],onclick:function(){state.place=on?'full':p[0];state.result=null;renderFlow();renderDock()}}));
+ });
+ return el('div',{class:'opt'},[h('p','الگوی قرارگیری رنگ','lbl'),row,h('span',{class:'hint',text:'الگو روی موهایتقرار می‌گیرد؛ اگر عکس مرجع گذاشتی، الگو از همان عکس می‌آید.'})]);
+}
 function renderDockSoon(){clearTimeout(renderDockSoon.t);renderDockSoon.t=setTimeout(function(){renderDock();var b=$('#flow .btn--build');if(b){var c=canGenerate(),r=hasChoice();b.innerHTML=buildLabel(c);b.disabled=!r;var hn=$('#flow .build-hint');if(hn)hn.textContent=buildHint(r,c,quotaLeft())}},60)}
 function typedColor(){return state.line==='color'&&state.style===null&&!state.reference&&String(state.color||'').trim().length>=2}
 function hasChoice(){return !!state.original&&(state.style!==null||!!state.reference||!!state.custom||typedColor())}
@@ -1925,7 +1941,7 @@ function lookName(){
  var base=state.reference?(state.refTitle?'«'+state.refTitle+'» از کارهای سالن':({nails:'عکس طرح دلخواه',color:'عکس رنگ دلخواه'}[L]||'عکس مدل دلخواه')):(state.custom?state.custom:state.style!==null?LIST[state.style][0]:(typedColor()?state.color.trim():''));
  if(!base)return '';
  if(L==='hair')return base;
- if(L==='color'){var hr=hairResult();return 'رنگ مو: '+base+(hr&&state.base!=='original'?' روی مدل «'+hr.name+'»':'')}
+ if(L==='color'){var hr=hairResult(),pl=(LINES.placements||[]).find(function(p){return p[0]===state.place});return 'رنگ مو: '+base+(hr&&state.base!=='original'?' روی مدل «'+hr.name+'»':'')+(pl&&!state.reference?' · '+pl[1]:'')}
  var extra=cat.options.map(function(o){return Number.isInteger(state.opts[o.key])?o.items[state.opts[o.key]]:''}).filter(Boolean).join('، ');
  return (L==='nails'?'ناخن: ':'مژه: ')+base+(extra?' ('+extra+')':'');
 }
@@ -2250,7 +2266,7 @@ function generate(){
   L().idem=L().idem||uuid();
   var o=L(),col=line==='hair'?(state.pub.demo?o.color:''):line==='color'?(o.style===null&&!o.reference&&String(o.color||'').trim().length>=2?o.color.trim():''):o.color;
   // The page's own note under «بساز» says the photo is sent for the simulation; no extra checkbox.
-  return api('generate',{apply_color:!!(state.pub.demo&&line==='hair'&&L().color),v:VISITOR,image_consent:true,idem:L().idem,line:line,opts:L().opts,ratio:L().ratio||undefined,original_id:L().original,base_id:line==='color'?(L().genBase||undefined):undefined,reference_id:L().reference||undefined,custom:L().custom&&!L().reference?L().custom:undefined,style:L().reference||L().custom?undefined:(L().style===null?undefined:L().style),color:col||undefined});
+  return api('generate',{apply_color:!!(state.pub.demo&&line==='hair'&&L().color),v:VISITOR,image_consent:true,idem:L().idem,line:line,opts:L().opts,ratio:L().ratio||undefined,placement:line==='color'?(L().place||undefined):undefined,original_id:L().original,base_id:line==='color'?(L().genBase||undefined):undefined,reference_id:L().reference||undefined,custom:L().custom&&!L().reference?L().custom:undefined,style:L().reference||L().custom?undefined:(L().style===null?undefined:L().style),color:col||undefined});
  }).then(function(job){
   track('generate',L().reference?(L().refTitle?'salon':'upload'):'catalog');
   spentQuota(line);

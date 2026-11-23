@@ -269,7 +269,13 @@ export async function consultApi(req,env,{u,route,salon,s,clientIp}){
   const b=await req.json().catch(()=>({}));
   must(LINE_KEYS.includes(b.line),'بخش معتبر نیست',400);
   const m=await ownPhoto(db,s,b.photo_id);
-  const source=b.analysis&&b.analysis.source==='self'?'self':'vision';
+  /* The label is the server's decision, never the client's: «vision» only when this photo's
+     bytes actually produced a cached analysis — otherwise everything here is her own answer,
+     however the request claims otherwise. */
+  let source='self';
+  const object=await bucketFor(env).get(m.object_key);
+  if(object){const bytes=new Uint8Array(await object.arrayBuffer());
+   if(await db.prepare('SELECT 1 FROM ai_cache WHERE key=?').bind('consult:'+PROMPT_V+':'+await hashBytes(bytes)).first())source='vision'}
   const a=source==='self'?{fields:(b.analysis&&b.analysis.fields)||{},confidence:{},low:[]}:cleanAnalysis(b.analysis,b.line);
   if(source==='self'){const f={};for(const k of RELEVANT[b.line]){const v=a.fields[k];if(typeof v==='string'&&ENUMS[k].has(v))f[k]=v}a.fields=f}
   /* Fields she answered herself (all of them when there was no analysis, or the ones she

@@ -390,6 +390,14 @@ test('a signed-in customer stores, lists and reopens her consultation; others se
 test('the one-time share link shows the stylist everything and dies after its window',async()=>{
  const e=fixture(),s=await salon(e),g=await verified(e,s);
  const photo=await upload(e,s,g);
+ // The vision really runs first: only a cached analysis of these bytes earns the label.
+ e.KIE_API_KEY='mock';
+ const kv=mockVision(MODEL_JSON);
+ try{
+  const an=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line:'color'},g);
+  assert.equal(an.status,200,JSON.stringify(an));
+  assert.equal(an.data.ok,true);
+ }finally{kv.restore()}
  const save=await call(e,'/api/s/salon-a/consult',{line:'color',photo_id:photo,analysis:{source:'vision',fields:{skin_undertone:'warm',hair_color:'brown'},confidence:{skin_undertone:0.9,hair_color:0.8},low:[]},answers:{boldness:'big',occasion:'party'}},g);
  assert.equal(save.status,200,JSON.stringify(save));
  const id=save.data.id;
@@ -452,17 +460,30 @@ test('the one-time share link shows the stylist everything and dies after its wi
 test('her own answers are labelled hers — never a photo analysis — on the share page',async()=>{
  const e=fixture(),s=await salon(e),g=await verified(e,s);
  const photo=await upload(e,s,g);
- // All fields self → one block titled «مشخصات (پاسخ مشتری)», no «تحلیل عکس» anywhere.
- const self=await call(e,'/api/s/salon-a/consult',{line:'hair',photo_id:photo,analysis:{source:'self',fields:{face_shape:'round',hair_length:'long'},confidence:{}},answers:{}},g);
+ // The request CLAIMS vision, but this photo was never analysed — the server must store self.
+ const self=await call(e,'/api/s/salon-a/consult',{line:'hair',photo_id:photo,analysis:{source:'vision',fields:{face_shape:'round',hair_length:'long'},confidence:{}},answers:{}},g);
  assert.equal(self.status,200,JSON.stringify(self));
+ const stored1=JSON.parse(e.DB.sql.prepare('SELECT analysis_json FROM consultations WHERE id=?').get(self.data.id).analysis_json);
+ assert.equal(stored1.source,'self','the client’s source is not trusted without a cached analysis');
+ // All fields self → one block titled «مشخصات (پاسخ مشتری)», no «تحلیل عکس» anywhere.
  const sh1=await call(e,'/api/s/salon-a/consults/'+self.data.id+'/share',{},g);
  const html1=await (await app.fetch(new Request(origin+sh1.data.path,{method:'POST'}),e)).text();
  assert.match(html1,/مشخصات \(پاسخ مشتری\)/);
  assert.ok(!html1.includes('<h2>تحلیل عکس</h2>'),'an all-self consultation never claims photo analysis');
- // Vision with one overridden field → two blocks, each field under its true source.
- const mixed=await call(e,'/api/s/salon-a/consult',{line:'hair',photo_id:photo,analysis:{source:'vision',fields:{face_shape:'oval',hair_length:'short'},confidence:{face_shape:0.9,hair_length:0.8},low:[],self_keys:['hair_length']},answers:{}},g);
+ // Now the photo really is analysed — the cache, not the client, decides the next label.
+ e.KIE_API_KEY='mock';
+ const kv=mockVision(MODEL_JSON);
+ try{
+  const an=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line:'hair'},g);
+  assert.equal(an.status,200,JSON.stringify(an));
+  assert.equal(an.data.ok,true);
+ }finally{kv.restore()}
+ // The request now CLAIMS self, but the bytes have a cached analysis — stored as vision,
+ // with only her override marked as her answer.
+ const mixed=await call(e,'/api/s/salon-a/consult',{line:'hair',photo_id:photo,analysis:{source:'self',fields:{face_shape:'oval',hair_length:'short'},confidence:{face_shape:0.9,hair_length:0.8},low:[],self_keys:['hair_length']},answers:{}},g);
  assert.equal(mixed.status,200,JSON.stringify(mixed));
  const stored=JSON.parse(e.DB.sql.prepare('SELECT analysis_json FROM consultations WHERE id=?').get(mixed.data.id).analysis_json);
+ assert.equal(stored.source,'vision','a cached analysis of these bytes earns the vision label');
  assert.deepEqual(stored.self_keys,['hair_length']);
  const sh2=await call(e,'/api/s/salon-a/consults/'+mixed.data.id+'/share',{},g);
  const html2=await (await app.fetch(new Request(origin+sh2.data.path,{method:'POST'}),e)).text();

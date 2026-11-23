@@ -171,7 +171,7 @@ a.hchip,button.hchip{cursor:pointer}a.hchip:hover,button.hchip:hover{border-colo
 .style-card{display:grid;gap:2px;align-content:start;min-height:84px;padding:14px 14px 12px;border:1.5px solid var(--line-2);background:var(--surface-2);border-radius:var(--r);text-align:start;transition:border-color .14s var(--ease),background-color .14s var(--ease)}
 .style-card:hover{border-color:var(--line)}
 .style-card.is-on{border-color:var(--ink);background:#fff;box-shadow:0 0 0 3px rgba(35,23,15,.08)}
-.style-card.is-flash{animation:cardFlash1.2s var(--ease)}
+.style-card.is-flash{animation:cardFlash 1.2s var(--ease)}
 @keyframes cardFlash{0%{box-shadow:0 0 0 0 rgba(35,23,15,.5)}60%{box-shadow:0 0 0 10px rgba(35,23,15,.14)}100%{box-shadow:0 0 0 0 rgba(35,23,15,0)}}
 @media (prefers-reduced-motion:reduce){.style-card.is-flash{animation:none;outline:2px solid var(--ink);outline-offset:3px}}
 .style-card__name{font-family:var(--display);font-weight:800;font-size:19px;color:var(--ink);line-height:1.35}

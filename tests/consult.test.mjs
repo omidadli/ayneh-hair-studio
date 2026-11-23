@@ -317,6 +317,7 @@ test('«روی عکسم بساز» lands on the catalog card and flashes it',()=
  assert.match(customerHTML,/flashPickedCard\(\)/);
  assert.match(customerHTML,/classList\.add\('is-flash'\)/);
  assert.match(customerHTML,/\.style-card\.is-flash\{/);
+ assert.match(customerHTML,/animation:cardFlash 1\.2s/,'the shorthand needs its space — cardFlash1.2s is not an animation');
 });
 
 test('the docs describe the consultant honestly — mocked, never claimed live',()=>{

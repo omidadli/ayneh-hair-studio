@@ -22,6 +22,9 @@ CREATE TABLE IF NOT EXISTS color_formulas(
 );
 CREATE INDEX IF NOT EXISTS color_formulas_salon ON color_formulas(salon_id, created_at);
 CREATE INDEX IF NOT EXISTS color_formulas_customer ON color_formulas(salon_id, customer_phone);
+-- One card per customer phone per salon: the check-then-insert in color.js cannot
+-- duplicate a row even under concurrent saves.
+CREATE UNIQUE INDEX IF NOT EXISTS color_formulas_salon_phone ON color_formulas(salon_id, customer_phone);
 -- brand_shades: a catalog colour linked to a real Iranian brand shade code (owner-editable
 -- table in /admin). `link` is an optional shop link («کجا بخرم»).
 CREATE TABLE IF NOT EXISTS brand_shades(

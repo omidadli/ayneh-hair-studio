@@ -73,9 +73,12 @@ function cleanAnswers(raw){const out={};if(!raw||typeof raw!=='object')return ou
 
 /* ---------- ranked suggestions: deterministic rules over that service's own catalog ---------- */
 const pick=(list,i)=>({index:i,name:list[i][0]});
-/* Fallback «why» per tag: a pick nothing matched still gets a line that names its own
-   category — never one generic sentence across every card. */
-const fallbackWhy=(tag,byTag)=>(tag!=null&&byTag&&byTag[tag])||(tag?'با پاسخ‌هایت انتخاب متعادلی است برای «'+tag+'»':'با توجه به پاسخ‌هایت انتخاب متعادلی است');
+/* Fallback «why»: a pick nothing matched still gets a line that names its own category AND
+   the style itself — two unmatched cards of the same tag never show the same sentence. */
+const fallbackWhy=(tag,byTag,name)=>{
+ const base=(tag!=null&&byTag&&byTag[tag])||(tag?'با پاسخ‌هایت انتخاب متعادلی است برای «'+tag+'»':'با توجه به پاسخ‌هایت انتخاب متعادلی است');
+ return name?base+' — «'+name+'»':base;
+};
 function top(list,scores,why,limit,byTag,n=4){
  /* Each card shows a DISTINCT matched reason: reasons are handed out in rank order and a
     reason already shown on an earlier pick is never repeated; with none left, the pick gets
@@ -85,7 +88,7 @@ function top(list,scores,why,limit,byTag,n=4){
   .map(p=>{
    const pool=why[p.i]||[];
    let w='';for(const r of pool){if(r&&!used.has(r)){w=r;break}}
-   if(!w)w=fallbackWhy(list[p.i]&&list[p.i][2],byTag);
+   if(!w)w=fallbackWhy(list[p.i]&&list[p.i][2],byTag,list[p.i]&&list[p.i][0]);
    used.add(w);
    return {...pick(list,p.i),why:w,limit:limit[p.i]};
   });
@@ -152,7 +155,7 @@ function suggestColor(a,ans){
    if(ans.scalp==='often')lim+='؛ نکتهٔ مراقبتی: اگر پوست سرت حساس است، قبل از رنگ با متخصص مشورت کن';
    /* Distinct matched reasons across the cards; a reason already shown (or nothing matched)
       falls back to this category's own line. */
-   let w=(r.why&&r.why.length>5&&!usedWhy.has(r.why))?r.why:fallbackWhy(r.cat,FB);
+   let w=(r.why&&r.why.length>5&&!usedWhy.has(r.why))?r.why:fallbackWhy(r.cat,FB,COLOR_STYLES[i][0]);
    usedWhy.add(w);
    out.push({...pick(COLOR_STYLES,i),why:w,limit:lim});
    break;

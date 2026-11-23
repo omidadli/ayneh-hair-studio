@@ -290,6 +290,9 @@ test('each pick shows its own distinct matched reason; an unmatched pick gets it
  const catalogs={hair:styles,color:COLOR_STYLES,nails:NAIL_STYLES,lashes:LASH_STYLES};
  for(const line of LINE_KEYS){
   const r=suggest(line,{fields:{}},{});
+  // Unmatched cards must each get their own line — same tag or not.
+  const whys=r.picks.map(p=>p.why);
+  assert.equal(new Set(whys).size,whys.length,line+' unmatched cards must not share a line: '+JSON.stringify(whys));
   for(const p of r.picks){
    const tag=catalogs[line][p.index][2];
    assert.ok(p.why.includes(tag),line+' → fallback must name «'+tag+'»: '+p.why);

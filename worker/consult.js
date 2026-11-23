@@ -73,14 +73,27 @@ function cleanAnswers(raw){const out={};if(!raw||typeof raw!=='object')return ou
 
 /* ---------- ranked suggestions: deterministic rules over that service's own catalog ---------- */
 const pick=(list,i)=>({index:i,name:list[i][0]});
-function top(list,scores,why,limit,n=4){
+/* Fallback «why» per tag: a pick nothing matched still gets a line that names its own
+   category — never one generic sentence across every card. */
+const fallbackWhy=(tag,byTag)=>(tag!=null&&byTag&&byTag[tag])||(tag?'با پاسخ‌هایت انتخاب متعادلی است برای «'+tag+'»':'با توجه به پاسخ‌هایت انتخاب متعادلی است');
+function top(list,scores,why,limit,byTag,n=4){
+ /* Each card shows a DISTINCT matched reason: reasons are handed out in rank order and a
+    reason already shown on an earlier pick is never repeated; with none left, the pick gets
+    its tag's fallback line. */
+ const used=new Set();
  return scores.map((score,i)=>({score,i})).sort((a,b)=>b.score-a.score||a.i-b.i).slice(0,n)
-  .map(p=>({...pick(list,p.i),why:why[p.i]||'با توجه به پاسخ‌هایت انتخاب متعادلی است',limit:limit[p.i]}));
+  .map(p=>{
+   const pool=why[p.i]||[];
+   let w='';for(const r of pool){if(r&&!used.has(r)){w=r;break}}
+   if(!w)w=fallbackWhy(list[p.i]&&list[p.i][2],byTag);
+   used.add(w);
+   return {...pick(list,p.i),why:w,limit:limit[p.i]};
+  });
 }
 function suggestHair(a,ans){
  const len=(a&&a.hair_length)||null,face=(a&&a.face_shape)||null,tex=(a&&a.hair_texture)||null,dens=(a&&a.hair_density)||null;
  const score=[],why=[];
- const add=(i,s,w)=>{score[i]=(score[i]||0)+s;if(w&&(!why[i]||s>0))why[i]=why[i]||w};
+ const add=(i,s,w)=>{score[i]=(score[i]||0)+s;if(w&&(!why[i]||why[i].indexOf(w)<0))(why[i]=why[i]||[]).push(w)};
  styles.forEach((s,i)=>{score[i]=0;const tag=s[2];
   if(ans.length==='shorter'){if(tag==='کوتاه')add(i,3,'کوتاه‌تر شدن را انتخاب کردی');if(tag==='متوسط')add(i,1)}
   if(ans.length==='longer'){if(tag==='بلند')add(i,3,'بلندتر ماندن را انتخاب کردی');if(tag==='متوسط')add(i,1)}
@@ -103,7 +116,8 @@ function suggestHair(a,ans){
  });
  const LIMIT={بلند:'با موی خیلی نازک حجم کمتری می‌گیرد',متوسط:'نتیجه به جنس موی خودت بستگی دارد',کوتاه:'بعد از چند هفته نیاز به اصلاح دارد',چتری:'چتری را هر چند هفته باید مرتب کنی',فر:'با شست‌وشوی زیاد فر باز می‌شود',جمع:'برای روزمره زیاد قابل استفاده نیست؛ بیشتر مناسبتی است'};
  const limit=styles.map((s,i)=>dens==='low'&&(s[2]==='بلند'||s[2]==='متوسط')?'برای موی خیلی نازک حجم کمتری می‌گیرد':LIMIT[s[2]]);
- return top(styles,score,why,limit);
+ const FB={کوتاه:'با پاسخ‌هایت، مدل «کوتاه» انتخاب خوبی است',متوسط:'با پاسخ‌هایت، مدل «متوسط» جور درمی‌آید',بلند:'با پاسخ‌هایت، مدل «بلند» انتخاب خوبی است',چتری:'با پاسخ‌هایت، «چتری» تعادل خوبی می‌سازد',فر:'با پاسخ‌هایت، «فر» انتخاب متعادلی است',جمع:'با پاسخ‌هایت، مدل «جمع» انتخاب خوبی است'};
+ return top(styles,score,why,limit,FB);
 }
 function suggestColor(a,ans){
  const under=(a&&a.skin_undertone)||null,cur=(a&&a.hair_color)||null;
@@ -126,7 +140,8 @@ function suggestColor(a,ans){
  const chosen=order.slice(0,4);
  const byCat={};chosen.forEach(r=>{byCat[r.cat]=(byCat[r.cat]||0)+1});
  /* Fill in rank order (not catalog order) so the sheet shows the best match first. */
- const usedCat={},out=[];
+ const usedCat={},out=[],usedWhy=new Set();
+ const FB={تیره:'با پاسخ‌هایت، رنگ «تیره» انتخاب متعادلی است',قهوه‌ای:'با پاسخ‌هایت، رنگ «قهوه‌ای» جور درمی‌آید','روشن و بلوند':'با پاسخ‌هایت، «روشن و بلوند» انتخاب خوبی است','قرمز و مسی':'با پاسخ‌هایت، «قرمز و مسی» انتخاب متعادلی است','بالیاژ و مش':'با پاسخ‌هایت، «بالیاژ و مش» انتخاب خوبی است',فانتزی:'با پاسخ‌هایت، رنگ «فانتزی» انتخاب جسورانه‌ای است'};
  for(const r of chosen){
   const n=usedCat[r.cat]||0;usedCat[r.cat]=n+1;
   let seen=-1;
@@ -135,7 +150,11 @@ function suggestColor(a,ans){
    if(r.cat==='روشن و بلوند'&&(cur==='black'||cur==='dark_brown'))lim='روشن کردن از سطح ۳ به ۸ چند جلسه است';
    if(r.cat==='تیره'&&(cur==='blonde'||cur==='gray'))lim='تیره کردن روی پایهٔ روشن ممکن است دو مرحله بخواهد';
    if(ans.scalp==='often')lim+='؛ نکتهٔ مراقبتی: اگر پوست سرت حساس است، قبل از رنگ با متخصص مشورت کن';
-   out.push({...pick(COLOR_STYLES,i),why:r.why||'با توجه به پاسخ‌هایت انتخاب خوبی است',limit:lim});
+   /* Distinct matched reasons across the cards; a reason already shown (or nothing matched)
+      falls back to this category's own line. */
+   let w=(r.why&&r.why.length>5&&!usedWhy.has(r.why))?r.why:fallbackWhy(r.cat,FB);
+   usedWhy.add(w);
+   out.push({...pick(COLOR_STYLES,i),why:w,limit:lim});
    break;
   }
  }
@@ -144,7 +163,7 @@ function suggestColor(a,ans){
 function suggestNails(a,ans){
  const score=[],why=[];
  NAIL_STYLES.forEach((s,i)=>{score[i]=0;const cat=s[2];
-  const add=(cond,w,pts)=>{if(cond){score[i]+=pts;if(!why[i])why[i]=w}};
+  const add=(cond,w,pts)=>{if(cond){score[i]+=pts;if(w&&(!why[i]||why[i].indexOf(w)<0))(why[i]=why[i]||[]).push(w)}};
   add(ans.occasion==='wedding'||ans.occasion==='party','برای عروسی و مجلس پر زرق‌وبرقتر است',cat==='نگین'?3:cat==='براق'?2:0);
   add(ans.occasion==='daily'||ans.occasion==='work','برای روزمره ساده‌تر و کم‌دردسرتر است',cat==='ساده'?2:cat==='فرنچ'?1:0);
   add(ans.boldness==='same','همان سادگی آشنا را دارد',cat==='ساده'?2:cat==='فرنچ'?1:0);
@@ -154,13 +173,14 @@ function suggestNails(a,ans){
  });
  const LIMIT={ساده:'نتیجه به شکل ناخن خودت بستگی دارد',فرنچ:'با رشد ناخن، فرنچ جلو می‌آورد و تمدید لازم دارد',براق:'سطح براق خط و خش را بیشتر نشان می‌دهد',طرح‌دار:'با بلند شدن ناخن، طرح از وسط دیده می‌شود',نگین:'طرح‌های برجسته با برخورد زیاد زودتر جدا می‌شود'};
  const limit=NAIL_STYLES.map(s=>LIMIT[s[2]]||'نتیجه به شکل ناخن خودت بستگی دارد');
- return top(NAIL_STYLES,score,why,limit);
+ const FB={ساده:'با پاسخ‌هایت، طرح «ساده» انتخاب متعادلی است',فرنچ:'با پاسخ‌هایت، «فرنچ» جور درمی‌آید',براق:'با پاسخ‌هایت، طرح «براق» انتخاب خوبی است',طرح‌دار:'با پاسخ‌هایت، «طرح‌دار» انتخاب جسورانه‌ای است',نگین:'با پاسخ‌هایت، طرح «نگین» انتخاب خوبی است'};
+ return top(NAIL_STYLES,score,why,limit,FB);
 }
 function suggestLashes(a,ans){
  const face=(a&&a.face_shape)||null;
  const score=[],why=[];
  LASH_STYLES.forEach((s,i)=>{score[i]=0;const cat=s[2];
-  const add=(cond,w,pts)=>{if(cond){score[i]+=pts;if(!why[i])why[i]=w}};
+  const add=(cond,w,pts)=>{if(cond){score[i]+=pts;if(w&&(!why[i]||why[i].indexOf(w)<0))(why[i]=why[i]||[]).push(w)}};
   add(ans.boldness==='same','تغییر طبیعی و ملایمی دارد',cat==='طبیعی'?3:cat==='بدون کاشت'?1:0);
   add(ans.boldness==='big','جسارت تغییر داری و چشم‌ها را بازتر نشان می‌دهد',cat==='پرحجم'?3:0);
   add(ans.occasion==='daily'||ans.occasion==='work','برای روزمره سنگین نیست',cat==='طبیعی'?2:cat==='بدون کاشت'?1:0);
@@ -170,7 +190,8 @@ function suggestLashes(a,ans){
  });
  const LIMIT={طبیعی:'تفاوت کمی با حالت طبیعی خودت دارد',پرحجم:'روی مژهٔ کم‌پشت ممکن است زودتر سنگین شود','بدون کاشت':'حجم و طول کمتری نسبت به کاشت ایجاد می‌کند'};
  const limit=LASH_STYLES.map(s=>LIMIT[s[2]]||'نتیجه به مژهٔ خودت بستگی دارد');
- return top(LASH_STYLES,score,why,limit);
+ const FB={طبیعی:'با پاسخ‌هایت، مدل «طبیعی» انتخاب متعادلی است',پرحجم:'با پاسخ‌هایت، «پرحجم» جور درمی‌آید','بدون کاشت':'با پاسخ‌هایت، «بدون کاشت» انتخاب خوبی است'};
+ return top(LASH_STYLES,score,why,limit,FB);
 }
 export function suggest(line,analysis,answers){
  must(LINE_KEYS.includes(line),'بخش معتبر نیست',400);
@@ -209,6 +230,10 @@ export async function consultApi(req,env,{u,route,salon,s,clientIp}){
   const b=await req.json().catch(()=>({}));
   const line=LINE_KEYS.includes(b.line)?b.line:'hair';
   const m=await ownPhoto(db,s,b.photo_id);
+  /* Nails and lashes never run (nor charge) the vision: the card is hidden on both lines —
+     a close-up of a hand or lashes is not a hairstyle analysis; the questionnaire is the
+     answer, and no counter is touched. */
+  if(line==='nails'||line==='lashes')return J({ok:false,fallback:'questionnaire',reason:'line'});
   /* Caps follow the customer, not the salon: a signed-in one by phone, a guest by browser id
      plus the hashed network — so a farm cannot reset the counter by opening another page,
      another browser session or another salon. Cache hits are free and skip every counter. */

@@ -171,6 +171,9 @@ a.hchip,button.hchip{cursor:pointer}a.hchip:hover,button.hchip:hover{border-colo
 .style-card{display:grid;gap:2px;align-content:start;min-height:84px;padding:14px 14px 12px;border:1.5px solid var(--line-2);background:var(--surface-2);border-radius:var(--r);text-align:start;transition:border-color .14s var(--ease),background-color .14s var(--ease)}
 .style-card:hover{border-color:var(--line)}
 .style-card.is-on{border-color:var(--ink);background:#fff;box-shadow:0 0 0 3px rgba(35,23,15,.08)}
+.style-card.is-flash{animation:cardFlash1.2s var(--ease)}
+@keyframes cardFlash{0%{box-shadow:0 0 0 0 rgba(35,23,15,.5)}60%{box-shadow:0 0 0 10px rgba(35,23,15,.14)}100%{box-shadow:0 0 0 0 rgba(35,23,15,0)}}
+@media (prefers-reduced-motion:reduce){.style-card.is-flash{animation:none;outline:2px solid var(--ink);outline-offset:3px}}
 .style-card__name{font-family:var(--display);font-weight:800;font-size:19px;color:var(--ink);line-height:1.35}
 .style-card__en{font-size:12px;color:var(--muted);direction:ltr;text-align:end}
 .style-card__tag{font-size:12px;color:var(--accent-ink);font-weight:600;margin-top:4px}
@@ -1403,7 +1406,7 @@ function offerText(ez){var w=LINE_LIST.map(function(x){return LINE_WORDS[x[0]]})
 var FACE=['hair','color','lashes'];
 var lineStore={};
 function hasLineWork(line){return (state.pub&&state.pub.portfolio||[]).some(function(p){return (p.published||p.try_on)&&(p.line||'hair')===line})}
-function lineDefaults(to){return {busy:false,rating:0,seen:null,custom:'',q:'',step:1,original:null,preview:null,ratio:'',reference:null,refTitle:'',style:null,tab:hasLineWork(to)?'salon':'catalog',transfer:'both',color:'',opts:{},result:null,gen:null,genState:null,views:null,viewsIdem:null,idem:null,filter:'همه',error:'',justUploaded:false,base:'hair',genBase:null,resultBase:null,genT0:0}}
+function lineDefaults(to){return {busy:false,rating:0,seen:null,custom:'',q:'',step:1,original:null,preview:null,ratio:'',reference:null,refTitle:'',style:null,tab:hasLineWork(to)?'salon':'catalog',transfer:'both',color:'',opts:{},result:null,gen:null,genState:null,views:null,viewsIdem:null,idem:null,filter:'همه',error:'',justUploaded:false,base:'hair',genBase:null,resultBase:null,genT0:0,fromConsult:null}}
 function LP(){return LINES.photo[state.line]||LINES.photo.hair}
 function lineCat(){return state.line==='hair'?null:LINES[state.line]}
 function catalogImg(i){return '/catalog/'+(state.line==='hair'?'':state.line+'/')+String(i+1).padStart(2,'0')+'.webp'}
@@ -1566,7 +1569,7 @@ var MODEL_HEAD={
  nails:['طرح و رنگ ناخن را انتخاب کن','از کارهای همین سالن، طرح‌های آماده یا عکس طرحی که خودت پیدا کرده‌ای. فرم، طول و رنگ را هم انتخاب کن.'],
  lashes:['مدل مژه را انتخاب کن','از کارهای همین سالن، مدل‌های آماده یا عکس مدلی که خودت پیدا کرده‌ای. حالت و طول را هم انتخاب کن.']
 };
-function pickLook(fn){fn();state.result=null;state.error='';renderFlow();renderDock()}
+function pickLook(fn){fn();state.result=null;state.error='';state.fromConsult=null;renderFlow();renderDock()}
 // Photo and look are in — the only thing left to do is «بساز», so that is what comes into
 // view. The same for all four lines: hair, colour, nails and lashes. Nothing else is a step:
 // the shape, length and colour rows are optional and never scrolled to on their own.
@@ -1608,6 +1611,21 @@ function scrollToBuild(){
   if(to!=null)window.scrollTo({top:Math.max(0,to),behavior:beh});
  });
 }
+/* After «روی عکسم بساز» the chosen card is the thing to see: bring exactly that card
+   (.style-card.is-on) into view and flash it, so the pick never gets lost in the grid. */
+function flashPickedCard(){
+ var f=$('#flow');if(!f)return;
+ var card=f.querySelector('.style-card.is-on');
+ if(!card){scrollToBuild();return}
+ var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ var bar=$('#steps'),top=(bar&&!bar.hidden?bar.getBoundingClientRect().height:0)+12;
+ var dock=$('#dock:not([hidden])'),bottom=(dock&&getComputedStyle(dock).position==='fixed'?dock.getBoundingClientRect().height:0)+16;
+ var r=card.getBoundingClientRect();
+ var y=window.pageYOffset+r.top-top-Math.max(16,(window.innerHeight-bottom-top-Math.max(r.height,0))/2);
+ window.scrollTo({top:Math.max(0,y),behavior:reduce?'auto':'smooth'});
+ card.classList.add('is-flash');
+ setTimeout(function(){card.classList.remove('is-flash')},reduce?1800:1500);
+}
 function stepModel(){
  var box=el('div',{class:'panel flow'}),L=state.line;
  if(state.original){
@@ -1620,7 +1638,9 @@ function stepModel(){
  box.append(flowHead(MODEL_HEAD[L][0],L==='hair'&&state.pub.demo?'مدل مو و رنگ دلخواهت را انتخاب کن؛ هر دو روی همین عکس خودت ساخته می‌شوند.':own?MODEL_HEAD[L][1]:MODEL_HEAD[L][1].replace('از کارهای همین سالن، ','از ')));
  if(quotaLeft()===0&&!state.tourDemo){box.append(notice('warn',quotaOut()));if(studio()){}else if(window.AynehPacks)box.append(window.AynehPacks.button())}
  if(state.demoOut){box.append(notice('info','نمونهٔ رایگانتان را ساختید. برای عکس‌های بیشتر به استودیوی آینه بروید؛ ۲ عکس اول آنجا هم هدیه است.'));box.append(el('a',{class:'btn btn--primary btn--block',href:location.protocol+'//'+location.host.replace(/^business\./,'')+'/?l='+L,target:'_top',text:'ثبت‌نام و شارژ حساب'}))}
- if(studio()&&!STUDIO_PREVIEW)box.append(consultCard());
+ /* The consultant analyses hair and colour only: a nails or lashes close-up says nothing about
+    a hairstyle, so the card — and the paid vision behind it — is absent on both lines. */
+ if(studio()&&!STUDIO_PREVIEW&&L!=='nails'&&L!=='lashes')box.append(consultCard());
  if(L==='color'){var bc=baseChooser();if(bc)box.append(bc)}
  var seg=el('div',{class:'seg',role:'tablist'});
  [['salon',0],['catalog',1],['upload',2]].filter(function(x){return x[0]!=='salon'||own}).forEach(function(x){
@@ -2175,15 +2195,15 @@ function handleFile(file,kind){
  return Promise.resolve().then(function(){return Promise.all([compress(file),ensureSession()])}).then(function(r){
   return api('upload?kind='+kind,r[0],true);
  }).then(function(d){
-  if(kind==='original'){track('photo',line);L().original=d.id;L().ratio=compress.ratio||'';L().result=null;L().error='';L().idem=null;L().justUploaded=true;
+  if(kind==='original'){track('photo',line);L().original=d.id;L().ratio=compress.ratio||'';L().result=null;L().fromConsult=null;L().error='';L().idem=null;L().justUploaded=true;
    /* quiet: scrollToBuild, not focusFlow, decides where we land — on «بساز» when a look is
       already chosen (she only changed her photo), on the looks when it is not. */
    L().advT=setTimeout(function(){if(line===state.line&&L().step===1&&L().justUploaded){state.justArrived=true;go(2,true);scrollToBuild()}},1600)}
-  else{track('look','u');L().reference=d.id;L().refTitle='';L().style=null;L().result=null;L().error='';if(line==='color')L().color='';if(line===state.line)setTimeout(scrollToBuild,60)}
+  else{track('look','u');L().reference=d.id;L().refTitle='';L().style=null;L().result=null;L().fromConsult=null;L().error='';if(line==='color')L().color='';if(line===state.line)setTimeout(scrollToBuild,60)}
   if(line===state.line){renderFlow();renderSteps();renderDock()}
  }).catch(function(e){if(kind==='original'&&!L().original){L().preview=null;if(line===state.line)renderFlow()}toast(e.message,'error')}).then(function(){L().busy=false;if(line===state.line)renderDock()});
 }
-function changePhoto(){clearTimeout(state.advT);state.justUploaded=false;state.original=null;state.preview=null;state.result=null;renderFlow();renderSteps();renderDock()}
+function changePhoto(){clearTimeout(state.advT);state.justUploaded=false;state.original=null;state.preview=null;state.result=null;state.fromConsult=null;renderFlow();renderSteps();renderDock()}
 function nearestRatio(r){var R=[['1:1',1],['4:5',.8],['3:4',.75],['2:3',.667],['9:16',.5625],['5:4',1.25],['4:3',1.333],['3:2',1.5],['16:9',1.778]];var best=R[0];R.forEach(function(x){if(Math.abs(Math.log(x[1]/r))<Math.abs(Math.log(best[1]/r)))best=x});return best[0]}
 function compress(file){
  return createImageBitmap(file).then(function(bitmap){
@@ -2283,9 +2303,10 @@ function poll(id,resumed,line){
     track('result','',true);
     if(window.__trialLeft)window.__trialLeft();
     L().result=d.result_id;if(line===state.line)L().seen=d.result_id;setTimeout(keepStudio,0);L().resultBase=L().genBase||null;L().busy=false;L().idem=null;state.session=false;loadSession().catch(function(){});
-    /* A saved consultant attaches the image she built from its picks — only while it is still
-       the same photo she had analysed. */
-    if(consult&&consult.savedId&&consult.line===line&&consult.photo===lineRef(line).original)api('consults/'+consult.savedId+'/result',{result_id:d.result_id}).catch(function(){});
+    /* A saved consultant attaches the image she built from its picks — only when the build
+       was started from the sheet (fromConsult marker) and is still the same photo she
+       analysed. */
+    if(consult&&consult.savedId&&consult.line===line&&consult.photo===lineRef(line).original&&lineRef(line).fromConsult===consult.photo)api('consults/'+consult.savedId+'/result',{result_id:d.result_id}).catch(function(){});
     try{sessionStorage.removeItem('ayneh-job-'+SLUG+'-'+line)}catch(e){}
     L().rating=(function(){try{return Number(localStorage.getItem('ayneh-rating-'+d.result_id)||0)}catch(e){return 0}})();
     paint();if(line===state.line)setTimeout(function(){var c=$('#flow .compare');if(c&&c.getBoundingClientRect().bottom>innerHeight){var bar=$('#steps'),off=bar?bar.getBoundingClientRect().height+12:12;scrollTo({top:c.getBoundingClientRect().top+pageYOffset-off,behavior:'smooth'})}},120);
@@ -2927,6 +2948,9 @@ function consultStep3(p){
 }
 function consultAnalyze(){
  if(!consult||consult.busy)return;
+ /* Nails and lashes never run (nor charge) the vision — the card is hidden on both lines and
+    a close-up of a hand or lashes is not a hairstyle analysis; the questionnaire is the answer. */
+ if(consult.line==='nails'||consult.line==='lashes'){consult.self=true;consult.note='برای این بخش تحلیل عکس نداریم؛ خودت جواب بده.';consultDraw();return}
  consult.busy=true;consultDraw();
  ensureSession().then(function(){return api('consult/analyze',{photo_id:consult.photo,line:consult.line,v:VISITOR})})
  .then(function(d){
@@ -2962,7 +2986,10 @@ function consultSave(){
  var eff=consultEffFields();
  var selfKeys=consult.self?Object.keys(eff):Object.keys(consult.picked||{}).filter(function(k){return eff[k]!=null});
  var body={line:consult.line,photo_id:consult.photo,analysis:{source:consult.self?'self':'vision',fields:eff,confidence:(consult.analysis&&consult.analysis.confidence)||{},low:(consult.analysis&&consult.analysis.low)||[],self_keys:selfKeys},answers:consult.answers};
- var res=lineRef(consult.line).result;if(res)body.result_id=res;
+ var L=lineRef(consult.line),res=L.result;
+ /* Only a result built from this consultation's own pick (the fromConsult marker) on the
+    very photo she analysed travels with the save — never an older image of the line. */
+ if(res&&L.fromConsult===consult.photo)body.result_id=res;
  ensureSession().then(function(){return api('consult',body)})
  .then(function(d){
   consult.busy=false;consult.savedId=d.id;
@@ -2984,13 +3011,21 @@ function consultShareLink(){
 }
 function consultBuild(i){
  var pk=consult&&consult.picks&&consult.picks[i];if(!pk)return;
+ var photo=consult.photo;
  closeSheet();
  track('look',lookPrefix()+pk.index);
  if(state.line==='color')track('color',pk.name);
- chooseLook(function(){
+ /* Land on the catalog with every filter and search cleared so the chosen card is on the
+    page, then bring it into view and flash it. */
+ state.tab='catalog';state.filter='همه';state.q='';
+ pickLook(function(){
   state.style=pk.index;state.custom='';state.reference=null;state.refTitle='';
   if(state.line==='color')state.color='';
  });
+ /* Only a build started from this button — carrying the photo she analysed — may later
+    attach to the saved consultation; any other pick or a new photo clears the marker. */
+ state.fromConsult=photo;
+ flashPickedCard();
 }
 function openConsultDetail(id){
  var panel=el('div',{class:'sheet__panel csheet'});

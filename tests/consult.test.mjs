@@ -210,6 +210,72 @@ test('the cache keys on the photo bytes — the same picture is never paid for t
  }finally{kv.restore()}
 });
 
+test('the consultant card and its paid vision exist only on hair and colour — never nails or lashes',async()=>{
+ // Client: the card is absent on both lines and analyze never calls the API for them.
+ assert.match(customerHTML,/L!=='nails'&&L!=='lashes'\)box\.append\(consultCard\(\)\)/);
+ assert.match(customerHTML,/consult\.line==='nails'\|\|consult\.line==='lashes'/);
+ // Server: those lines answer the questionnaire fallback and touch neither provider nor counters.
+ const e=fixture(),s=await salon(e),g=await guest(e,s);
+ const photo=await upload(e,s,g);
+ const before=e.DB.sql.prepare('SELECT count(*) n FROM limits').get().n;
+ e.KIE_API_KEY='mock';
+ const kv=mockVision(MODEL_JSON);
+ try{
+  for(const line of ['nails','lashes']){
+   const r=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line},g);
+   assert.equal(r.status,200,JSON.stringify(r));
+   assert.equal(r.data.ok,false);assert.equal(r.data.fallback,'questionnaire');
+  }
+  assert.equal(kv.calls.length,0,'no vision run, no charge');
+ }finally{kv.restore()}
+ assert.equal(e.DB.sql.prepare('SELECT count(*) n FROM limits').get().n,before,'no counter was spent');
+ assert.equal(e.DB.sql.prepare('SELECT count(*) n FROM ai_cache').get().n,0);
+});
+
+test('each pick shows its own distinct matched reason; an unmatched pick gets its tag’s line',()=>{
+ // Unmatched (empty answers): every card's reason names its own tag — never one generic line.
+ const catalogs={hair:styles,color:COLOR_STYLES,nails:NAIL_STYLES,lashes:LASH_STYLES};
+ for(const line of LINE_KEYS){
+  const r=suggest(line,{fields:{}},{});
+  for(const p of r.picks){
+   const tag=catalogs[line][p.index][2];
+   assert.ok(p.why.includes(tag),line+' → fallback must name «'+tag+'»: '+p.why);
+   assert.ok(p.why.length>5);
+  }
+ }
+ // Matched: no two cards of the same result show the same reason.
+ const r=suggest('hair',{fields:{face_shape:'round',hair_length:'short',hair_texture:'wavy',hair_density:'high'}},{length:'shorter',care:'low',occasion:'daily',boldness:'same'});
+ const whys=r.picks.map(p=>p.why);
+ assert.equal(new Set(whys).size,whys.length,'distinct matched reasons: '+JSON.stringify(whys));
+});
+
+test('only a consult-built result on the analysed photo attaches to the save and the poll',()=>{
+ // The marker is set by «روی عکسم بساز»…
+ assert.match(customerHTML,/state\.fromConsult=photo/);
+ // …and cleared by any other pick and by a new photo (pickLook, handleFile, changePhoto).
+ assert.ok((customerHTML.match(/fromConsult=null/g)||[]).length>=3,'pickLook/handleFile/changePhoto clear the marker');
+ // Both attach paths require marker plus the analysed photo.
+ assert.match(customerHTML,/if\(res&&L\.fromConsult===consult\.photo\)body\.result_id=res/);
+ assert.match(customerHTML,/lineRef\(line\)\.fromConsult===consult\.photo/);
+});
+
+test('«روی عکسم بساز» lands on the catalog card and flashes it',()=>{
+ assert.match(customerHTML,/state\.tab='catalog';state\.filter='همه';state\.q='';\s*pickLook\(/);
+ assert.match(customerHTML,/flashPickedCard\(\)/);
+ assert.match(customerHTML,/classList\.add\('is-flash'\)/);
+ assert.match(customerHTML,/\.style-card\.is-flash\{/);
+});
+
+test('the docs describe the consultant honestly — mocked, never claimed live',()=>{
+ const readme=readFileSync(new URL('../README.md',import.meta.url),'utf8');
+ const agents=readFileSync(new URL('../AGENTS.md',import.meta.url),'utf8');
+ assert.match(readme,/## Beauty consultant/);
+ assert.match(readme,/mocked vision endpoint/);
+ assert.match(readme,/live KIE vision for this feature has not been exercised/);
+ assert.match(agents,/worker\/consult\.js/);
+ assert.match(agents,/do not claim live KIE vision/);
+});
+
 test('suggestions are open to guests; saving a consultation needs a verified mobile',async()=>{
  const e=fixture(),s=await salon(e),g=await guest(e,s);
  const sugg=await call(e,'/api/s/salon-a/consult/suggest',{line:'hair',analysis:{fields:{face_shape:'round',hair_length:'long'}},answers:{care:'low',occasion:'wedding'}},g);

@@ -516,7 +516,8 @@ function formulaCard(){
    return el('div',{class:'card card--inner'},[
     el('div',{class:'row',style:'justify-content:space-between;align-items:center'},[
      el('div',{},[h('b',f.customer_phone+' → '+f.target_color),h('small',[f.brand&&f.brand+' · '+f.code,' · اکسیدان '+f.oxidant_percent+'٪ ('+f.oxidant_ratio+')',' · منبع: '+(f.source==='manual'?'دستی':'پیشنهاد')],'muted')]),
-     el('button',{class:'btn btn--danger btn--sm',type:'button',text:'حذف',onclick:act(function(){if(!confirm('فرمول این مشتری حذف شود؟'))return Promise.resolve();return api('/api/color/formulas',{delete:true,id:f.id}).then(load)})}]),
+     el('button',{class:'btn btn--danger btn--sm',type:'button',text:'حذف',onclick:act(function(){if(!confirm('فرمول این مشتری حذف شود؟'))return Promise.resolve();return api('/api/color/formulas',{delete:true,id:f.id}).then(load)})}),
+    ]),
     el('div',{class:'row'},[
      (f.amounts||[]).map(function(a){return el('span',{class:'amounts__chip',text:a.name+' — '+(a.amount||'—')})}),
     el('span',{class:'muted tiny',text:'مکث: ریشه '+(f.pause_root==null?'—':f.pause_root)+' / ساقه '+(f.pause_shaft==null?'—':f.pause_shaft)+' / نوک '+(f.pause_top==null?'—':f.pause_top)+' دقیقه'})]),

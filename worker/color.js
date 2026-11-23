@@ -6,11 +6,14 @@
    «تخمینی» (approximate) — it is a suggestion for her and her colourist, never a diagnosis.
    The correction plan and the formula draft rules are pure functions: deterministic, testable,
    and honest about being a draft that a specialist must confirm. */
-import {must,Problem,uid,hash,limited} from './domain.js';
+import {must,Problem,uid,hash,limited,phone} from './domain.js';
 import {COLOR_STYLES} from './lines.js';
 import {visionJSON,chatJSON} from './ai.js';
 import {bucketFor} from './storage.js';
 import {isDirect} from './customers.js';
+
+const one=(db,sql,...args)=>db.prepare(sql).bind(...args).first();
+const all=async(db,sql,...args)=>(await db.prepare(sql).bind(...args).all()).results;
 
 const J=(v,s=200)=>new Response(JSON.stringify(v),{status:s,headers:{'Content-Type':'application/json;charset=utf-8','Cache-Control':'no-store'}});
 const parse=s=>{try{return JSON.parse(s||'{}')}catch{return {}}};
@@ -146,14 +149,13 @@ export function validateFormulaInput(b){
  const target=String(b.target_color||'').trim().slice(0,60);
  must(target.length>=2,'یک رنگ هدف بنویسید',400);
  must(COLOR_STYLES.some(c=>c[0]===target)||target.length<=60,'رنگ هدف معتبر نیست',400);
- const phone=String(b.customer_phone||'').replace(/[۰-۹]/g,d=>'۰۱۲۳۴۵۶۷۸۹'.indexOf(d)).replace(/[\\s()-]/g,'');
- must(/^\+989\d{9}$/.test(phone),'شمارهٔ مشتری معتبر نیست',400);
+ const customer_phone=phone(String(b.customer_phone||''));
  const oxidant=String(b.oxidant_percent||'');must(OXIDANTS.includes(oxidant),'نوع اکسیدان معتبر نیست',400);
  const ratio=String(b.oxidant_ratio||'');must(RATIOS.includes(ratio),'نسبت اکسیدان معتبر نیست',400);
  const amounts=(Array.isArray(b.amounts)?b.amounts:[]).slice(0,8).map(a=>({name:String(a&&a.name||'').trim().slice(0,60),amount:String(a&&a.amount||'').trim().slice(0,30)})).filter(a=>a.name);
  const num=k=>{const n=Math.round(Number(b[k]));return Number.isFinite(n)?Math.max(0,Math.min(120,n)):null};
  return {
-  customer_phone:phone,target_color:target,current_color:String(b.current_color||'').trim().slice(0,60),
+  customer_phone,target_color:target,current_color:String(b.current_color||'').trim().slice(0,60),
   brand:String(b.brand||'').trim().slice(0,40),code:String(b.code||'').trim().slice(0,20),
   amounts,oxidant_percent:oxidant,oxidant_ratio:ratio,
   pause_root:num('pause_root'),pause_shaft:num('pause_shaft'),pause_top:num('pause_top'),

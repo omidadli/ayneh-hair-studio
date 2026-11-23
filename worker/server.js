@@ -388,12 +388,12 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  if(trial&&!trialLive(trial)&&route!=='public'&&!route.startsWith('owner'))throw new Problem(410,'مهلت ۱۰ ساعتهٔ صفحهٔ آزمایشی تمام شده است؛ برای ادامه با ما تماس بگیرید');
  const readOnly=route==='public'||route==='owner'||route==='requests'||route==='looks'||route==='trending'||route.startsWith('media/')||route.startsWith('generation/');
  const consultRoute=route==='consult'||route.startsWith('consult/')||route==='consults'||route.startsWith('consults/');
- must(route==='session'||route==='me'||route==='saves'||consultRoute?['GET','POST'].includes(req.method):req.method===(readOnly?'GET':'POST'),'متد مجاز نیست',405);
+ must(route==='session'||route==='me'||route==='saves'||consultRoute||route==='color/formulas'?['GET','POST'].includes(req.method):req.method===(readOnly?'GET':'POST'),'متد مجاز نیست',405);
  if(route==='public')return J({salon:publicSalon(salon),portfolio:await all(db,'SELECT id,title,category,description,stylist,staff_id AS maker,line,images,try_on,1 AS published FROM portfolio WHERE salon_id=? AND published=1 AND permission=1 ORDER BY created_at DESC',salon.id),shades:await all(db,'SELECT color,brand,code,link FROM brand_shades'),generation:!!env.KIE_API_KEY&&!!cfg.generation_enabled,reference:refOn(cfg),telegram:inboxes(env,salon).length>0||!!planOf(salon)||!!await one(db,'SELECT 1 FROM team WHERE salon_id=? AND active=1',salon.id),follow:Object.keys(followLinks(env,'x')),otp:smsReady(env)&&!demo,notice:'خروجی شبیه‌سازی پیشنهادی است و تضمین اجرا نیست.',trial:trialPublic(trial),demo,direct:isDirect(salon),lines:salonLines(salon)});
  if(route==='session'&&req.method==='POST'){await limited(db,'session:'+salon.id+':'+clientIp(req),30);const {raw}=await newSession(db,salon);return J({ok:true},200,{'Set-Cookie':cookie(raw)});}
  if(route.startsWith('owner')){
   await owner(req,env);const r=route.slice(6),b=req.method==='GET'?{}:await req.json();
-  if(!r&&req.method==='GET')return J({salon:{...publicSalon(salon),settings:{...cfg,reference_verified:refOn(cfg)},telegram:!!salon.telegram_chat_id,bale:!!salon.bale_chat_id,link_pending:!!salon.telegram_code_hash&&salon.telegram_code_expires>Date.now()},portfolio:await all(db,'SELECT id,title,category,images,created_at,line,stylist FROM portfolio WHERE salon_id=? AND published=1 ORDER BY created_at DESC',salon.id),leads:await all(db,'SELECT l.id,l.name,l.look,l.status,l.salon_status,l.attempts,l.last_error,l.created_at,l.waiting,t.name AS staff FROM leads l LEFT JOIN team t ON t.id=l.staff_id WHERE l.salon_id=? ORDER BY l.created_at DESC LIMIT 50',salon.id),team:await teamView(db,env,salon,u.origin),specialties:SPECIALTIES,setup:(st=>({filled:st.filled.length,total:st.total,missing:st.missing}))(setupStatus(salon)),bot:botInfo(env),image:!!env.KIE_API_KEY});
+  if(!r&&req.method==='GET')return J({salon:{...publicSalon(salon),direct:isDirect(salon),settings:{...cfg,reference_verified:refOn(cfg)},telegram:!!salon.telegram_chat_id,bale:!!salon.bale_chat_id,link_pending:!!salon.telegram_code_hash&&salon.telegram_code_expires>Date.now()},portfolio:await all(db,'SELECT id,title,category,images,created_at,line,stylist FROM portfolio WHERE salon_id=? AND published=1 ORDER BY created_at DESC',salon.id),leads:await all(db,'SELECT l.id,l.name,l.look,l.status,l.salon_status,l.attempts,l.last_error,l.created_at,l.waiting,t.name AS staff FROM leads l LEFT JOIN team t ON t.id=l.staff_id WHERE l.salon_id=? ORDER BY l.created_at DESC LIMIT 50',salon.id),team:await teamView(db,env,salon,u.origin),specialties:SPECIALTIES,setup:(st=>({filled:st.filled.length,total:st.total,missing:st.missing}))(setupStatus(salon)),bot:botInfo(env),image:!!env.KIE_API_KEY});
   if(r==='profile'){const p={...parse(salon.profile),...(b.profile||{})};for(const k of PROFILE_LINKS)p[k]=safeLink(p[k]||'');for(const k of PROFILE_TEXT)p[k]=text(p[k]||'',1000);p.phone=digits(p.phone||'').replace(/[\s()-]/g,'');must(!p.phone||/^\+?\d{5,15}$/.test(p.phone),'شمارهٔ تماس سالن معتبر نیست');for(const k of PROFILE_IMAGES)if(p[k])must(await one(db,"SELECT 1 FROM media WHERE id=? AND salon_id=? AND kind='brand'",p[k],salon.id),'عکس برند معتبر نیست');await run(db,'UPDATE salons SET name=?,profile=? WHERE id=?',text(b.name||salon.name,100),JSON.stringify(p),salon.id);return J({ok:true});}
   if(r==='settings'){const lim=Number(b.daily_limit);const s={...cfg,generation_enabled:!!b.generation_enabled,reference_verified:!!b.reference_verified,image_model:b.image_model==='fast'?'fast':'pro',daily_limit:b.daily_limit===undefined?dailyLimit(cfg):(Number.isInteger(lim)&&lim>=0&&lim<=100000?lim:DAILY_LIMIT)};await run(db,'UPDATE salons SET settings=? WHERE id=?',JSON.stringify(s),salon.id);return J({ok:true});}
   if(r==='telegram-link')return J(await newLinkCode(db,salon,env));
@@ -438,17 +438,25 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   for(const k of Object.keys(score))if(score[k]<3)delete score[k];
   return J({score,likes});
  }
+ /* Phase 2 — pro hair colour: the condition assessment (vision, capped + cached), the
+    correction plan (rules) and the formula draft (rules + model, always a draft). The
+    stylist's formula cards are the manager console's, so they require the owner's session;
+    the console holds the owner cookie, not a customer session, so the colour routes fall
+    back to a synthetic owner session bound to the salon when no customer session is present.
+    The customer's own condition assessment still needs her real session. */
+ if(route.startsWith('color')){
+  if(route==='color/formulas')await owner(req,env);
+  let s;
+  try{s=await session(req,db,salon)}catch{
+   const who=await owner(req,env);
+   s={id:'owner:'+who.user,salon_id:salon.id,verified_phone:null};
+  }
+  return colorApi(req,env,{u,route,salon,s,clientIp:clientIp(req)});
+ }
  const s=await session(req,db,salon);
  /* The consultant: analysis, ranked suggestions, saved records and the one-time share link.
     Everything AI-shaped inside consultApi goes through worker/ai.js (cap + cache). */
  if(route.startsWith('consult'))return consultApi(req,env,{u,route,salon,s,clientIp:clientIp(req)});
- /* Phase 2 — pro hair colour: the condition assessment (vision, capped + cached), the
-    correction plan (rules) and the formula draft (rules + model, always a draft). The
-    stylist's formula cards are the manager console's, so they require the owner's session. */
- if(route.startsWith('color')){
-  if(route==='color/formulas')await owner(req,env);
-  return colorApi(req,env,{u,route,salon,s,clientIp:clientIp(req)});
- }
  if(route==='session')return J({ok:true,verified:!!s.verified_phone,name:s.verified_name||'',phone:s.verified_phone||'',quota:trial||demo||await unlimited(db,s)?null:await (async v=>quotaView(db,env,salon,s,v,{per:QUOTA_PER_LINE,left:quotaLeft(await quotaUsed(db,salon,s,v))}))(/^[a-f0-9]{16,32}$/.test(u.searchParams.get('v')||'')?u.searchParams.get('v'):'')});
  // Mobile verification: a one-time code texted by Melipayamak. Only the hash of the code is stored.
  if(route==='otp/send'){

@@ -6,6 +6,9 @@ import test from 'node:test';import assert from 'node:assert/strict';import {rea
 import {database,memoryBucket} from '../scripts/local-adapter.mjs';import app from '../worker/index.js';
 import {cleanCondition,porosityFrom,correctionPlan,ruleDraftFormula,CONDITION_QUESTIONS,CONDITION_PROBLEMS,validateFormulaInput} from '../worker/color.js';
 import {isDirect} from '../worker/customers.js';
+import {linePrompt,PLACEMENT_KEYS} from '../worker/lines.js';
+import {chatJSON} from '../worker/ai.js';
+import {hash} from '../worker/domain.js';
 
 const origin='https://test.example';
 const migrations=readdirSync(new URL('../drizzle/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort();
@@ -171,4 +174,147 @@ test('condition cleaning and porosity rules are pure and clamped',()=>{
  assert.equal(porosityFrom(null,{}),'medium','no photo and no answers → the neutral default');
  assert.equal(correctionPlan('قهوه‌ای','root','تیره').draft,true);
  assert.equal(ruleDraftFormula(5,'تیره').oxidant_percent,'9','base level 5 → 9% oxidant');
+});
+
+test('the colour placement reaches the image prompt',()=>{
+ // The placement the customer picks on the colour line is validated against the pattern list
+ // and passed into the prompt builder; the prompt names the placement in English for the model.
+ assert.ok(PLACEMENT_KEYS.length>=6,'there are placement patterns to pick');
+ for(const key of PLACEMENT_KEYS){
+  const p=linePrompt('color','catalog','بلوند',{},'بلوند',key);
+  assert.ok(p.includes('COLOUR PLACEMENT'),'the prompt carries a COLOUR PLACEMENT line for '+key);
+ }
+ // A placement that is not in the list is ignored: the prompt has no placement line.
+ assert.ok(!linePrompt('color','catalog','بلوند',{},'بلوند',null).includes('COLOUR PLACEMENT'));
+});
+
+test('brand shades: owner lists and saves, and javascript: links are rejected',async()=>{
+ const e=fixture();const s=await salon(e);
+ // An empty list to start.
+ const empty=await call(e,'/api/owner/shades',undefined,OWNER);
+ assert.equal(empty.status,200,JSON.stringify(empty));assert.deepEqual(empty.data.shades,[]);
+ assert.ok(Array.isArray(empty.data.colors)&&empty.data.colors.length>0,'the catalog colours are offered');
+ // Save a shade with a shop link.
+ const saved=await call(e,'/api/owner/shades',{color:'بلوند شامپاینی',brand:'کیکول',code:'771',note:'روشن',link:'https://example.com/buy'},OWNER);
+ assert.equal(saved.status,200,JSON.stringify(saved));
+ assert.equal(saved.data.shades.length,1);assert.equal(saved.data.shades[0].brand,'کیکول');
+ assert.equal(saved.data.shades[0].link,'https://example.com/buy');
+ // Re-saving the same colour replaces it (one row per colour).
+ const again=await call(e,'/api/owner/shades',{color:'بلوند شامپاینی',brand:'کیکول',code:'882',link:'https://example.com/other'},OWNER);
+ assert.equal(again.data.shades.length,1,'re-saving the same colour keeps one row');
+ assert.equal(again.data.shades[0].code,'882');
+ // A colour outside the catalog is refused.
+ const bad=await call(e,'/api/owner/shades',{color:'رنگ ناشناس',brand:'کیکول',code:'1'},OWNER);
+ assert.equal(bad.status,400);
+ // javascript: (and any non-http) shop links are rejected, never stored.
+ for(const link of ['javascript:alert(1)','data:text/html,<x>','ftp://example.com/x']){
+  const r=await call(e,'/api/owner/shades',{color:'قهوه‌ای اسپرسو',brand:'کیکول',code:'1',link},OWNER);
+  assert.equal(r.status,400,'rejected '+link);
+ }
+ const after=await call(e,'/api/owner/shades',undefined,OWNER);
+ assert.ok(after.data.shades.every(sh=>!sh.link||/^https?:/.test(sh.link)),'no non-http link was stored');
+ // A customer session cannot touch the owner shades.
+ const g=await guest(e,s);
+ const denied=await call(e,'/api/owner/shades',undefined,g);
+ assert.ok(denied.status===401||denied.status===403,'a customer session is refused');
+});
+
+test('chatJSON refunds the success slot when the provider call fails',async()=>{
+ const e=fixture();
+ const okKey='test-ok',tryKey='test-try';
+ const okLimit={key:okKey,max:1},tryLimit={key:tryKey,max:3};
+ // A provider that answers with a non-2xx: the paid success slot must be refunded.
+ const mv=mockVision(null);
+ e.KIE_API_KEY='kie-test';
+ globalThis.fetch=async()=>{throw new Error('network down')};
+ try{
+  const r=await chatJSON(e,e.DB,{cacheKey:'k1',system:'s',user:'u',tryLimit,okLimit});
+  assert.equal(r.ok,false);
+  assert.equal((await e.DB.prepare('SELECT count FROM limits WHERE key=?').bind(await hash(okKey)).first()).count,0,'the success slot is refunded');
+  assert.equal((await e.DB.prepare('SELECT count FROM limits WHERE key=?').bind(await hash(tryKey)).first()).count,1,'the attempt counter is not refunded');
+ }finally{mv.restore()}
+});
+
+test('the browser colour step runs: the client bundle renders placement and the condition sheet',async()=>{
+ // Blocker 1: placementRow used the server-side PLACEMENT_KEYS and condStep2 used
+ // CONDITION_QUESTIONS — both absent from the browser bundle, so the page threw
+ // "PLACEMENT_KEYS is not defined". Execute the real client bundle in a minimal DOM
+ // and drive the colour step: it must render from LINES.placements and CONSULT.c.q.
+ const src=readFileSync(new URL('../worker/customer.js',import.meta.url),'utf8');
+ const start=src.indexOf('const clientJS=String.raw`');
+ const backtick=src.indexOf('`',start+25);
+ let js=src.slice(backtick+1,src.indexOf('`;',backtick));
+ js=js.replace(/__STYLES__/g,()=>'{}').replace(/__LINES__/g,()=>JSON.stringify({label:{color:'رنگ مو'},photo:{},placements:[['full','کل مو'],['root','ریشه'],['balayage','بالیاژ']]}))
+  .replace(/__MARK__/g,()=>'{}').replace(/__CONSULT__/g,()=>JSON.stringify({q:[],f:{},r:[],c:{q:CONDITION_QUESTIONS,p:CONDITION_PROBLEMS}}));
+ // Expose the internals the test drives, without touching the boot path.
+ js+='\n;globalThis.__aynehTest={placementRow,condDraw,condStep1,condStep2,condStep3,state,LINES,CONSULT,el,h,setCond:function(o){cond=o},setCondPanel:function(o){condPanel=o}};';
+
+ function mkEl(tag){
+  const e={tagName:String(tag||'').toUpperCase(),children:[],attrs:{},style:{},dataset:{},_t:'',_h:'',_c:'',
+   classList:{add(){},remove(){},contains(){return false},toggle(){}},
+   setAttribute(k,v){this.attrs[k]=v},getAttribute(k){return this.attrs[k]},
+   addEventListener(){},removeEventListener(){},append(...cs){this.children.push(...cs.filter(c=>c!==null&&c!==undefined&&c!==false))},
+   replaceChildren(...cs){this.children=cs.filter(c=>c!==null&&c!==undefined&&c!==false)},
+   remove(){},click(){},focus(){},scrollIntoView(){},querySelector(){return null},querySelectorAll(){return []},
+   get textContent(){return this._t},set textContent(v){this._t=String(v)},
+   get innerHTML(){return this._h},set innerHTML(v){this._h=String(v)},
+   get className(){return this._c},set className(v){this._c=String(v)},
+   hidden:false,disabled:false,checked:false,required:false,value:''};
+  return e;
+ }
+ const textOf=node=>{let out='';const walk=n=>{if(!n)return;if(n._t)out+=n._t;if(n._h)out+=n._h;(n.children||[]).forEach(walk)};walk(node);return out};
+
+ const docEl=mkEl('html'),body=mkEl('body');
+ const document={createElement:mkEl,createTextNode:t=>({_t:String(t),children:[]}),
+  querySelector(){return null},querySelectorAll(){return []},addEventListener(){},removeEventListener(){},
+  documentElement:docEl,body,title:'',head:mkEl('head')};
+ const location={search:'',pathname:'/s/test-salon',origin:'https://test.example'};
+ const localStorage={getItem(){return null},setItem(){},removeItem(){}};
+ const window={addEventListener(){},removeEventListener(){},__AYN_DRAFT:null,AynehPacks:null};
+ const prev={fetch:globalThis.fetch,document:globalThis.document,location:globalThis.location,localStorage:globalThis.localStorage,window:globalThis.window,history:globalThis.history,navigator:globalThis.navigator,requestAnimationFrame:globalThis.requestAnimationFrame};
+ globalThis.document=document;globalThis.location=location;globalThis.localStorage=localStorage;globalThis.window=window;
+ globalThis.history={replaceState(){}};
+ Object.defineProperty(globalThis,'navigator',{value:{userAgent:'node'},configurable:true,writable:true});
+ globalThis.requestAnimationFrame=fn=>setTimeout(fn,0);
+ globalThis.fetch=()=>Promise.reject(new Error('no network in the smoke test'));
+ try{
+  // Execute the real client bundle. boot() calls api('public') which rejects; showFatal
+  // no-ops because #main is absent, so boot returns without throwing.
+  new Function(js)();
+  const T=globalThis.__aynehTest;
+  assert.ok(T,'the client bundle exposed its internals');
+  assert.ok(Array.isArray(T.LINES.placements)&&T.LINES.placements.length>0,'LINES.placements is the browser source');
+  assert.ok(Array.isArray(T.CONSULT.c.q)&&T.CONSULT.c.q.length>0,'CONSULT.c.q is the browser source');
+
+  // The placement row renders one chip per pattern from LINES.placements (not PLACEMENT_KEYS).
+  T.state.line='color';
+  const pr=T.placementRow();
+  assert.equal(pr.tagName,'DIV');
+  const prText=textOf(pr);
+  for(const p of T.LINES.placements)assert.ok(prText.includes(p[1]),'the placement chip «'+p[1]+'» is rendered');
+
+  // The condition sheet renders its three steps from CONSULT.c.q (not CONDITION_QUESTIONS).
+  const panel=mkEl('div');
+  T.setCondPanel(panel);
+  T.setCond({step:1,photo:'photo-1',cond:null,answers:{},busy:false,note:'',tried:false});
+  T.condDraw();
+  assert.ok(panel.children.length>0,'condition step 1 renders');
+  assert.ok(textOf(panel).includes('شروع تخمین'),'step 1 shows the start button');
+  T.setCond({step:2,photo:'photo-1',cond:null,answers:{},busy:false,note:'',tried:false});
+  T.condDraw();
+  const qText=textOf(panel);
+  for(const q of T.CONSULT.c.q)assert.ok(qText.includes(q.label),'the question «'+q.label+'» is rendered in step 2');
+  for(const q of T.CONSULT.c.q)for(const o of q.options)assert.ok(qText.includes(o[1]),'the option «'+o[1]+'» is rendered');
+  T.setCond({step:3,photo:'photo-1',cond:{base_level:6,gray_percent:20,porosity:'medium',confidence:{}},answers:{},busy:false,note:'',tried:false});
+  T.condDraw();
+  assert.ok(textOf(panel).includes('تخمینی'),'step 3 keeps the estimate label');
+  // Let the async boot() IIFE settle (its api('public') rejects and showFatal no-ops)
+  // before the globals below are torn down.
+  await new Promise(r=>setTimeout(r,20));
+ }finally{
+  globalThis.fetch=prev.fetch;globalThis.document=prev.document;globalThis.location=prev.location;
+  globalThis.localStorage=prev.localStorage;globalThis.window=prev.window;globalThis.history=prev.history;
+  Object.defineProperty(globalThis,'navigator',{value:prev.navigator,configurable:true,writable:true});globalThis.requestAnimationFrame=prev.requestAnimationFrame;
+  delete globalThis.__aynehTest;
+ }
 });

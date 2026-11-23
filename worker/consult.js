@@ -368,6 +368,9 @@ export async function consultShareImage(u,env){
  const row=await env.DB.prepare('SELECT * FROM consultations WHERE share_hash=?').bind(await hash(t)).first();
  const now=Date.now();
  if(!row||!row.share_expires||row.share_expires<now||(row.share_used_at&&now-row.share_used_at>GRACE))return new Response('gone',{status:410});
+ /* The image follows the page exactly: nothing before the POST opened the link, nothing
+    after the grace window — a preview, refresh or crawler never gets the bytes early. */
+ if(!row.share_used_at)return new Response('not found',{status:404});
  const m=row.result_id&&await env.DB.prepare('SELECT mime,object_key FROM media WHERE id=? AND salon_id=?').bind(row.result_id,row.salon_id).first();
  if(!m)return new Response('not found',{status:404});
  const object=await bucketFor(env).get(m.object_key);

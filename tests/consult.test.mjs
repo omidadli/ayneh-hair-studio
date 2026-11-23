@@ -524,15 +524,22 @@ test('the built result attaches to the consultation and travels through the shar
  const goodSave=await call(e,'/api/s/salon-a/consult',{line:'hair',photo_id:photo,analysis:{source:'self',fields:{face_shape:'round'}},answers:{},result_id:simId},g);
  assert.equal(goodSave.status,200,JSON.stringify(goodSave));
  assert.equal(goodSave.data.result_id,simId,'the matching build attaches on save too');
- // Before the share exists there is no image route; after it, the image is private and no-store.
+ // The image follows the link: nothing before the POST opened it, then private and no-store,
+ // and nothing once the grace window has passed.
  const share=await call(e,'/api/s/salon-a/consults/'+id+'/share',{},g);
  const token=share.data.path.split('/')[2];
+ const pre=await app.fetch(new Request(origin+'/share/'+token+'/img'),e);
+ assert.equal(pre.status,404,'no image bytes before the link is opened');
+ const opened=await app.fetch(new Request(origin+'/share/'+token,{method:'POST'}),e);
+ assert.equal(opened.status,200);
  const img=await app.fetch(new Request(origin+'/share/'+token+'/img'),e);
  assert.equal(img.status,200);
  assert.equal(img.headers.get('Content-Type'),'image/png');
  assert.match(img.headers.get('Cache-Control'),/no-store/);
  assert.deepEqual(new Uint8Array(await img.arrayBuffer()),simBytes,'the actual bytes come from the bucket');
  assert.equal((await app.fetch(new Request(origin+'/share/'+'a'.repeat(64)+'/img'),e)).status,410);
+ e.DB.prepare('UPDATE consultations SET share_used_at=? WHERE id=?').bind(Date.now()-16*60000,id).run();
+ assert.equal((await app.fetch(new Request(origin+'/share/'+token+'/img'),e)).status,410,'the image dies with the grace window');
 });
 
 test('consult events are tracked without any personal data',async()=>{

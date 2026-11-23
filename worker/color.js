@@ -174,9 +174,10 @@ async function ownPhoto(db,s,id){
 
 export async function colorApi(req,env,{u,route,salon,s,clientIp}){
  const db=env.DB,phone=s.verified_phone;
- /* Like the consultant's vision routes, the condition assessment is a paid photo analysis and
-    lives only on the direct studio salon — nowhere else can it spend. */
- if(route.startsWith('color/'))must(isDirect(salon),'این بخش فقط در استودیوی آینه فعال است',404);
+ /* The condition assessment is a paid photo analysis and lives only on the direct studio
+    salon — nowhere else can it spend. The correction planner and the formula cards are
+    manager-console tools; owner auth is enforced in server.js before dispatch. */
+ if(route==='color/analyze')must(isDirect(salon),'این بخش فقط در استودیوی آینه فعال است',404);
  if(route==='color/analyze'&&req.method==='POST'){
   const b=await req.json().catch(()=>({}));
   if(b.line!=='color')return J({ok:false,fallback:'questionnaire',reason:'line'});

@@ -177,6 +177,7 @@ a.hchip,button.hchip{cursor:pointer}a.hchip:hover,button.hchip:hover{border-colo
 .style-card__name{font-family:var(--display);font-weight:800;font-size:19px;color:var(--ink);line-height:1.35}
 .style-card__en{font-size:12px;color:var(--muted);direction:ltr;text-align:end}
 .style-card__tag{font-size:12px;color:var(--accent-ink);font-weight:600;margin-top:4px}
+.style-card__shade{display:block;font-size:11.5px;color:var(--muted);font-weight:600;margin-top:3px;letter-spacing:.02em}
 .rail{display:grid;grid-auto-flow:column;grid-auto-columns:138px;gap:12px;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x mandatory;scrollbar-width:thin}
 .port-card{scroll-snap-align:start;border:0;background:transparent;padding:0;text-align:start}
 .port-card .mirror{padding:5px;transition:box-shadow .14s var(--ease)}
@@ -185,6 +186,7 @@ a.hchip,button.hchip{cursor:pointer}a.hchip:hover,button.hchip:hover{border-colo
 .port-card.is-on .mirror{box-shadow:0 0 0 3px var(--accent),var(--lift)}
 .port-card.is-on span.pc-name{color:var(--accent-ink)}
 .picked{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding:10px 12px 10px 10px;border-radius:14px;background:var(--accent-soft);color:var(--accent-ink);font-size:13.5px;font-weight:600}
+.picked__buy{font-size:12.5px;font-weight:700;color:var(--accent-ink);text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
 .picked .btn{min-height:34px}
 .ref-photo{width:min(100%,240px);margin:14px auto 0}
 .ref-photo .mirror__glass{aspect-ratio:3/4}
@@ -1559,8 +1561,8 @@ function stepPhoto(){
  }
  return box;
 }
-function pickedBar(text,onRemove){
- return el('div',{class:'picked'},[el('span',{text:text}),el('button',{class:'btn btn--ghost btn--sm',type:'button',onclick:onRemove,text:'حذف انتخاب'})]);
+function pickedBar(text,onRemove,extra){
+ return el('div',{class:'picked'},[el('span',{text:text}),extra||null,el('button',{class:'btn btn--ghost btn--sm',type:'button',onclick:onRemove,text:'حذف انتخاب'})]);
 }
 var TAB_LABEL={hair:['کارهای سالن','مدل‌های آماده','عکس مدل من'],color:['کارهای سالن','رنگ‌های آماده','عکس رنگ دلخواه'],nails:['کارهای سالن','طرح‌های آماده','عکس طرح من'],lashes:['کارهای سالن','مدل‌های آماده','عکس مدل من']};
 var MODEL_HEAD={
@@ -1714,7 +1716,7 @@ function stepModel(){
    pic.addEventListener('error',function(){art.classList.add('is-missing');pic.remove();if(L!=='color'&&!on){var w=art.closest('.style-wrap')||art.closest('.style-card');if(w)w.remove()}});
    var card=el('button',{class:'style-card'+(on?' is-on':''),type:'button','aria-pressed':on?'true':'false'},[
     art,
-    el('span',{class:'style-card__body'},[el('span',{class:'style-card__name',text:s[0]}),el('span',{class:'style-card__tag',text:s[2]})])
+    el('span',{class:'style-card__body'},[el('span',{class:'style-card__name',text:s[0]}),el('span',{class:'style-card__tag',text:s[2]})].concat(L==='color'&&shadeOf(s[0])?[el('span',{class:'style-card__shade',dir:'ltr',text:shadeOf(s[0]).brand+' · '+shadeOf(s[0]).code})]:[]))
    ]);
    card.addEventListener('click',function(){track('look',lookPrefix()+i);if(L==='color')track('color',s[0]);chooseLook(function(){state.style=i;state.custom='';state.reference=null;state.refTitle='';if(L==='color')state.color=''})});
    if(studio()){if(hot[i])art.append(el('span',{class:'style-card__hot',html:ICO.fire+'<span>ترند</span>'}));grid.append(el('div',{class:'style-wrap'},[card,reactBtns(L+':'+i)]))}
@@ -1723,7 +1725,9 @@ function stepModel(){
   box.append(grid);
   if(Q&&!shown)box.append(h('p','نمونهٔ آماده‌ای با این نام نداریم؛ دکمهٔ بالا همین را برایتان می‌سازد.','hint'));
   if(state.custom&&!state.reference)box.append(pickedBar('انتخاب شما: '+state.custom,function(){pickLook(function(){state.custom=''})}));
-  if(state.style!==null&&!state.reference)box.append(pickedBar((L==='color'?'رنگ انتخابی: ':L==='nails'?'طرح انتخابی: ':'مدل انتخابی: ')+LIST[state.style][0],function(){pickLook(function(){state.style=null})}));
+  if(state.style!==null&&!state.reference){var pk=(L==='color'?'رنگ انتخابی: ':L==='nails'?'طرح انتخابی: ':'مدل انتخابی: ')+LIST[state.style][0],ex=null;
+  if(L==='color'){var sd=shadeOf(LIST[state.style][0]);if(sd){pk+=' · '+sd.brand+' · '+sd.code;if(sd.link)ex=el('a',{class:'picked__buy',href:sd.link,target:'_blank',rel:'noopener',text:'کجا بخرم'})}}
+  box.append(pickedBar(pk,function(){pickLook(function(){state.style=null})},ex))}
  }else{
   if(!state.reference||state.refTitle){
    var input2=el('input',{type:'file',accept:'image/jpeg,image/png,image/webp',id:'pickref',class:'sr-only'});
@@ -1808,6 +1812,9 @@ var COLORS=[
 ];
 var POPULAR=['دودی زیتونی','نسکافه‌ای','بالیاژ عسلی','شکلاتی','مش دودی','کاراملی','بلوند شامپاینی','شرابی'];
 function normFa(s){return String(s||'').replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[‌\s]/g,'')}
+/* Phase 2 — the brand shade linked to a catalog colour (owner-editable in /admin), so the
+   customer sees the real brand and code behind a colour, plus the shop link when there is one. */
+function shadeOf(name){var sh=(state.pub&&state.pub.shades)||[];for(var i=0;i<sh.length;i++)if(normFa(sh[i].color)===normFa(name))return sh[i];return null}
 function swatch(hex){var c=hex.split(',');return el('span',{class:'swatch',style:'background:'+(c.length>1?'linear-gradient(135deg,'+c[0]+' 0 45%,'+c[1]+' 55%)':c[0])})}
 function colorPicker(){
  var wrap=el('div',{class:'color'});

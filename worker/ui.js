@@ -471,8 +471,38 @@ function home(){return api('/api/owner').then(function(d){
   var prev=el('span',{class:'hint slug-preview'});si.closest('.field').append(prev);
   function show(){var v=si.value;prev.textContent=v?'صفحهٔ مشتری: '+location.host+'/s/'+v:''}
   si.addEventListener('input',function(){var c=si.value.toLowerCase().replace(/[\s_]+/g,'-').replace(/[^a-z0-9-]/g,'').replace(/-+/g,'-');if(c!==si.value)si.value=c;show()});show()})();
- $('#app').replaceChildren(head,payCard(),activationCard(),dashboard(d.salons),el('h2',{class:'section-title',text:'سالن‌ها'}),el('div',{class:'grid grid--2'},[el('div',{class:'stack'},[list,create]),el('div',{class:'stack'},[alertsCard(d),botCard(d.bot),smsCard(d.sms||{}),imageCard(d.image)])]));
+ $('#app').replaceChildren(head,payCard(),activationCard(),dashboard(d.salons),el('h2',{class:'section-title',text:'سالن‌ها'}),el('div',{class:'grid grid--2'},[el('div',{class:'stack'},[list,create]),el('div',{class:'stack'},[alertsCard(d),botCard(d.bot),smsCard(d.sms||{}),imageCard(d.image),shadesCard()])]));
 })}
+/* Phase 2 — brand shades: a catalog colour linked to a real brand shade code. The customer
+   sees the brand and code under the colour (and a «کجا بخرم» link when there is one). */
+function shadesCard(){
+ var out=el('div',{class:'stack'});
+ function load(){return api('/api/owner/shades').then(function(d){
+  var sel=$('#sh-color');if(sel&&!sel.options.length)sel.replaceChildren.apply(sel,d.colors.map(function(c){return el('option',{value:c,text:c})}));
+  render(d.shades);
+ })}
+ function render(shades){
+  out.replaceChildren(shades.length?el('div',{class:'stack'},shades.map(function(s){
+   return el('div',{class:'row',style:'justify-content:space-between;align-items:center'},[
+    el('div',{style:'min-width:0'},[h('b',s.color),h('small',[s.brand+' · '+s.code+(s.note?' · '+s.note:'')+(s.link?' · '+s.link:'')],'muted')]),
+    el('div',{class:'row',style:'gap:6px'},[
+     el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'ویرایش',onclick:function(){$('#sh-color').value=s.color;$('#sh-brand').value=s.brand;$('#sh-code').value=s.code;$('#sh-note').value=s.note||'';$('#sh-link').value=s.link||'';var f=$('#sh-color').closest('.card');if(f&&f.scrollIntoView)f.scrollIntoView({behavior:'smooth',block:'center'})}}),
+     el('button',{class:'btn btn--danger btn--sm',type:'button',text:'حذف',onclick:act(function(){if(!confirm('شید «'+s.color+'» حذف شود؟'))return Promise.resolve();return api('/api/owner/shades',{delete:true,id:s.id}).then(load)})})
+    ])
+   ])
+  })):h('p','هنوز شید برندیی ثبت نشده.','empty-note'));
+ }
+ var colorSel=el('select',{id:'sh-color'}),brandIn=el('input',{id:'sh-brand',maxlength:'40'}),codeIn=el('input',{id:'sh-code',maxlength:'20'}),noteIn=el('input',{id:'sh-note',maxlength:'200'}),linkIn=el('input',{id:'sh-link',placeholder:'https://…',maxlength:'200'});
+ var save=el('button',{class:'btn btn--primary btn--sm',type:'button',text:'ذخیره شید',onclick:act(function(){
+  return api('/api/owner/shades',{color:$('#sh-color').value,brand:$('#sh-brand').value,code:$('#sh-code').value,note:$('#sh-note').value,link:$('#sh-link').value}).then(function(){load();toast('ذخیره شد.')})
+ })});
+ var card=el('section',{class:'card'},[h('h2','شید برندها'),h('p','هر رنگ کاتالوگ را به کدِ شید یک برند رایج ایران وصل کنید؛ مشتری برند و کد را زیر رنگ می‌بیند و اگر لینک فروشگاه بگذارید، «کجا بخرم» هم می‌گیرد.','lead'),
+  el('div',{class:'row'},[el('label',{class:'field',style:'flex:1'},[el('span',{class:'lbl',text:'رنگ کاتالوگ'}),colorSel]),el('label',{class:'field',style:'flex:1'},[el('span',{class:'lbl',text:'برند'}),brandIn]),el('label',{class:'field',style:'flex:1'},[el('span',{class:'lbl',text:'کد شید'}),codeIn])]),
+  el('div',{class:'row'},[el('label',{class:'field',style:'flex:2'},[el('span',{class:'lbl',text:'یادداشت (اختیاری)'}),noteIn]),el('label',{class:'field',style:'flex:2'},[el('span',{class:'lbl',text:'لینک فروشگاه (اختیاری)'}),linkIn]),save]),
+  out]);
+ load();
+ return card;
+}
 function smsCard(sms){
  var st=function(ok,on,off){return el('li',{class:ok?'on':'off'},[h('span',ok?'✓':'–','dot'),h('span',ok?on:off)])};
  return el('section',{class:'card'},[h('h2','پیامک (ملی پیامک)'),h('p','کد تأیید موبایل مشتری، و لینک سالن که آرایشگر از ربات برای مشتری می‌فرستد.','lead'),el('ul',{class:'status'},[

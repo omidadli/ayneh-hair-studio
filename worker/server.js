@@ -4,7 +4,7 @@ import {styles} from './legacy.js';
 import {identity,issueCookie,clearCookie,same,passwordLoginEnabled} from './auth.js';
 import {bucketFor,putImage} from './storage.js';
 import {botReady,deliverLead,deliverPending,newLinkCode,setWebhook,inboxes,followLinks,PLATFORMS,platformReady,baleSecret,staffInvite,notifyConflict,expireStates,askTransfer,transferTick} from './telegram.js';
-import {LINE_KEYS,lineStyles,cleanOptions,linePrompt,optionText,LINE_LABEL,PLACEMENT_KEYS} from './lines.js';
+import {LINE_KEYS,lineStyles,cleanOptions,linePrompt,optionText,LINE_LABEL,PLACEMENT_KEYS,COLOR_STYLES} from './lines.js';
 import {ownerLink,alertUnanswered,maybeDigest,setupStatus,digest,notifyOwner,setting} from './alerts.js';
 import {attribute,ownerFor,createStaff,requestTransfer,cancelTransfer,pendingTransfer,report,team as teamOf,liveStaff,SPECIALTIES} from './referral.js';
 import {stats} from './stats.js';
@@ -354,6 +354,26 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   return J({ok:true,order:r.order});}
  if(path==='/api/owner/digest'&&req.method==='GET'){await owner(req,env);return J({text:await digest(env)});}
  if(path==='/api/owner/webhook'&&req.method==='POST'){await owner(req,env);return J(await setWebhook(env,env.APP_ORIGIN||u.origin));}
+ /* Phase 2 — brand shades: a catalog colour linked to a real brand shade code, editable in
+  /admin. One row per colour (re-saving the same colour replaces it). The colour must be one of
+  the catalog names, so the customer page can always match it back. */
+ const normC=s=>String(s||'').replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[‌\s]/g,'');
+ if(path==='/api/owner/shades'&&req.method==='GET'){await owner(req,env);
+  const rows=await all(db,'SELECT id,color,brand,code,note,link,created_at FROM brand_shades ORDER BY color');
+  return J({shades:rows,colors:COLOR_STYLES.map(c=>c[0])});}
+ if(path==='/api/owner/shades'&&req.method==='POST'){await owner(req,env);
+  const b=await req.json().catch(()=>({}));
+  if(b.delete){must(/^[a-f0-9-]{36}$/.test(String(b.id||'')),'شید معتبر نیست',400);const n=await run(db,'DELETE FROM brand_shades WHERE id=?',b.id);must(n.meta.changes,'شید پیدا نشد',404);return J({ok:true})}
+  const color=text(String(b.color||'').trim().slice(0,60),60);
+  must(COLOR_STYLES.some(c=>normC(c[0])===normC(color)),'رنگ باید یکی از رنگ‌های کاتالوگ باشد',400);
+  const brand=text(String(b.brand||'').trim().slice(0,40),40),code=text(String(b.code||'').trim().slice(0,20),20);
+  must(brand&&code,'برند و کد شید را بنویسید',400);
+  const note=text(String(b.note||'').trim().slice(0,200),200);
+  const link=b.link?safeLink(String(b.link).trim()):'';
+  const existing=await one(db,'SELECT id FROM brand_shades WHERE color=?',color);
+  if(existing)await run(db,'UPDATE brand_shades SET brand=?,code=?,note=?,link=? WHERE id=?',brand,code,note,link,existing.id);
+  else await run(db,'INSERT INTO brand_shades(id,color,brand,code,note,link,created_at) VALUES(?,?,?,?,?,?,?)',uid(),color,brand,code,note,link,Date.now());
+  return J({ok:true,shades:(await all(db,'SELECT id,color,brand,code,note,link,created_at FROM brand_shades ORDER BY color'))});}
  if(path==='/api/salons'&&req.method==='POST'){const who=await owner(req,env);const b=await req.json(),id=uid();
   // Capitals, spaces and underscores are normalised ("Aliadli Salon" → "aliadli-salon").
   b.slug=String(b.slug||'').trim().toLowerCase().replace(/[\s_]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
@@ -367,7 +387,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  const readOnly=route==='public'||route==='owner'||route==='requests'||route==='looks'||route==='trending'||route.startsWith('media/')||route.startsWith('generation/');
  const consultRoute=route==='consult'||route.startsWith('consult/')||route==='consults'||route.startsWith('consults/');
  must(route==='session'||route==='me'||route==='saves'||consultRoute?['GET','POST'].includes(req.method):req.method===(readOnly?'GET':'POST'),'متد مجاز نیست',405);
- if(route==='public')return J({salon:publicSalon(salon),portfolio:await all(db,'SELECT id,title,category,description,stylist,staff_id AS maker,line,images,try_on,1 AS published FROM portfolio WHERE salon_id=? AND published=1 AND permission=1 ORDER BY created_at DESC',salon.id),generation:!!env.KIE_API_KEY&&!!cfg.generation_enabled,reference:refOn(cfg),telegram:inboxes(env,salon).length>0||!!planOf(salon)||!!await one(db,'SELECT 1 FROM team WHERE salon_id=? AND active=1',salon.id),follow:Object.keys(followLinks(env,'x')),otp:smsReady(env)&&!demo,notice:'خروجی شبیه‌سازی پیشنهادی است و تضمین اجرا نیست.',trial:trialPublic(trial),demo,direct:isDirect(salon),lines:salonLines(salon)});
+ if(route==='public')return J({salon:publicSalon(salon),portfolio:await all(db,'SELECT id,title,category,description,stylist,staff_id AS maker,line,images,try_on,1 AS published FROM portfolio WHERE salon_id=? AND published=1 AND permission=1 ORDER BY created_at DESC',salon.id),shades:await all(db,'SELECT color,brand,code,link FROM brand_shades'),generation:!!env.KIE_API_KEY&&!!cfg.generation_enabled,reference:refOn(cfg),telegram:inboxes(env,salon).length>0||!!planOf(salon)||!!await one(db,'SELECT 1 FROM team WHERE salon_id=? AND active=1',salon.id),follow:Object.keys(followLinks(env,'x')),otp:smsReady(env)&&!demo,notice:'خروجی شبیه‌سازی پیشنهادی است و تضمین اجرا نیست.',trial:trialPublic(trial),demo,direct:isDirect(salon),lines:salonLines(salon)});
  if(route==='session'&&req.method==='POST'){await limited(db,'session:'+salon.id+':'+clientIp(req),30);const {raw}=await newSession(db,salon);return J({ok:true},200,{'Set-Cookie':cookie(raw)});}
  if(route.startsWith('owner')){
   await owner(req,env);const r=route.slice(6),b=req.method==='GET'?{}:await req.json();

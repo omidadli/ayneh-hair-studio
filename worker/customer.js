@@ -1872,7 +1872,7 @@ function colorPicker(){
    placement, so picking one there would be ignored by the prompt. Tapping the active chip
    resets to «کل مو» (the default), never to "nothing". */
 function placementRow(){
- var P=LINES.placements||[],cur=PLACEMENT_KEYS.indexOf(state.place)>=0?state.place:'full';
+ var P=LINES.placements||[],keys=P.map(function(p){return p[0]}),cur=keys.indexOf(state.place)>=0?state.place:'full';
  var row=el('div',{class:'filters opt-row',role:'group','aria-label':'الگوی قرارگیری رنگ'});
  P.forEach(function(p){
   var on=p[0]===cur;
@@ -2905,7 +2905,7 @@ function condStat(label,value,low){
 }
 function condStep2(p){
  p.append(el('p',{class:'cfield__hint',text:'هر کدام را نخواستی رد کن؛ در صورت امکان، جواب‌های تو نفوذپذیری را دقیق‌تر می‌کند.'}));
- CONDITION_QUESTIONS.forEach(function(q){
+ CONSULT.c.q.forEach(function(q){
   var box=el('div',{class:'cfield'},[el('div',{class:'cfield__top'},[el('b',{text:q.label})])]);
   var chips=el('div',{class:'cchips'}),cur=cond.answers[q.key];
   q.options.forEach(function(o){
@@ -2939,7 +2939,7 @@ function condStep3(p){
 async function condAnalyze(){
  cond.busy=true;cond.tried=true;condDraw();
  try{
-  var r=await api('/api/color/analyze',{method:'POST',body:{line:'color',photo_id:cond.photo,v:state.v,answers:cond.answers}});
+  var r=await ensureSession().then(function(){return api('color/analyze',{line:'color',photo_id:cond.photo,v:VISITOR,answers:cond.answers})});
   if(r&&r.ok&&r.estimate){
    cond.cond={base_level:r.base_level,gray_percent:r.gray_percent,porosity:r.porosity,confidence:r.confidence||{}};
    cond.low=r.low||[];
@@ -2954,21 +2954,7 @@ async function condAnalyze(){
  }catch(e){cond.note='در این باره محدودیت وجود دارد.';cond.tried=false}
  cond.busy=false;condDraw();
 }
-async function condShow(){
- cond.busy=true;cond.tried=true;condDraw();
- try{
-  var r=await api('/api/color/analyze',{method:'POST',body:{line:'color',photo_id:cond.photo,v:state.v,answers:cond.answers}});
-  if(r&&r.ok&&r.estimate){
-   cond.cond={base_level:r.base_level,gray_percent:r.gray_percent,porosity:r.porosity,confidence:r.confidence||{}};
-   cond.low=r.low||[];cond.answers=r.answers||cond.answers;cond.note='';cond.step=3;
-  }else{
-   cond.note=(r&&r.reason)?'در این باره محدودیت دارد: '+r.reason:'در این باره محدودیت وجود دارد.';
-   if(r&&r.porosity){cond.cond={base_level:null,gray_percent:null,porosity:r.porosity,confidence:{}};cond.low=[];cond.note='تخمین از عکست انجام نشد، اما با جواب‌های تو نفوذپذیری را حدس زده‌ایم؛ قیدِ «تخمینی» دارد.'}
-   cond.tried=false;
-  }
- }catch(e){cond.note='در این باره محدودیت وجود دارد.';cond.tried=false}
- cond.busy=false;condDraw();
-}
+function condShow(){return condAnalyze()}
 function openConsult(){
  if(!state.original){toast('اول عکس خودت را اضافه کن');return}
  consult={step:1,line:state.line,photo:state.original,analysis:null,picked:{},skipped:{},answers:{},picks:null,savedId:null,busy:false,self:false,tried:false,note:''};

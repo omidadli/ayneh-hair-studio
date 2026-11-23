@@ -440,17 +440,14 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  }
  /* Phase 2 — pro hair colour: the condition assessment (vision, capped + cached), the
     correction plan (rules) and the formula draft (rules + model, always a draft). The
-    stylist's formula cards are the manager console's, so they require the owner's session;
-    the console holds the owner cookie, not a customer session, so the colour routes fall
-    back to a synthetic owner session bound to the salon when no customer session is present.
-    The customer's own condition assessment still needs her real session. */
+    customer's own condition assessment needs her real session; the stylist's tools
+    (formula cards, formula-suggest, correction plan) are the manager console's and are
+    owner-gated — the console holds the owner cookie, not a customer session, so they run
+    on a synthetic owner session bound to the salon. */
  if(route.startsWith('color')){
-  if(route==='color/formulas')await owner(req,env);
-  let s;
-  try{s=await session(req,db,salon)}catch{
-   const who=await owner(req,env);
-   s={id:'owner:'+who.user,salon_id:salon.id,verified_phone:null};
-  }
+  if(route==='color/analyze'){const s=await session(req,db,salon);return colorApi(req,env,{u,route,salon,s,clientIp:clientIp(req)});}
+  const who=await owner(req,env);
+  const s={id:'owner:'+who.user,salon_id:salon.id,verified_phone:null};
   return colorApi(req,env,{u,route,salon,s,clientIp:clientIp(req)});
  }
  const s=await session(req,db,salon);

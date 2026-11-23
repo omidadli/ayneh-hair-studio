@@ -148,7 +148,6 @@ export function cleanFormulaDraft(raw,rule,target){
 export function validateFormulaInput(b){
  const target=String(b.target_color||'').trim().slice(0,60);
  must(target.length>=2,'یک رنگ هدف بنویسید',400);
- must(COLOR_STYLES.some(c=>c[0]===target)||target.length<=60,'رنگ هدف معتبر نیست',400);
  const customer_phone=phone(String(b.customer_phone||''));
  const oxidant=String(b.oxidant_percent||'');must(OXIDANTS.includes(oxidant),'نوع اکسیدان معتبر نیست',400);
  const ratio=String(b.oxidant_ratio||'');must(RATIOS.includes(ratio),'نسبت اکسیدان معتبر نیست',400);
@@ -234,7 +233,7 @@ export async function colorApi(req,env,{u,route,salon,s,clientIp}){
   return J({formulas:rows.map(r=>({id:r.id,customer_phone:r.customer_phone,target_color:r.target_color,current_color:r.current_color||'',brand:r.brand||'',code:r.code||'',amounts:parse(r.amounts),oxidant_percent:r.oxidant_percent,oxidant_ratio:r.oxidant_ratio,pause_root:r.pause_root,pause_shaft:r.pause_shaft,pause_top:r.pause_top,note:r.note||'',source:r.source,created_at:r.created_at}))});
  }
  if(route==='color/formulas'&&req.method==='POST'){
-  must(isDirect(salon)||s.staff=='1','این بخش فقط در استودیوی آینه فعال است',404);
+  must(isDirect(salon),'این بخش فقط در استودیوی آینه فعال است',404);
   const b=await req.json().catch(()=>({}));
   if(b.delete){must(/^[a-f0-9-]{36}$/.test(String(b.id||'')),'فرمول معتبر نیست',400);const n=await db.prepare('DELETE FROM color_formulas WHERE id=? AND salon_id=?').bind(b.id,s.salon_id).run();must(n.meta.changes,'فرمول پیدا نشد',404);return J({ok:true})}
   const v=validateFormulaInput(b);

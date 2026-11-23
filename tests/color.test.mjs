@@ -34,6 +34,19 @@ test('the console calls the salon-scoped colour URLs; no top-level /api/color ro
  assert.doesNotMatch(src,/['"`]\/api\/color\//,'no top-level /api/color route is defined anywhere');
 });
 
+test('the console colour tools are owner-gated: a customer session gets 403 on all three',async()=>{const e=fixture();const s=await salon(e);const g=await guest(e,s);
+ // The console's stylist tools must never run on a customer session — owner only.
+ for(const path of ['/api/s/'+s.slug+'/color/formulas','/api/s/'+s.slug+'/color/formula-suggest','/api/s/'+s.slug+'/color/correct']){
+  const r=await call(e,path,{target_color:'تیره'},g);
+  assert.ok([401,403].includes(r.status),path+' must refuse a customer session: '+JSON.stringify(r));
+ }
+ // And without any identity at all they are refused too.
+ for(const path of ['/api/s/'+s.slug+'/color/formulas','/api/s/'+s.slug+'/color/formula-suggest','/api/s/'+s.slug+'/color/correct']){
+  const r=await call(e,path,{target_color:'تیره'});
+  assert.equal(r.status,401,path+' must refuse an anonymous caller: '+JSON.stringify(r));
+ }
+});
+
 test('formula cards: the console lists, saves, updates and deletes through the exact salon URLs',async()=>{const e=fixture();const s=await salon(e);
  // GET — the console's load(): owner-gated, salon-scoped, empty at first.
  const list=await call(e,'/api/s/'+s.slug+'/color/formulas',undefined,OWNER);
@@ -114,7 +127,8 @@ test('correction planner: the console gets a rule-based plan, always a draft',as
 test('condition assessment: direct studio only, guest caps, cached, always an estimate',async()=>{
  // A salon that is not the direct studio gets 404 — the paid analysis lives only there.
  const e0=fixture();const plain=await call(e0,'/api/salons',{slug:'plain-a',name:'سالن عادی'},OWNER);assert.equal(plain.status,200);
- const notDirect=await call(e0,'/api/s/plain-a/color/analyze',{line:'color',photo_id:'x'},OWNER);
+ const pg=await guest(e0,{slug:'plain-a'});
+ const notDirect=await call(e0,'/api/s/plain-a/color/analyze',{line:'color',photo_id:'x'},pg);
  assert.equal(notDirect.status,404);assert.match(notDirect.data.error,/استودیوی آینه/);
  // On the direct studio, without a key the customer gets the questionnaire fallback, never a fake analysis.
  const e=fixture();const s=await salon(e,'salon-a');const g=await guest(e,s);const photo=await upload(e,s,g);

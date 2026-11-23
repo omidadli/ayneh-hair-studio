@@ -357,7 +357,10 @@ export async function consultShare(u,env,method='GET'){
  const li=k=>'<li><span>'+esc(fieldLabel(k))+'</span><b>'+esc(optionLabel(ANALYSIS_FIELDS,k,analysis.fields&&analysis.fields[k])||'—')+'</b></li>';
  const visionKeys=rel.filter(k=>!selfSet.has(k)),selfFields=rel.filter(k=>selfSet.has(k));
  const valuedVision=visionKeys.filter(k=>analysis.fields&&analysis.fields[k]);
- const allSelf=analysis.source==='self'||(selfFields.length>0&&!valuedVision.length);
+ /* No field carries a value (a cache hit she never answered, nothing filled): the block is
+    her answer — never a dash-filled «تحلیل عکس». */
+ const anyValue=rel.some(k=>analysis.fields&&analysis.fields[k]);
+ const allSelf=analysis.source==='self'||!anyValue||(selfFields.length>0&&!valuedVision.length);
  const fieldsHtml=allSelf
   ? '<section><h2>مشخصات (پاسخ مشتری)</h2><ul class="kv">'+rel.map(li).join('')+'</ul></section>'
   : '<section><h2>تحلیل عکس</h2><ul class="kv">'+visionKeys.map(li).join('')+'</ul></section>'

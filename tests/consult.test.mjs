@@ -4,6 +4,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import {rea
 import {database,memoryBucket} from '../scripts/local-adapter.mjs';import app from '../worker/index.js';
 import {customerHTML} from '../worker/customer.js';
 import {QUESTIONS,ANALYSIS_FIELDS,RELEVANT,cleanAnalysis,suggest} from '../worker/consult.js';
+import {hash} from '../worker/domain.js';
 import {styles} from '../worker/legacy.js';
 import {COLOR_STYLES,NAIL_STYLES,LASH_STYLES,LINE_KEYS} from '../worker/lines.js';
 
@@ -237,30 +238,43 @@ test('the network counter follows the real client IP; a changing browser id cann
  }finally{kv.restore()}
 });
 
-test('a provider failure gives every counter back — the customer is never billed for our fault',async()=>{
+test('junk replies burn the attempt counter — a non-JSON loop is refused within the try cap',async()=>{
  const e=fixture(),s=await salon(e),g=await guest(e,s);
  e.KIE_API_KEY='mock';
- let kv=mockVision('این متن جیسون نیست');
+ const kv=mockVision('این متن جیسون نیست');
  try{
-  // Eleven rubbish answers in a row: without the refunds the attempt cap would trip at 4 and
-  // the network cap at 11 — every attempt must reach the provider and come back free.
-  for(let i=0;i<11;i++){
+  const statuses=[];let last;
+  // The model answers non-JSON every time: billed each time, cached never — the attempt
+  // counter must stop her well before an endless paid loop.
+  for(let i=0;i<4;i++){
    const photo=await upload(e,s,g);
-   const r=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line:'hair'},g);
-   assert.equal(r.status,200,`attempt ${i}: `+JSON.stringify(r));
-   assert.equal(r.data.ok,false);
+   last=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line:'hair'},g);
+   statuses.push(last.status);
   }
-  assert.equal(kv.calls.length,11,'success, attempt and network slots were all refunded');
+  assert.deepEqual(statuses,[200,200,200,429],'three attempts are allowed, the fourth is refused');
+  assert.match(last.data.error,/چند بار تلاش کردی/,'the attempt counter refused — not the success one');
+  assert.equal(kv.calls.length,3,'no fourth paid call');
  }finally{kv.restore()}
- // And the very next real answer still works — the success slot is back too.
- kv=mockVision(MODEL_JSON);
+});
+
+test('an HTTP error was never billed: success and network slots come back, the attempt still counts',async()=>{
+ const e=fixture(),s=await salon(e),g=await guest(e,s);
+ e.KIE_API_KEY='mock';
+ const prev=globalThis.fetch;let calls=0;
+ globalThis.fetch=async(url,init)=>{const u=String(url);if(u.includes('api.kie.ai')&&u.includes('/v1/chat/completions')){calls++;return new Response('server error',{status:500})}return prev(url,init)};
  try{
   const photo=await upload(e,s,g);
   const r=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line:'hair'},g);
   assert.equal(r.status,200,JSON.stringify(r));
-  assert.equal(r.data.ok,true);
-  assert.equal(kv.calls.length,1);
- }finally{kv.restore()}
+  assert.equal(r.data.ok,false);
+  assert.equal(calls,1);
+ }finally{globalThis.fetch=prev}
+ const cnt=async key=>{const row=e.DB.sql.prepare('SELECT count FROM limits WHERE key=?').get(await hash(key));return row?row.count:0};
+ const sid=e.DB.sql.prepare('SELECT id FROM sessions WHERE verified_phone IS NULL').get().id;
+ const who='consult:g:'+sid+':'+await hash('unknown');
+ assert.equal(await cnt(who+':ok'),0,'the success slot came back');
+ assert.equal(await cnt(who+':try'),1,'the attempt still counts — it happened');
+ assert.equal(await cnt('consult-net:unknown'),0,'the network slot came back — nothing was billed');
 });
 
 test('the consultant card and its paid vision exist only on hair and colour — never nails or lashes',async()=>{
@@ -496,6 +510,34 @@ test('her own answers are labelled hers — never a photo analysis — on the sh
  // The profile detail (client) reads the same self_keys marker.
  assert.match(customerHTML,/مشخصات \(پاسخ مشتری\)/);
  assert.match(customerHTML,/self_keys/);
+});
+
+test('a cache hit she never answered and no fields of her own is still her answer, not a dash-filled analysis',async()=>{
+ const e=fixture(),s=await salon(e);
+ const bytes=png();
+ // Another customer analyses these exact bytes — the byte-hash cache now holds them.
+ const a=await verified(e,s,'۰۹۱۲۱۲۳۴۵۶۷');
+ const photoA=await upload(e,s,a,'original',bytes);
+ e.KIE_API_KEY='mock';
+ const kv=mockVision(MODEL_JSON);
+ try{
+  const an=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photoA,line:'hair'},a);
+  assert.equal(an.status,200,JSON.stringify(an));
+  assert.equal(an.data.ok,true);
+ }finally{kv.restore()}
+ // She uploads the same picture and fills in nothing: the cache makes the save «vision»…
+ const b=await verified(e,s,'۰۹۳۵۱۱۱۲۲۳۳');
+ const photoB=await upload(e,s,b,'original',bytes);
+ const save=await call(e,'/api/s/salon-a/consult',{line:'hair',photo_id:photoB,analysis:{source:'vision',fields:{},confidence:{},low:[],self_keys:[]},answers:{}},b);
+ assert.equal(save.status,200,JSON.stringify(save));
+ const stored=JSON.parse(e.DB.sql.prepare('SELECT analysis_json FROM consultations WHERE id=?').get(save.data.id).analysis_json);
+ assert.equal(stored.source,'vision');
+ assert.deepEqual(stored.self_keys,[]);
+ // …but with no field valued the share page must not show a dash-filled «تحلیل عکس».
+ const sh=await call(e,'/api/s/salon-a/consults/'+save.data.id+'/share',{},b);
+ const html=await (await app.fetch(new Request(origin+sh.data.path,{method:'POST'}),e)).text();
+ assert.ok(!html.includes('<h2>تحلیل عکس</h2>'),'never an analysis block full of dashes');
+ assert.match(html,/مشخصات \(پاسخ مشتری\)/);
 });
 
 test('the fallback form lets her skip any field and «بعدی» is never blocked',()=>{

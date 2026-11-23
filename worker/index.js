@@ -133,9 +133,10 @@ export default {
   if(/^\/app\/?$/.test(u.pathname)){let ver='';try{const r=env.ASSETS?await env.ASSETS.fetch(new Request(u.origin+'/app/version.txt')):null;if(r&&r.ok)ver=(await r.text()).trim().slice(0,20)}catch{}return new Response(appPage(!!ver,ver),{headers:{...htmlHeaders,'X-Robots-Tag':'noindex'}});}
   if(!pages.some(r=>r.test(u.pathname)))return new Response(notFound,{status:404,headers:htmlHeaders});
   if(/^\/i\/[a-z0-9-]{1,64}\/?$/.test(u.pathname)){const html=await sharePage(u,env);return new Response(html||notFound,{status:html?200:404,headers:htmlHeaders});}
- /* The consultant's one-time link for the stylist (worker/consult.js): consumed on first
-    view, dead after the grace window or 72 hours; never indexed, never cached. */
- if(/^\/share\/[a-f0-9]{64}\/?$/.test(u.pathname)){const r=await consultShare(u,env);return new Response(r.html||notFound,{status:r.status,headers:{...htmlHeaders,'Cache-Control':'no-store','X-Robots-Tag':'noindex'}});}
+ /* The consultant's one-time link for the stylist (worker/consult.js): GET only shows the
+    «باز کردن برگه» landing (previews/refreshes never consume it), the POST opens and burns it;
+    dead after the grace window or 72 hours; never indexed, never cached. */
+ if(/^\/share\/[a-f0-9]{64}\/?$/.test(u.pathname)){const r=await consultShare(u,env,request.method);return new Response(r.html||notFound,{status:r.status,headers:{...htmlHeaders,'Cache-Control':'no-store','X-Robots-Tag':'noindex'}});}
  if(/^\/share\/[a-f0-9]{64}\/img\/?$/.test(u.pathname))return consultShareImage(u,env);
   if(/^\/s\/[a-z0-9-]{1,64}\/?$/.test(u.pathname)){const html=await salonPage(u,env);return html?new Response(html,{headers:{...htmlHeaders,'X-Frame-Options':'SAMEORIGIN','Content-Security-Policy':htmlHeaders['Content-Security-Policy'].replace("frame-ancestors 'none'","frame-ancestors 'self'")}}):new Response(notFound,{status:404,headers:htmlHeaders});}
   return new Response(appHTML,{headers:htmlHeaders});

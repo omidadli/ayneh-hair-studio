@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS consultations(
   picks_json TEXT,
   result_id TEXT, -- the image she built from a pick, attached after generation
   share_hash TEXT, -- one-time stylist link: hash of the token, never the token itself
+  share_hash_prev TEXT, -- the token replaced by a re-share: still answered with 410, never 404
   share_expires INTEGER,
   share_used_at INTEGER,
   created_at INTEGER NOT NULL

@@ -251,7 +251,7 @@ export async function consultApi(req,env,{u,route,salon,s,clientIp}){
    must(phone&&row&&row.owner===phone,'مشاوره پیدا نشد',404);
    await limited(db,'consult-share:'+phone,30,'امروز چند لینک ساختی؛ فردا دوباره');
    const t=token();
-   await db.prepare('UPDATE consultations SET share_hash=?,share_expires=?,share_used_at=NULL WHERE id=?').bind(await hash(t),Date.now()+72*3600000,row.id).run();
+   await db.prepare('UPDATE consultations SET share_hash_prev=share_hash,share_hash=?,share_expires=?,share_used_at=NULL WHERE id=?').bind(await hash(t),Date.now()+72*3600000,row.id).run();
    return J({path:'/share/'+t});
   }
   if(rest.endsWith('/result')&&req.method==='POST'){
@@ -276,15 +276,27 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const fieldLabel=key=>{const f=ANALYSIS_FIELDS.find(x=>x.key===key);return f?f.label:key};
 const optionLabel=(defs,key,val)=>{const d=defs.find(x=>x.key===key);const o=d&&d.options.find(x=>x[0]===val);return o?o[1]:''};
 const GRACE=15*60000;
-export async function consultShare(u,env){
+/* The stylist's page: GET never consumes (previews and refreshes are safe) — it shows a
+   landing with a «باز کردن برگه» button whose POST is the one act that consumes the link.
+   A token replaced by a re-share answers 410 with a clear message, never a silent 404. */
+export async function consultShare(u,env,method='GET'){
  const t=(u.pathname.split('/')[2]||'').toLowerCase();
  if(!/^[a-f0-9]{64}$/.test(t))return {status:404,html:null};
- const row=await env.DB.prepare('SELECT * FROM consultations WHERE share_hash=?').bind(await hash(t)).first();
+ const th=await hash(t);
  const gone=msg=>({status:410,html:page(msg,'این لینک دیگر کار نمی‌کند')});
- if(!row)return {status:404,html:null};
+ let row=await env.DB.prepare('SELECT * FROM consultations WHERE share_hash=?').bind(th).first();
+ if(!row){
+  const prev=await env.DB.prepare('SELECT 1 FROM consultations WHERE share_hash_prev=?').bind(th).first();
+  if(prev)return gone('مشتری لینک تازه‌تری ساخته است؛ این لینک دیگر کار نمی‌کند.');
+  return {status:404,html:null};
+ }
  const now=Date.now();
  if(!row.share_expires||row.share_expires<now)return gone('این لینک منقضی شده است؛ از مشتری بخواه لینک تازه بفرستد.');
  if(row.share_used_at&&now-row.share_used_at>GRACE)return gone('این لینک یک‌بار مصرف بود و تمام شده است؛ از مشتری بخواه لینک تازه بفرستد.');
+ if(method!=='POST'&&!row.share_used_at){
+  /* Link preview crawlers and refreshes land here: no content, no consumption. */
+  return {status:200,html:page(null,null,'<section><h2>برگهٔ مشاوره</h2><p class="muted">این لینک یک‌بار مصرف است؛ با دکمهٔ زیر باز می‌شود و تا ۷۲ ساعت معتبر می‌ماند.</p><form class="openf" method="post" action="/share/'+t+'"><button class="btn btn--primary" type="submit">باز کردن برگه</button></form></section>')};
+ }
  if(!row.share_used_at)await env.DB.prepare('UPDATE consultations SET share_used_at=? WHERE id=? AND share_used_at IS NULL').bind(now,row.id).run();
  const analysis=parse(row.analysis_json),answers=parse(row.answers_json),picks=parse(row.picks_json);
  /* Honesty: fields she answered herself are labelled her answer — never a photo analysis —
@@ -319,6 +331,6 @@ export async function consultShareImage(u,env){
 }
 function page(err,errTitle,body){
  return '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><meta name="theme-color" content="#e8edeb"><link rel="icon" href="/favicon.ico" sizes="48x48"><title>برگهٔ مشاوره | آینه</title><style>'+baseCSS+
- '.wrap{max-width:640px;margin:0 auto;padding:28px 18px 48px;display:grid;gap:20px}h1{font-family:var(--display);font-size:26px;font-weight:800}h2{font-size:15px;font-weight:800;color:var(--muted);margin-bottom:10px}.date{color:var(--muted);font-size:13px;margin-top:-10px}section{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px}.kv{list-style:none;display:grid;gap:8px}.kv li{display:flex;justify-content:space-between;gap:12px;font-size:14px;background:var(--surface-2);border-radius:12px;padding:9px 12px}.kv span{color:var(--muted)}.pks{display:grid;gap:12px}.pk{border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:6px}.pk h3{font-size:15.5px;font-weight:800}.pk .w{font-size:13.5px;line-height:1.8}.pk .l{font-size:13px;line-height:1.8;color:var(--warn);background:var(--warn-soft);border-radius:10px;padding:8px 10px}.shot img{width:100%;border-radius:var(--r);display:block}footer{color:var(--muted);font-size:12.5px;line-height:2;text-align:center}.err{background:var(--warn-soft);border-radius:var(--r);padding:24px;text-align:center;display:grid;gap:8px}.err b{font-size:17px}</style></head><body><main class="wrap">'+
+ '.wrap{max-width:640px;margin:0 auto;padding:28px 18px 48px;display:grid;gap:20px}h1{font-family:var(--display);font-size:26px;font-weight:800}h2{font-size:15px;font-weight:800;color:var(--muted);margin-bottom:10px}.date{color:var(--muted);font-size:13px;margin-top:-10px}section{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px}.kv{list-style:none;display:grid;gap:8px}.kv li{display:flex;justify-content:space-between;gap:12px;font-size:14px;background:var(--surface-2);border-radius:12px;padding:9px 12px}.kv span{color:var(--muted)}.pks{display:grid;gap:12px}.pk{border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:6px}.pk h3{font-size:15.5px;font-weight:800}.pk .w{font-size:13.5px;line-height:1.8}.pk .l{font-size:13px;line-height:1.8;color:var(--warn);background:var(--warn-soft);border-radius:10px;padding:8px 10px}.shot img{width:100%;border-radius:var(--r);display:block}footer{color:var(--muted);font-size:12.5px;line-height:2;text-align:center}.err{background:var(--warn-soft);border-radius:var(--r);padding:24px;text-align:center;display:grid;gap:8px}.err b{font-size:17px}.openf{display:grid;justify-items:center;margin-top:6px}</style></head><body><main class="wrap">'+
  '<h1>برگهٔ مشاورهٔ آینه</h1>'+(err?'<div class="err"><b>'+esc(errTitle)+'</b><p class="muted">'+esc(err)+'</p></div>':body)+'</main></body></html>';
 }

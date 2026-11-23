@@ -184,15 +184,24 @@ test('the one-time share link shows the stylist everything and dies after its wi
  assert.equal(share.status,200,JSON.stringify(share));
  assert.match(share.data.path,/^\/share\/[a-f0-9]{64}$/,'a 64-hex one-time token');
  const token=share.data.path.split('/')[2];
- const page=await app.fetch(new Request(origin+'/share/'+token),e);
- assert.equal(page.status,200);
- assert.equal(page.headers.get('Cache-Control'),'no-store');
- assert.equal(page.headers.get('X-Robots-Tag'),'noindex');
- const html=await page.text();
+ // GET is only a landing: previews and refreshes see no content and never burn the link.
+ const land=await app.fetch(new Request(origin+'/share/'+token),e);
+ assert.equal(land.status,200);
+ assert.equal(land.headers.get('Cache-Control'),'no-store');
+ assert.equal(land.headers.get('X-Robots-Tag'),'noindex');
+ const landHtml=await land.text();
+ assert.match(landHtml,/باز کردن برگه/);
+ assert.ok(!landHtml.includes(save.data.picks[0].name),'a crawler sees no content');
+ assert.equal(e.DB.sql.prepare('SELECT share_used_at FROM consultations WHERE id=?').get(id).share_used_at,null,'GET does not consume');
+ // The POST behind the button consumes and shows everything.
+ const opened=await app.fetch(new Request(origin+'/share/'+token,{method:'POST'}),e);
+ assert.equal(opened.status,200);
+ const html=await opened.text();
  assert.ok(html.includes(save.data.picks[0].name),'the picks are on the page');
  assert.match(html,/ته‌رنگ پوست/);assert.match(html,/تحلیل/);
  assert.ok(!html.includes('+989121234567')&&!html.includes('09121234567'),'never the customer’s mobile');
  assert.ok(!html.includes('salon-a'),'not internal ids');
+ assert.ok(e.DB.sql.prepare('SELECT share_used_at FROM consultations WHERE id=?').get(id).share_used_at,'POST consumes the link');
  // robots.txt keeps share pages out of crawls.
  const robots=await (await app.fetch(new Request(origin+'/robots.txt'),e)).text();
  assert.match(robots,/Disallow: \/share\//);
@@ -206,17 +215,21 @@ test('the one-time share link shows the stylist everything and dies after its wi
  const dead=await app.fetch(new Request(origin+'/share/'+token),e);
  assert.equal(dead.status,410);
  assert.match(await dead.text(),/یک‌بار مصرف/);
- // Re-sharing hands out a fresh token and resets the window.
+ // Re-sharing hands out a fresh token, resets the window, and the old token says 410 — never 404.
  const again=await call(e,'/api/s/salon-a/consults/'+id+'/share',{},g);
  assert.equal(again.status,200,JSON.stringify(again));
  assert.notEqual(again.data.path.split('/')[2],token);
+ const superseded=await app.fetch(new Request(origin+'/share/'+token),e);
+ assert.equal(superseded.status,410,'the replaced token is gone, not silently missing');
+ assert.match(await superseded.text(),/لینک تازه‌تری/);
  const fresh=await app.fetch(new Request(origin+again.data.path),e);
  assert.equal(fresh.status,200);
+ assert.match(await fresh.text(),/باز کردن برگه/);
  // An expired link says so, a fresh one works.
  e.DB.prepare('UPDATE consultations SET share_expires=? WHERE id=?').bind(Date.now()-1,id).run();
  assert.equal((await app.fetch(new Request(origin+again.data.path),e)).status,410);
  const third=await call(e,'/api/s/salon-a/consults/'+id+'/share',{},g);
- const thirdPage=await app.fetch(new Request(origin+third.data.path),e);
+ const thirdPage=await app.fetch(new Request(origin+third.data.path,{method:'POST'}),e);
  assert.equal(thirdPage.status,200);
  // Other customers cannot mint a link for someone else's consultation.
  const other=await guest(e,s);
@@ -230,7 +243,7 @@ test('her own answers are labelled hers — never a photo analysis — on the sh
  const self=await call(e,'/api/s/salon-a/consult',{line:'hair',photo_id:photo,analysis:{source:'self',fields:{face_shape:'round',hair_length:'long'},confidence:{}},answers:{}},g);
  assert.equal(self.status,200,JSON.stringify(self));
  const sh1=await call(e,'/api/s/salon-a/consults/'+self.data.id+'/share',{},g);
- const html1=await (await app.fetch(new Request(origin+sh1.data.path),e)).text();
+ const html1=await (await app.fetch(new Request(origin+sh1.data.path,{method:'POST'}),e)).text();
  assert.match(html1,/مشخصات \(پاسخ مشتری\)/);
  assert.ok(!html1.includes('<h2>تحلیل عکس</h2>'),'an all-self consultation never claims photo analysis');
  // Vision with one overridden field → two blocks, each field under its true source.
@@ -239,7 +252,7 @@ test('her own answers are labelled hers — never a photo analysis — on the sh
  const stored=JSON.parse(e.DB.sql.prepare('SELECT analysis_json FROM consultations WHERE id=?').get(mixed.data.id).analysis_json);
  assert.deepEqual(stored.self_keys,['hair_length']);
  const sh2=await call(e,'/api/s/salon-a/consults/'+mixed.data.id+'/share',{},g);
- const html2=await (await app.fetch(new Request(origin+sh2.data.path),e)).text();
+ const html2=await (await app.fetch(new Request(origin+sh2.data.path,{method:'POST'}),e)).text();
  assert.match(html2,/<h2>تحلیل عکس<\/h2>/);
  assert.match(html2,/<h2>پاسخ مشتری<\/h2>/);
  const vis=html2.split('<h2>تحلیل عکس</h2>')[1].split('</section>')[0];

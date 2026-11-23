@@ -224,6 +224,27 @@ export async function colorApi(req,env,{u,route,salon,s,clientIp}){
   const draft=r.ok?cleanFormulaDraft(r.value,rule,target):{...rule,target_color:target,draft:true};
   return J({draft:true,formula:draft,source:r.ok?(r.cached?'cache':'model'):'rules'});
  }
+ /* The stylist's formula cards: one per customer phone per salon. The manager console owns
+    them (owner session, enforced in server.js before dispatch), scoped to the active salon. */
+ if(route==='color/formulas'&&req.method==='GET'){
+  const rows=await all(db,'SELECT * FROM color_formulas WHERE salon_id=? ORDER BY created_at DESC',s.salon_id);
+  return J({formulas:rows.map(r=>({id:r.id,customer_phone:r.customer_phone,target_color:r.target_color,current_color:r.current_color||'',brand:r.brand||'',code:r.code||'',amounts:parse(r.amounts),oxidant_percent:r.oxidant_percent,oxidant_ratio:r.oxidant_ratio,pause_root:r.pause_root,pause_shaft:r.pause_shaft,pause_top:r.pause_top,note:r.note||'',source:r.source,created_at:r.created_at}))});
+ }
+ if(route==='color/formulas'&&req.method==='POST'){
+  must(isDirect(salon)||s.staff=='1','این بخش فقط در استودیوی آینه فعال است',404);
+  const b=await req.json().catch(()=>({}));
+  if(b.delete){must(/^[a-f0-9-]{36}$/.test(String(b.id||'')),'فرمول معتبر نیست',400);const n=await db.prepare('DELETE FROM color_formulas WHERE id=? AND salon_id=?').bind(b.id,s.salon_id).run();must(n.meta.changes,'فرمول پیدا نشد',404);return J({ok:true})}
+  const v=validateFormulaInput(b);
+  const existing=await one(db,'SELECT id FROM color_formulas WHERE salon_id=? AND customer_phone=?',s.salon_id,v.customer_phone);
+  if(existing){
+   await db.prepare('UPDATE color_formulas SET target_color=?,current_color=?,brand=?,code=?,amounts=?,oxidant_percent=?,oxidant_ratio=?,pause_root=?,pause_shaft=?,pause_top=?,note=?,source=? WHERE id=?')
+    .bind(v.target_color,v.current_color,v.brand,v.code,JSON.stringify(v.amounts),v.oxidant_percent,v.oxidant_ratio,v.pause_root,v.pause_shaft,v.pause_top,v.note,v.source,existing.id).run();
+   return J({ok:true,formula:{...v,id:existing.id}});
+  }
+  await db.prepare('INSERT INTO color_formulas(id,salon_id,customer_phone,target_color,current_color,brand,code,amounts,oxidant_percent,oxidant_ratio,pause_root,pause_shaft,pause_top,note,source,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+   .bind(uid(),s.salon_id,v.customer_phone,v.target_color,v.current_color,v.brand,v.code,JSON.stringify(v.amounts),v.oxidant_percent,v.oxidant_ratio,v.pause_root,v.pause_shaft,v.pause_top,v.note,v.source,Date.now()).run();
+  return J({ok:true});
+ }
  if(route==='color'||route.startsWith('color/'))throw new Problem(405,'متد مجاز نیست');
  throw new Problem(404,'مسیر یافت نشد');
 }

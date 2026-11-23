@@ -443,8 +443,12 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
     Everything AI-shaped inside consultApi goes through worker/ai.js (cap + cache). */
  if(route.startsWith('consult'))return consultApi(req,env,{u,route,salon,s,clientIp:clientIp(req)});
  /* Phase 2 — pro hair colour: the condition assessment (vision, capped + cached), the
-    correction plan (rules) and the formula draft (rules + model, always a draft). */
- if(route.startsWith('color'))return colorApi(req,env,{u,route,salon,s,clientIp:clientIp(req)});
+    correction plan (rules) and the formula draft (rules + model, always a draft). The
+    stylist's formula cards are the manager console's, so they require the owner's session. */
+ if(route.startsWith('color')){
+  if(route==='color/formulas')await owner(req,env);
+  return colorApi(req,env,{u,route,salon,s,clientIp:clientIp(req)});
+ }
  if(route==='session')return J({ok:true,verified:!!s.verified_phone,name:s.verified_name||'',phone:s.verified_phone||'',quota:trial||demo||await unlimited(db,s)?null:await (async v=>quotaView(db,env,salon,s,v,{per:QUOTA_PER_LINE,left:quotaLeft(await quotaUsed(db,salon,s,v))}))(/^[a-f0-9]{16,32}$/.test(u.searchParams.get('v')||'')?u.searchParams.get('v'):'')});
  // Mobile verification: a one-time code texted by Melipayamak. Only the hash of the code is stored.
  if(route==='otp/send'){

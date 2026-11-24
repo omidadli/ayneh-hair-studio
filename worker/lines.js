@@ -195,20 +195,38 @@ export function optionText(line,opts){return (LINE_OPTIONS[line]||[]).map(o=>Num
 // Salon and Instagram photos often carry a caption banner or watermark; it must never reach the result.
 const NOTEXT=' Photo 2 shows a DIFFERENT person: never use her face, facial features, skin, makeup or body; the result keeps the person of photo 1 exactly. Photo 2 may carry an overlaid caption, label, frame, logo or watermark: ignore it and never copy any text, banner or frame into the result.';
 const OUT='\nOUTPUT: one photorealistic photo with the same composition and aspect ratio as Photo 1, high detail. No text, watermark, border, collage or before/after split.';
+// Phase 2 — where the colour sits on the hair. The customer picks one on the colour tab; the
+// prompt below spells the placement out so the model paints exactly that and nothing else.
+// [key, Persian label, English prompt line].
+export const PLACEMENTS=[
+ ['full','کل مو','COLOUR PLACEMENT: all-over: colour the whole hair, one even colour from the roots to the ends.'],
+ ['root','ریشه','COLOUR PLACEMENT: roots only: colour only the new growth at the roots; the lengths and ends keep their original colour from photo 1 exactly.'],
+ ['face','قاب صورت (مانی‌پیس)','COLOUR PLACEMENT: money-piece frame: two bold bright strands only at the front hairline framing the face; all the rest of the hair keeps its original colour exactly.'],
+ ['picabo','پیکابو','COLOUR PLACEMENT: peekaboo: hand-painted sections of the colour that peek through between the hair in soft bands; the rest of the hair keeps its original colour exactly.'],
+ ['balayage','بالیاژ','COLOUR PLACEMENT: balayage: hand-painted ribbons of the colour from mid-length to the ends, blended with no hard lines; the roots keep their original colour exactly.'],
+ ['ombre','آمبره','COLOUR PLACEMENT: ombré: a smooth gradual gradient fade from the original root colour to the target colour at the ends, with no hard line.'],
+ ['babylights','هایلایت ریز','COLOUR PLACEMENT: babylights: very fine delicate strands of the colour spread evenly through the hair from the roots to the ends, natural and subtle.']
+];
+export const PLACEMENT_KEYS=PLACEMENTS.map(p=>p[0]);
+export const placementLabel=k=>{const p=PLACEMENTS.find(x=>x[0]===k);return p?p[1]:''};
 // mode: 'catalog' (style = English description) or 'reference' (photo 2 is the design reference).
 // Hair colour: 'catalog' (style = description), 'reference' (copy the colour of photo 2) or
 // 'text' (only the colour the customer typed). The haircut of photo 1 never changes.
-export function colorPrompt(mode,style,color){
+// `placement` (a PLACEMENTS key) says where the colour sits; with a reference photo the
+// placement comes from the photo itself, so it is ignored there.
+export function colorPrompt(mode,style,color,placement){
  const what=mode==='reference'?'Photo 2 is ONLY a hair-colour reference: ignore its face, skin, haircut, clothing and background completely.'+NOTEXT+'\nHAIR COLOR: copy ONLY the hair colour, tones, roots, highlights and colour placement from photo 2 onto her hair.'
   :mode==='text'?'HAIR COLOR: '+colorText(color)+'.':'HAIR COLOR: '+style+'.';
+ const place=PLACEMENTS.find(p=>p[0]===placement);
+ const placementLine=place&&mode!=='reference'?'\n'+place[2]:'';
  return 'Professional hair-colour consultation preview. Photo 1 is the client. Change ONLY the colour of her hair.\n'+
   'IDENTITY LOCK: keep her exact face and facial features, skin tone and texture, makeup, age, expression, head angle, ears, neck, clothing, jewelry, background, framing and lighting unchanged. It must be clearly the same person in the same photo. Do not beautify, retouch, slim, redraw or swap the face; every facial feature stays exactly as in photo 1.\n'+
   'HAIRCUT LOCK: keep her exact haircut, length, layers, parting, volume, texture and styling from photo 1, strand for strand. Do not cut, lengthen, curl, straighten or restyle her hair. If she wears a headscarf or hat, keep it exactly as it is and recolour only the hair that is visible.\n'+
-  what+
+  what+placementLine+
   '\nREALISM: salon-quality colour with natural dimension, believable roots and shine, the colour following every strand and wave, light and shadow matching the original photo\'s light direction and colour temperature. Keep brows and lashes their natural colour. Seamless edges, no halo, no wig look, no painted or plastic texture.'+OUT;
 }
-export function linePrompt(line,mode,style,opts,color){
- if(line==='color')return colorPrompt(mode,style,color);
+export function linePrompt(line,mode,style,opts,color,placement){
+ if(line==='color')return colorPrompt(mode,style,color,placement);
  if(line==='nails'){
   const shape=optEn('nails','shape',opts.shape),len=optEn('nails','length',opts.length);
   return 'Professional nail-salon consultation preview. Photo 1 is the client\'s hand. Edit ONLY her fingernails.\n'+

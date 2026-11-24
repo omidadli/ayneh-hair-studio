@@ -164,6 +164,11 @@ main#app{max-width:1080px;margin:0 auto;padding:6px 20px 80px;min-height:70vh}
 .log__row:last-child{border-bottom:0}
 .log__row small{color:var(--muted);font-size:12px}
 .empty-note{color:var(--muted);font-size:13.5px;line-height:1.9;padding:8px 0}
+.card--inner{background:var(--surface-2,#f2f5f7);border:1px solid var(--line,#e5e9ee);border-radius:14px;padding:12px 14px}
+.amounts__chip{display:inline-block;font-size:12.5px;padding:2px 10px;border-radius:999px;background:var(--accent-soft,#E4F1EC);color:var(--accent-ink,#0b5c46);margin:2px 4px 2px 0}
+.formula__note{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.plansteps{margin:10px 0;padding-inline-start:20px}
+.plansteps li{padding:6px 0;line-height:1.8}
 .login{max-width:420px;margin:30px auto 0}
 .login .mirror{width:120px;margin:0 auto 18px}
 .login .mirror__glass{aspect-ratio:3/4;display:grid;place-items:center}
@@ -471,8 +476,120 @@ function home(){return api('/api/owner').then(function(d){
   var prev=el('span',{class:'hint slug-preview'});si.closest('.field').append(prev);
   function show(){var v=si.value;prev.textContent=v?'صفحهٔ مشتری: '+location.host+'/s/'+v:''}
   si.addEventListener('input',function(){var c=si.value.toLowerCase().replace(/[\s_]+/g,'-').replace(/[^a-z0-9-]/g,'').replace(/-+/g,'-');if(c!==si.value)si.value=c;show()});show()})();
- $('#app').replaceChildren(head,payCard(),activationCard(),dashboard(d.salons),el('h2',{class:'section-title',text:'سالن‌ها'}),el('div',{class:'grid grid--2'},[el('div',{class:'stack'},[list,create]),el('div',{class:'stack'},[alertsCard(d),botCard(d.bot),smsCard(d.sms||{}),imageCard(d.image)])]));
+ $('#app').replaceChildren(head,payCard(),activationCard(),dashboard(d.salons),el('h2',{class:'section-title',text:'سالن‌ها'}),el('div',{class:'grid grid--2'},[el('div',{class:'stack'},[list,create]),el('div',{class:'stack'},[alertsCard(d),botCard(d.bot),smsCard(d.sms||{}),imageCard(d.image),shadesCard()])]));
 })}
+/* Phase 2 — brand shades: a catalog colour linked to a real brand shade code. The customer
+   sees the brand and code under the colour (and a «کجا بخرم» link when there is one). */
+function shadesCard(){
+ var out=el('div',{class:'stack'});
+ function load(){return api('/api/owner/shades').then(function(d){
+  var sel=$('#sh-color');if(sel&&!sel.options.length)sel.replaceChildren.apply(sel,d.colors.map(function(c){return el('option',{value:c,text:c})}));
+  render(d.shades);
+ })}
+ function render(shades){
+  out.replaceChildren(shades.length?el('div',{class:'stack'},shades.map(function(s){
+   return el('div',{class:'row',style:'justify-content:space-between;align-items:center'},[
+    el('div',{style:'min-width:0'},[h('b',s.color),h('small',[s.brand+' · '+s.code+(s.note?' · '+s.note:'')+(s.link?' · '+s.link:'')],'muted')]),
+    el('div',{class:'row',style:'gap:6px'},[
+     el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'ویرایش',onclick:function(){$('#sh-color').value=s.color;$('#sh-brand').value=s.brand;$('#sh-code').value=s.code;$('#sh-note').value=s.note||'';$('#sh-link').value=s.link||'';var f=$('#sh-color').closest('.card');if(f&&f.scrollIntoView)f.scrollIntoView({behavior:'smooth',block:'center'})}}),
+     el('button',{class:'btn btn--danger btn--sm',type:'button',text:'حذف',onclick:act(function(){if(!confirm('شید «'+s.color+'» حذف شود؟'))return Promise.resolve();return api('/api/owner/shades',{delete:true,id:s.id}).then(load)})})
+    ])
+   ])
+  })):h('p','هنوز شید برندی ثبت نشده.','empty-note'));
+ }
+ var colorSel=el('select',{id:'sh-color'}),brandIn=el('input',{id:'sh-brand',maxlength:'40'}),codeIn=el('input',{id:'sh-code',maxlength:'20'}),noteIn=el('input',{id:'sh-note',maxlength:'200'}),linkIn=el('input',{id:'sh-link',placeholder:'https://…',maxlength:'200'});
+ var save=el('button',{class:'btn btn--primary btn--sm',type:'button',text:'ذخیره شید',onclick:act(function(){
+  return api('/api/owner/shades',{color:$('#sh-color').value,brand:$('#sh-brand').value,code:$('#sh-code').value,note:$('#sh-note').value,link:$('#sh-link').value}).then(function(){load();toast('ذخیره شد.')})
+ })});
+ var card=el('section',{class:'card'},[h('h2','شید برندها'),h('p','هر رنگ کاتالوگ را به کدِ شید یک برند رایج ایران وصل کنید؛ مشتری برند و کد را زیر رنگ می‌بیند و اگر لینک فروشگاه بگذارید، «کجا بخرم» هم می‌گیرد.','lead'),
+  el('div',{class:'row'},[el('label',{class:'field',style:'flex:1'},[el('span',{class:'lbl',text:'رنگ کاتالوگ'}),colorSel]),el('label',{class:'field',style:'flex:1'},[el('span',{class:'lbl',text:'برند'}),brandIn]),el('label',{class:'field',style:'flex:1'},[el('span',{class:'lbl',text:'کد شید'}),codeIn])]),
+  el('div',{class:'row'},[el('label',{class:'field',style:'flex:2'},[el('span',{class:'lbl',text:'یادداشت (اختیاری)'}),noteIn]),el('label',{class:'field',style:'flex:2'},[el('span',{class:'lbl',text:'لینک فروشگاه (اختیاری)'}),linkIn]),save]),
+  out]);
+ load();
+ return card;
+}
+function formulaCard(){
+ var out=el('div',{class:'stack'});
+ function load(){return api('/api/s/'+slug+'/color/formulas').then(function(d){render(d.formulas||[])}).catch(function(e){out.replaceChildren(h('p',e.message,'notice notice--warn'))})}
+ function render(fs){
+  out.replaceChildren(fs.length?el('div',{class:'stack'},fs.map(function(f){
+   return el('div',{class:'card card--inner'},[
+    el('div',{class:'row',style:'justify-content:space-between;align-items:center'},[
+     el('div',{},[h('b',f.customer_phone+' → '+f.target_color),el('small',{class:'muted',text:[f.brand&&f.brand+' · '+f.code,' · اکسیدان '+f.oxidant_percent+'٪ ('+f.oxidant_ratio+')',' · منبع: '+(f.source==='manual'?'دستی':'پیشنهاد')].filter(Boolean).join('')})]),
+     el('button',{class:'btn btn--danger btn--sm',type:'button',text:'حذف',onclick:act(function(){if(!confirm('فرمول این مشتری حذف شود؟'))return Promise.resolve();return api('/api/s/'+slug+'/color/formulas',{delete:true,id:f.id}).then(load)})}),
+    ]),
+    el('div',{class:'row'},(f.amounts||[]).map(function(a){return el('span',{class:'amounts__chip',text:a.name+' — '+(a.amount||'—')})}).concat([el('span',{class:'muted tiny',text:'مکث: ریشه '+(f.pause_root==null?'—':f.pause_root)+' / ساقه '+(f.pause_shaft==null?'—':f.pause_shaft)+' / نوک '+(f.pause_top==null?'—':f.pause_top)+' دقیقه'})])),
+    f.note?el('p',{class:'formula__note',text:f.note}):null
+   ])
+  })):h('p','هنوز فرمول ثبت نشده.','empty-note'));
+ }
+ var baseIn=el('input',{id:'fm-base',type:'number',min:'1',max:'10',value:'5'}),
+   targetIn=el('input',{id:'fm-target',maxlength:'60',placeholder:'مثلاً: روشن و بلوند'}),
+   currentIn=el('input',{id:'fm-current',maxlength:'60',placeholder:'رنگ فعلی (اختیاری)'}),
+   phoneIn=el('input',{id:'fm-phone',maxlength:'20',placeholder:'۰۹۰۰۰۰۰۰۰۰'}),
+   brandIn=el('input',{id:'fm-brand',maxlength:'40'}),
+   codeIn=el('input',{id:'fm-code',maxlength:'20'}),
+   amountsIn=el('textarea',{id:'fm-amounts',rows:'2',placeholder:'رنگ — مقدار (هر خط یک رنگ)'}),
+   oxIn=el('select',{id:'fm-ox'},['3','6','9','12'].map(function(o){return el('option',{value:o,text:o+'٪'})})),
+   ratioIn=el('select',{id:'fm-ratio'},['1:1','1:1.5','1:2'].map(function(o){return el('option',{value:o,text:o})})),
+   prIn=el('input',{id:'fm-pr',type:'number',min:'0',max:'120'}),
+   psIn=el('input',{id:'fm-ps',type:'number',min:'0',max:'120'}),
+   ptIn=el('input',{id:'fm-pt',type:'number',min:'0',max:'120'}),
+   noteIn=el('input',{id:'fm-note',maxlength:'300'}),
+   draftOut=el('div',{class:'stack'}),
+   draftFlag=el('input',{id:'__draftSuggested',type:'hidden'});
+ var suggest=el('button',{class:'btn btn--soft btn--sm',type:'button',text:'پیشنهاد فرمول (پیش‌نویس)',onclick:act(function(){
+  return api('/api/s/'+slug+'/color/formula-suggest',{base_level:Number($('#fm-base').value)||5,target_color:$('#fm-target').value,current_color:$('#fm-current').value}).then(function(d){
+   if(d.formula){
+    $('#fm-brand').value=d.formula.brand||'';$('#fm-code').value=d.formula.code||'';
+    $('#fm-ox').value=d.formula.oxidant_percent||'6';$('#fm-ratio').value=d.formula.oxidant_ratio||'1:1';
+    $('#fm-pr').value=d.formula.pause_root==null?'':d.formula.pause_root;$('#fm-ps').value=d.formula.pause_shaft==null?'':d.formula.pause_shaft;$('#fm-pt').value=d.formula.pause_top==null?'':d.formula.pause_top;
+    $('#fm-note').value=d.formula.note||'';
+    $('#__draftSuggested').value='1';
+    draftOut.replaceChildren(el('p',{class:'notice notice--warn',text:'این پیش‌نویس است؛ تأیید با متخصص. منبع: '+(d.source==='cache'?'کیش':d.source==='model'?'مدل':'قوانین')}));
+   }
+  })
+ })});
+ var save=el('button',{class:'btn btn--primary btn--sm',type:'button',text:'ذخیره فرمول',onclick:act(function(){
+  var amounts=($('#fm-amounts').value||'').split('\n').map(function(l){var m=l.split(/[—-]/);return m[0].trim()?{name:m[0].trim(),amount:(m[1]||'').trim()}:null}).filter(Boolean);
+   return api('/api/s/'+slug+'/color/formulas',{customer_phone:$('#fm-phone').value,target_color:$('#fm-target').value,current_color:$('#fm-current').value,brand:$('#fm-brand').value,code:$('#fm-code').value,amounts:amounts,oxidant_percent:$('#fm-ox').value,oxidant_ratio:$('#fm-ratio').value,pause_root:$('#fm-pr').value,pause_shaft:$('#fm-ps').value,pause_top:$('#fm-pt').value,note:$('#fm-note').value,source:$('#__draftSuggested').value==='1'?'suggestion':'manual'}).then(function(){toast('فرمول ذخیره شد.');load()})
+ })});
+ var card=el('section',{class:'card'},[h('h2','فرمول‌های رنگ (کاربرد متخصص)'),h('p','یک فرمول بر اساس شمارهٔ مشتری: رنگ هدف، برند و شید، مقدار هر رنگ، نوع و نسبت اکسیدان، زمان مکث برای هر ناحیه و یادداشت. پیشنهاد فرمول، پیش‌نویس است و همیشه قیدِ تأیید متخصص دارد.','lead'),
+  el('div',{class:'row'},[el('label',{class:'field'},[el('span',{class:'lbl',text:'سطح پایه (۱–۱۰)'}),baseIn]),el('label',{class:'field',style:'flex:2'},[el('span',{class:'lbl',text:'رنگ هدف'}),targetIn]),el('label',{class:'field',style:'flex:2'},[el('span',{class:'lbl',text:'رنگ فعلی'}),currentIn]),suggest]),
+  el('p',{class:'tiny muted',text:'پیشنهاد فرمول با قوانین پایه‌ای ساخته می‌شود و اگر کلید KIE تنظیم باشد، مدل آن را تکمیل می‌کند؛ هر پیشنهادی پیش‌نویس است.'}),
+  draftOut,
+  draftFlag,
+  el('div',{class:'row'},[el('label',{class:'field'},[el('span',{class:'lbl',text:'شماره مشتری'}),phoneIn]),el('label',{class:'field'},[el('span',{class:'lbl',text:'برند'}),brandIn]),el('label',{class:'field'},[el('span',{class:'lbl',text:'کد شید'}),codeIn]),save]),
+  el('div',{class:'row'},[el('label',{class:'field'},[el('span',{class:'lbl',text:'مقدار رنگها (رنگ — مقدار)'}),amountsIn]),el('label',{class:'field'},[el('span',{class:'lbl',text:'اکسیدان'}),oxIn]),el('label',{class:'field'},[el('span',{class:'lbl',text:'نسبت'}),ratioIn])]),
+  el('div',{class:'row'},[el('label',{class:'field'},[el('span',{class:'lbl',text:'مکث ریشه (دقیقه)'}),prIn]),el('label',{class:'field'},[el('span',{class:'lbl',text:'مکث ساقه'}),psIn]),el('label',{class:'field'},[el('span',{class:'lbl',text:'مکث نوک'}),ptIn]),el('label',{class:'field',style:'flex:2'},[el('span',{class:'lbl',text:'یادداشت'}),noteIn])]),
+  out]);
+ card.addEventListener('input',function(ev){var id=ev.target&&ev.target.id;if(id&&['fm-brand','fm-code','fm-ox','fm-ratio','fm-pr','fm-ps','fm-pt','fm-note'].indexOf(id)>=0)draftFlag.value=''});
+ load();
+ return card;
+}
+function problemLabel(code){
+ return {uneven:'رنگ یک‌نواخت نیست',fade:'رنگ زود می‌پرد',root:'ریشه زود پیدا می‌شود',streak:'رگه می‌شود',inconsistent:'رنگ ناهمگون است',bleached:'دکلره شده'}[code]||code;
+}
+function correctionCard(){
+ var curIn=el('input',{id:'cc-cur',maxlength:'60',placeholder:'مثلاً: قهوه‌ای تیره'}),
+  probSel=el('select',{id:'cc-prob'},[['','— انتخاب مشکل —'],['uneven','رنگ یک‌نواخت نیست'],['fade','رنگ زود می‌پرد'],['root','ریشه زود پیدا می‌شود'],['streak','رگه می‌شود'],['inconsistent','رنگ ناهمگون است'],['bleached','دکلره شده']].map(function(o){return el('option',{value:o[0],text:o[1]})})),
+  goalIn=el('input',{id:'cc-goal',maxlength:'60',placeholder:'رنگ هدف'}),
+  out=el('div',{class:'stack'});
+ var go=el('button',{class:'btn btn--primary btn--sm',type:'button',text:'ساخت برنامهٔ اصلاح',onclick:act(function(){
+  return api('/api/s/'+slug+'/color/correct',{current:$('#cc-cur').value,problem:$('#cc-prob').value,goal:$('#cc-goal').value}).then(function(d){
+   var steps=d.steps||[];
+   out.replaceChildren(
+    el('div',{class:'card card--inner'},[
+     h('b','برنامهٔ پیشنهادی: '+(d.current||'ناشناخته')+(d.problem?' / '+problemLabel(d.problem):'')+' → '+(d.goal||'ناشناخته')),
+     el('ol',{class:'plansteps'},steps.map(function(s){return el('li',{},[el('b',{text:s.title}),el('span',{class:'muted',text:' — '+s.text})])})),
+     el('p',{class:'notice notice--warn',text:d.warning})
+    ]));
+  })
+ })});
+ return el('section',{class:'card'},[h('h2','برنامه‌ی اصلاح رنگ‌های ناصحیح'),h('p',' وقتی رنگ قبلی ناصحیح است (رگه، ته‌رنگ، کِر، تخلی یا ریشه زودظهور)، یک برنامه‌ی مرحله‌ای پیشنهاد می‌دهد: حذف رنگ، پیگمنت‌گذاری، تونر و ریشه‌سازی. این برنامه، پیشنهاد است و در نهایت مشورت با متخصص است.','lead'),
+  el('div',{class:'row',style:'flex-wrap:wrap'},[el('label',{class:'field',style:'flex:1 1 140px'},[el('span',{class:'lbl',text:'رنگ فعلی'}),curIn]),el('label',{class:'field',style:'flex:1 1 120px'},[el('span',{class:'lbl',text:'مشکل'}),probSel]),el('label',{class:'field',style:'flex:1 1 140px'},[el('span',{class:'lbl',text:'رنگ هدف'}),goalIn]),go]),
+  out]);
+}
 function smsCard(sms){
  var st=function(ok,on,off){return el('li',{class:ok?'on':'off'},[h('span',ok?'✓':'–','dot'),h('span',ok?on:off)])};
  return el('section',{class:'card'},[h('h2','پیامک (ملی پیامک)'),h('p','کد تأیید موبایل مشتری، و لینک سالن که آرایشگر از ربات برای مشتری می‌فرستد.','lead'),el('ul',{class:'status'},[
@@ -562,7 +679,7 @@ function salonPage(){return api('/api/s/'+slug+'/owner').then(function(d){
  d.leads.forEach(function(l){log.append(el('div',{class:'log__row'},[el('div',{class:'grow'},[h('b',l.name),el('br'),h('small',(l.staff?'مشتری '+l.staff+' · ':'مشتری سالن · ')+(l.look?l.look+'، ':'')+fmt(l.created_at))]),l.waiting?badge('منتظر وصل شدن '+(l.staff||'نیرو'),'warn'):badge(label[l.status]||l.status,tone[l.status]),l.status==='sent'?badge({new:'منتظر تماس',called:'تماس گرفتند',booked:'نوبت دادند',declined:'قابل اجرا نبود'}[l.salon_status]||'منتظر تماس',{called:'accent',booked:'ok',declined:'warn'}[l.salon_status]||''):null,l.status==='failed'?el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'ارسال دوباره',onclick:act(function(){return api('/api/s/'+slug+'/owner/leads/retry',{id:l.id}).then(salonPage)})}):null]))});
  var leads=el('section',{class:'card'},[h('h2','درخواست‌های فرستاده‌شده'),h('p','وضعیت ارسال و کاری که سالن کرد؛ عکس‌ها و شمارهٔ مشتری در ربات سالن یا آرایشگر همان مشتری است.','lead'),d.leads.length?log:h('p','هنوز درخواستی نیامده.','empty-note')]);
 
- $('#app').replaceChildren(head,el('div',{class:'grid grid--2'},[el('div',{class:'stack'},[prof,port]),el('div',{class:'stack'},[tg,teamC,set,leads])]));
+ $('#app').replaceChildren(head,el('div',{class:'grid grid--2'},[el('div',{class:'stack'},[prof,port]),el('div',{class:'stack'},[tg,teamC,set,leads])]),S.direct?el('h2',{class:'section-title',text:'رنگ حرفه‌ای'}):null,S.direct?el('div',{class:'grid grid--2'},[el('div',{class:'stack'},[formulaCard()]),el('div',{class:'stack'},[correctionCard()])]):null);
 })}
 $('#logout').addEventListener('click',function(){api('/api/logout',{}).then(function(){location.href='/'})});
 `;

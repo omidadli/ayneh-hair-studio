@@ -25,22 +25,11 @@ function toBase64(bytes){let binary='';for(let i=0;i<bytes.length;i+=8192)binary
 
 export async function uploadProvider(env,m){const object=await bucketFor(env).get(m.object_key);must(object,'عکس در دسترس نیست',410);const bytes=new Uint8Array(await object.arrayBuffer());const res=await fetch('https://kieai.redpandaai.co/api/file-base64-upload',{method:'POST',headers:{Authorization:'Bearer '+env.KIE_API_KEY,'Content-Type':'application/json'},body:JSON.stringify({base64Data:'data:'+m.mime+';base64,'+toBase64(bytes),uploadPath:'ayneh',fileName:uid()+'.jpg'})});const d=await res.json();must(d.success&&d.data?.downloadUrl,'ارسال عکس انجام نشد',502);return d.data.downloadUrl;}
 
-/* Vision → JSON for the consultant. `cacheKey` (hash of the photo bytes + prompt version) makes
-   a re-analysis of the same picture free and skips every cap. Costs are guarded BEFORE the
-   provider is paid: the daily success slot (`okLimit`) is reserved atomically — limited()
-   increments and rejects in one step, so concurrent requests cannot both slip through.
-   Refund rules on failure: `okLimit` always comes back (she paid for a result and did not get
-   one); `tryLimit` NEVER comes back — it counts attempts, billed or not, so a model that
-   answers non-JSON cannot loop forever; `netLimit` comes back only when the request clearly
-   never reached a billed answer (a fetch error or an HTTP non-2xx) — a 2xx with junk or a
-   timeout was billed and keeps its slot. `tryLimit` also protects the provider key and
-   `netLimit` bounds a whole network per day (the DEMO_IP_DAILY idea).
-   A paid, successful result is never discarded:
-   no limit runs after the value exists and the cache write is best-effort. Returns
-   {ok:true,value,cached} or {ok:false,reason} — the caller falls back to the questionnaire and
-   never invents a result. KIE reports errors as HTTP 200 with {code,msg}, so the body is
-   checked before choices; the call itself is bounded by a 25-second timeout. */
-export async function visionJSON(env,db,{cacheKey,system,user,image,tryLimit,okLimit,netLimit}){
+/* The shared chat call behind both the vision analysis and the text-only formula draft: the
+   same provider door, the same cap and refund rules, the same result cache. `messages` is the
+   full message list (visionJSON adds the photo, chatJSON sends text only). Returns
+   {ok:true,value,cached} or {ok:false,reason} — the caller never invents a result. */
+async function chat(env,db,{cacheKey,messages,tryLimit,okLimit,netLimit}){
  if(cacheKey){const hit=await db.prepare('SELECT value FROM ai_cache WHERE key=?').bind(cacheKey).first();if(hit){try{return {ok:true,value:JSON.parse(hit.value),cached:true}}catch{}}}
  if(!env.KIE_API_KEY)return {ok:false,reason:'no-key'};
  /* Give a reserved slot back: `limited` stores hash(key), one count per reserve. Storage errors
@@ -59,10 +48,9 @@ export async function visionJSON(env,db,{cacheKey,system,user,image,tryLimit,okL
  /* Refund helpers — the rules are in the header comment above. */
  const refundOk=async()=>{if(okLimit)await refund(okLimit.key)};
  const refundNet=async()=>{if(netLimit)await refund(netLimit.key)};
- const url='data:'+(image.mime||'image/jpeg')+';base64,'+toBase64(image.bytes);
  let res;
  try{
-  res=await fetch(VISION_URL,{method:'POST',headers:{Authorization:'Bearer '+env.KIE_API_KEY,'Content-Type':'application/json'},signal:AbortSignal.timeout(25000),body:JSON.stringify({model:VISION_MODEL,stream:false,reasoning_effort:'low',messages:[{role:'system',content:system},{role:'user',content:[{type:'text',text:user},{type:'image_url',image_url:{url}}]}]})});
+  res=await fetch(VISION_URL,{method:'POST',headers:{Authorization:'Bearer '+env.KIE_API_KEY,'Content-Type':'application/json'},signal:AbortSignal.timeout(25000),body:JSON.stringify({model:VISION_MODEL,stream:false,reasoning_effort:'low',messages})});
  }catch(e){
   /* The request never came back: a timeout may have been billed in flight — keep the network
      slot; a connection-level failure was not — give it back. The success slot always returns;
@@ -93,4 +81,31 @@ export async function visionJSON(env,db,{cacheKey,system,user,image,tryLimit,okL
   await refundOk();
   return {ok:false,reason:'invalid'};
  }
+}
+
+/* Vision → JSON for the consultant. `cacheKey` (hash of the photo bytes + prompt version) makes
+   a re-analysis of the same picture free and skips every cap. Costs are guarded BEFORE the
+   provider is paid: the daily success slot (`okLimit`) is reserved atomically — limited()
+   increments and rejects in one step, so concurrent requests cannot both slip through.
+   Refund rules on failure: `okLimit` always comes back (she paid for a result and did not get
+   one); `tryLimit` NEVER comes back — it counts attempts, billed or not, so a model that
+   answers non-JSON cannot loop forever; `netLimit` comes back only when the request clearly
+   never reached a billed answer (a fetch error or an HTTP non-2xx) — a 2xx with junk or a
+   timeout was billed and keeps its slot. `tryLimit` also protects the provider key and
+   `netLimit` bounds a whole network per day (the DEMO_IP_DAILY idea).
+   A paid, successful result is never discarded:
+   no limit runs after the value exists and the cache write is best-effort. Returns
+   {ok:true,value,cached} or {ok:false,reason} — the caller falls back to the questionnaire and
+   never invents a result. KIE reports errors as HTTP 200 with {code,msg}, so the body is
+   checked before choices; the call itself is bounded by a 25-second timeout. */
+export async function visionJSON(env,db,{cacheKey,system,user,image,tryLimit,okLimit,netLimit}){
+ const messages=[{role:'system',content:system},{role:'user',content:[{type:'text',text:user},{type:'image_url',image_url:{url:'data:'+(image.mime||'image/jpeg')+';base64,'+toBase64(image.bytes)}}]}];
+ return chat(env,db,{cacheKey,messages,tryLimit,okLimit,netLimit});
+}
+
+/* Text-only chat → JSON (Phase 2: the colourist's formula draft). Same door, same caps, same
+   refund rules as the vision call; the cache key is a hash of the prompt inputs (there is no
+   photo here). The caller labels every result a draft — never a confirmed formula. */
+export async function chatJSON(env,db,{cacheKey,system,user,tryLimit,okLimit,netLimit}){
+ return chat(env,db,{cacheKey,messages:[{role:'system',content:system},{role:'user',content:user}],tryLimit,okLimit,netLimit});
 }

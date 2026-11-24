@@ -4,7 +4,7 @@ import {styles} from './legacy.js';
 import {identity,issueCookie,clearCookie,same,passwordLoginEnabled} from './auth.js';
 import {bucketFor,putImage} from './storage.js';
 import {botReady,deliverLead,deliverPending,newLinkCode,setWebhook,inboxes,followLinks,PLATFORMS,platformReady,baleSecret,staffInvite,notifyConflict,expireStates,askTransfer,transferTick} from './telegram.js';
-import {LINE_KEYS,lineStyles,cleanOptions,linePrompt,optionText,LINE_LABEL} from './lines.js';
+import {LINE_KEYS,lineStyles,cleanOptions,linePrompt,optionText,LINE_LABEL,PLACEMENT_KEYS,COLOR_STYLES} from './lines.js';
 import {ownerLink,alertUnanswered,maybeDigest,setupStatus,digest,notifyOwner,setting} from './alerts.js';
 import {attribute,ownerFor,createStaff,requestTransfer,cancelTransfer,pendingTransfer,report,team as teamOf,liveStaff,SPECIALTIES} from './referral.js';
 import {stats} from './stats.js';
@@ -31,6 +31,8 @@ import {createImageTask,uploadProvider,IMAGE_MODELS,recordInfo} from './ai.js';
 export {IMAGE_MODELS};
 /* The beauty consultant (phase 1): routes + the stylist's one-time share page. */
 import {consultApi} from './consult.js';
+/* Phase 2 — pro hair colour: the condition assessment, the correction plan and the formula draft. */
+import {colorApi} from './color.js';
 export {putImage};
 
 const J=(v,s=200,h={})=>new Response(JSON.stringify(v),{status:s,headers:{'Content-Type':'application/json;charset=utf-8','Cache-Control':'no-store',...h}});
@@ -91,7 +93,7 @@ const visitorOf=b=>/^[a-f0-9]{16,32}$/.test(String(b?.v||''))?String(b.v):'';
 const refLink=(env,origin,salon,t)=>(env.APP_ORIGIN||origin)+'/s/'+salon.slug+'?r='+t.ref_code;
 async function teamView(db,env,salon,origin){return Promise.all((await teamOf(db,salon.id)).map(async t=>{const pt=await pendingTransfer(db,salon.id,t.id);return {id:t.id,name:t.name,specialty:t.specialty,telegram:!!t.telegram_chat_id,bale:!!t.bale_chat_id,invite_pending:!!t.invite_hash&&t.invite_expires>Date.now(),ref:refLink(env,origin,salon,t),transfer:pt?{id:pt.id,to:pt.to_staff,expires_at:pt.expires_at,asked:!!pt.notified}:null}}))}
 // Anonymous usage events for the dashboard. The visitor id is random and made by the browser.
-export const TRACK_KINDS=['view','tour_start','tour_done','tour_skip','about','photo','look','color','generate','result','gen_fail','view360','send_open','sent','follow','rating','demo','share_open','share','line','color_on_hair','save','wallet','cta','consult','consult_save'];
+export const TRACK_KINDS=['view','tour_start','tour_done','tour_skip','about','photo','look','color','generate','result','gen_fail','view360','send_open','sent','follow','rating','demo','share_open','share','line','color_on_hair','save','wallet','cta','consult','consult_save','color_condition'];
 export async function logEvent(db,salonId,kind,visitor='',meta=''){await run(db,'INSERT INTO events_log(id,salon_id,visitor,kind,meta,created_at) VALUES(?,?,?,?,?,?)',uid(),salonId,/^[a-f0-9]{16,32}$/.test(visitor)?visitor:'',kind,String(meta||'').slice(0,80),Date.now())}
 // Ayneh's own pages (the visitor demo and the /try direct salon) show as «سالن آینه» with the site's
 // logo and cover (owner's decision); the URLs are static assets, never a customer upload.
@@ -354,6 +356,26 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   return J({ok:true,order:r.order});}
  if(path==='/api/owner/digest'&&req.method==='GET'){await owner(req,env);return J({text:await digest(env)});}
  if(path==='/api/owner/webhook'&&req.method==='POST'){await owner(req,env);return J(await setWebhook(env,env.APP_ORIGIN||u.origin));}
+ /* Phase 2 — brand shades: a catalog colour linked to a real brand shade code, editable in
+  /admin. One row per colour (re-saving the same colour replaces it). The colour must be one of
+  the catalog names, so the customer page can always match it back. */
+ const normC=s=>String(s||'').replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[‌\s]/g,'');
+ if(path==='/api/owner/shades'&&req.method==='GET'){await owner(req,env);
+  const rows=await all(db,'SELECT id,color,brand,code,note,link,created_at FROM brand_shades ORDER BY color');
+  return J({shades:rows,colors:COLOR_STYLES.map(c=>c[0])});}
+ if(path==='/api/owner/shades'&&req.method==='POST'){await owner(req,env);
+  const b=await req.json().catch(()=>({}));
+  if(b.delete){must(/^[a-f0-9-]{36}$/.test(String(b.id||'')),'شید معتبر نیست',400);const n=await run(db,'DELETE FROM brand_shades WHERE id=?',b.id);must(n.meta.changes,'شید پیدا نشد',404);return J({ok:true})}
+  const color=text(String(b.color||'').trim().slice(0,60),60);
+  must(COLOR_STYLES.some(c=>normC(c[0])===normC(color)),'رنگ باید یکی از رنگ‌های کاتالوگ باشد',400);
+  const brand=text(String(b.brand||'').trim().slice(0,40),40),code=text(String(b.code||'').trim().slice(0,20),20);
+  must(brand&&code,'برند و کد شید را بنویسید',400);
+  const note=text(String(b.note||'').trim().slice(0,200),200);
+  const link=b.link?safeLink(String(b.link).trim()):'';
+  const existing=await one(db,'SELECT id FROM brand_shades WHERE color=?',color);
+  if(existing)await run(db,'UPDATE brand_shades SET brand=?,code=?,note=?,link=? WHERE id=?',brand,code,note,link,existing.id);
+  else await run(db,'INSERT INTO brand_shades(id,color,brand,code,note,link,created_at) VALUES(?,?,?,?,?,?,?)',uid(),color,brand,code,note,link,Date.now());
+  return J({ok:true,shades:(await all(db,'SELECT id,color,brand,code,note,link,created_at FROM brand_shades ORDER BY color'))});}
  if(path==='/api/salons'&&req.method==='POST'){const who=await owner(req,env);const b=await req.json(),id=uid();
   // Capitals, spaces and underscores are normalised ("Aliadli Salon" → "aliadli-salon").
   b.slug=String(b.slug||'').trim().toLowerCase().replace(/[\s_]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
@@ -366,12 +388,12 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  if(trial&&!trialLive(trial)&&route!=='public'&&!route.startsWith('owner'))throw new Problem(410,'مهلت ۱۰ ساعتهٔ صفحهٔ آزمایشی تمام شده است؛ برای ادامه با ما تماس بگیرید');
  const readOnly=route==='public'||route==='owner'||route==='requests'||route==='looks'||route==='trending'||route.startsWith('media/')||route.startsWith('generation/');
  const consultRoute=route==='consult'||route.startsWith('consult/')||route==='consults'||route.startsWith('consults/');
- must(route==='session'||route==='me'||route==='saves'||consultRoute?['GET','POST'].includes(req.method):req.method===(readOnly?'GET':'POST'),'متد مجاز نیست',405);
- if(route==='public')return J({salon:publicSalon(salon),portfolio:await all(db,'SELECT id,title,category,description,stylist,staff_id AS maker,line,images,try_on,1 AS published FROM portfolio WHERE salon_id=? AND published=1 AND permission=1 ORDER BY created_at DESC',salon.id),generation:!!env.KIE_API_KEY&&!!cfg.generation_enabled,reference:refOn(cfg),telegram:inboxes(env,salon).length>0||!!planOf(salon)||!!await one(db,'SELECT 1 FROM team WHERE salon_id=? AND active=1',salon.id),follow:Object.keys(followLinks(env,'x')),otp:smsReady(env)&&!demo,notice:'خروجی شبیه‌سازی پیشنهادی است و تضمین اجرا نیست.',trial:trialPublic(trial),demo,direct:isDirect(salon),lines:salonLines(salon)});
+ must(route==='session'||route==='me'||route==='saves'||consultRoute||route==='color/formulas'?['GET','POST'].includes(req.method):req.method===(readOnly?'GET':'POST'),'متد مجاز نیست',405);
+ if(route==='public')return J({salon:publicSalon(salon),portfolio:await all(db,'SELECT id,title,category,description,stylist,staff_id AS maker,line,images,try_on,1 AS published FROM portfolio WHERE salon_id=? AND published=1 AND permission=1 ORDER BY created_at DESC',salon.id),shades:await all(db,'SELECT color,brand,code,link FROM brand_shades'),generation:!!env.KIE_API_KEY&&!!cfg.generation_enabled,reference:refOn(cfg),telegram:inboxes(env,salon).length>0||!!planOf(salon)||!!await one(db,'SELECT 1 FROM team WHERE salon_id=? AND active=1',salon.id),follow:Object.keys(followLinks(env,'x')),otp:smsReady(env)&&!demo,notice:'خروجی شبیه‌سازی پیشنهادی است و تضمین اجرا نیست.',trial:trialPublic(trial),demo,direct:isDirect(salon),lines:salonLines(salon)});
  if(route==='session'&&req.method==='POST'){await limited(db,'session:'+salon.id+':'+clientIp(req),30);const {raw}=await newSession(db,salon);return J({ok:true},200,{'Set-Cookie':cookie(raw)});}
  if(route.startsWith('owner')){
   await owner(req,env);const r=route.slice(6),b=req.method==='GET'?{}:await req.json();
-  if(!r&&req.method==='GET')return J({salon:{...publicSalon(salon),settings:{...cfg,reference_verified:refOn(cfg)},telegram:!!salon.telegram_chat_id,bale:!!salon.bale_chat_id,link_pending:!!salon.telegram_code_hash&&salon.telegram_code_expires>Date.now()},portfolio:await all(db,'SELECT id,title,category,images,created_at,line,stylist FROM portfolio WHERE salon_id=? AND published=1 ORDER BY created_at DESC',salon.id),leads:await all(db,'SELECT l.id,l.name,l.look,l.status,l.salon_status,l.attempts,l.last_error,l.created_at,l.waiting,t.name AS staff FROM leads l LEFT JOIN team t ON t.id=l.staff_id WHERE l.salon_id=? ORDER BY l.created_at DESC LIMIT 50',salon.id),team:await teamView(db,env,salon,u.origin),specialties:SPECIALTIES,setup:(st=>({filled:st.filled.length,total:st.total,missing:st.missing}))(setupStatus(salon)),bot:botInfo(env),image:!!env.KIE_API_KEY});
+  if(!r&&req.method==='GET')return J({salon:{...publicSalon(salon),direct:isDirect(salon),settings:{...cfg,reference_verified:refOn(cfg)},telegram:!!salon.telegram_chat_id,bale:!!salon.bale_chat_id,link_pending:!!salon.telegram_code_hash&&salon.telegram_code_expires>Date.now()},portfolio:await all(db,'SELECT id,title,category,images,created_at,line,stylist FROM portfolio WHERE salon_id=? AND published=1 ORDER BY created_at DESC',salon.id),leads:await all(db,'SELECT l.id,l.name,l.look,l.status,l.salon_status,l.attempts,l.last_error,l.created_at,l.waiting,t.name AS staff FROM leads l LEFT JOIN team t ON t.id=l.staff_id WHERE l.salon_id=? ORDER BY l.created_at DESC LIMIT 50',salon.id),team:await teamView(db,env,salon,u.origin),specialties:SPECIALTIES,setup:(st=>({filled:st.filled.length,total:st.total,missing:st.missing}))(setupStatus(salon)),bot:botInfo(env),image:!!env.KIE_API_KEY});
   if(r==='profile'){const p={...parse(salon.profile),...(b.profile||{})};for(const k of PROFILE_LINKS)p[k]=safeLink(p[k]||'');for(const k of PROFILE_TEXT)p[k]=text(p[k]||'',1000);p.phone=digits(p.phone||'').replace(/[\s()-]/g,'');must(!p.phone||/^\+?\d{5,15}$/.test(p.phone),'شمارهٔ تماس سالن معتبر نیست');for(const k of PROFILE_IMAGES)if(p[k])must(await one(db,"SELECT 1 FROM media WHERE id=? AND salon_id=? AND kind='brand'",p[k],salon.id),'عکس برند معتبر نیست');await run(db,'UPDATE salons SET name=?,profile=? WHERE id=?',text(b.name||salon.name,100),JSON.stringify(p),salon.id);return J({ok:true});}
   if(r==='settings'){const lim=Number(b.daily_limit);const s={...cfg,generation_enabled:!!b.generation_enabled,reference_verified:!!b.reference_verified,image_model:b.image_model==='fast'?'fast':'pro',daily_limit:b.daily_limit===undefined?dailyLimit(cfg):(Number.isInteger(lim)&&lim>=0&&lim<=100000?lim:DAILY_LIMIT)};await run(db,'UPDATE salons SET settings=? WHERE id=?',JSON.stringify(s),salon.id);return J({ok:true});}
   if(r==='telegram-link')return J(await newLinkCode(db,salon,env));
@@ -415,6 +437,18 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   const likes={};for(const r of liked)if(r.kind==='like')likes[r.item]=(likes[r.item]||0)+Number(r.n);
   for(const k of Object.keys(score))if(score[k]<3)delete score[k];
   return J({score,likes});
+ }
+ /* Phase 2 — pro hair colour: the condition assessment (vision, capped + cached), the
+    correction plan (rules) and the formula draft (rules + model, always a draft). The
+    customer's own condition assessment needs her real session; the stylist's tools
+    (formula cards, formula-suggest, correction plan) are the manager console's and are
+    owner-gated — the console holds the owner cookie, not a customer session, so they run
+    on a synthetic owner session bound to the salon. */
+ if(route.startsWith('color')){
+  if(route==='color/analyze'){const s=await session(req,db,salon);return colorApi(req,env,{u,route,salon,s,clientIp:clientIp(req)});}
+  const who=await owner(req,env);
+  const s={id:'owner:'+who.user,salon_id:salon.id,verified_phone:null};
+  return colorApi(req,env,{u,route,salon,s,clientIp:clientIp(req)});
  }
  const s=await session(req,db,salon);
  /* The consultant: analysis, ranked suggestions, saved records and the one-time share link.
@@ -553,6 +587,11 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   const old=await one(db,'SELECT * FROM generations WHERE session_id=? AND idem=?',s.id,b.idem);if(old)return J({id:old.id,state:old.state});
   const original=await ownMedia(db,s,b.original_id);must(original.kind==='original','عکس چهره لازم است');
   const color=text(String(b.color||'').slice(0,120),120),opts=cleanOptions(line,b.opts),ratio=RATIOS.includes(b.ratio)?b.ratio:'3:4';
+  // Phase 2: where the colour sits (کل مو / ریشه / …). Validated against the pattern list;
+  // it only reaches the prompt on the colour line, and only for a catalog or typed colour —
+  // a reference photo carries its own placement.
+  const placement=PLACEMENT_KEYS.includes(b.placement)?b.placement:null;
+  if(line==='color'&&placement)opts.placement=placement;
   let reference=null;
   // A salon work with a written look is tried on from the text alone: one photo, hers.
   let look='';
@@ -595,7 +634,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
    const images=[await uploadProvider(env,base)];if(reference)images.push(await uploadProvider(env,reference));
    const prompt=look?(line==='hair'?transferPrompt('catalog',look,''):line==='color'?linePrompt('color','catalog',look,{},''):linePrompt(line,line==='nails'?'salon':'catalog',look,opts,color))
     :line==='hair'?transferPrompt(reference?'style':'catalog',styles[b.style]?.[1]||'',demo&&b.apply_color===true?color:'')
-    :line==='color'?linePrompt('color',mode,mode==='catalog'?lineStyles('color')[b.style][3]:'',{},color)
+    :line==='color'?linePrompt('color',mode,mode==='catalog'?lineStyles('color')[b.style][3]:'',{},color,placement)
     :linePrompt(line,reference?'reference':'catalog',reference?'':lineStyles(line)[b.style][3],opts,color);
    const job=await createImageTask(env,cfg,{prompt,image_input:images,aspect_ratio:ratio,resolution:'2K',output_format:'jpg'});
    await run(db,"UPDATE generations SET state='waiting',task_id=? WHERE id=?",job.taskId,id);return J({id,state:'waiting'});

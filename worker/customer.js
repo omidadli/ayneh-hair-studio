@@ -1,9 +1,10 @@
 import {draftScript} from './draft.js';
 import {styles} from './legacy.js';
-import {NAIL_STYLES,LASH_STYLES,COLOR_STYLES,COLOR_SWATCHES,LINE_OPTIONS,LINE_COLORS,LINE_POPULAR,LINE_FILTERS,LINE_PHOTO,LINE_LABEL} from './lines.js';
+import {NAIL_STYLES,LASH_STYLES,COLOR_STYLES,COLOR_SWATCHES,LINE_OPTIONS,LINE_COLORS,LINE_POPULAR,LINE_FILTERS,LINE_PHOTO,LINE_LABEL,PLACEMENTS,PLACEMENT_KEYS} from './lines.js';
 import {QUESTIONS,ANALYSIS_FIELDS,RELEVANT} from './consult.js';
+import {CONDITION_QUESTIONS,CONDITION_PROBLEMS} from './color.js';
 const lineJSON=(line,list)=>({styles:list.map(x=>[x[0],x[1],x[2]]),filters:LINE_FILTERS[line],options:(LINE_OPTIONS[line]||[]).map(o=>({key:o.key,label:o.label,items:o.items.map(i=>i[0])})),colors:(LINE_COLORS[line]||[]).map(c=>[c[0],c[1]]),popular:LINE_POPULAR[line]||[]});
-const LINES_JSON=JSON.stringify({label:LINE_LABEL,photo:LINE_PHOTO,color:{...lineJSON('color',COLOR_STYLES),swatches:COLOR_SWATCHES},nails:lineJSON('nails',NAIL_STYLES),lashes:lineJSON('lashes',LASH_STYLES)});
+const LINES_JSON=JSON.stringify({label:LINE_LABEL,photo:LINE_PHOTO,placements:PLACEMENTS.map(p=>[p[0],p[1]]),color:{...lineJSON('color',COLOR_STYLES),swatches:COLOR_SWATCHES},nails:lineJSON('nails',NAIL_STYLES),lashes:lineJSON('lashes',LASH_STYLES)});
 import {baseCSS,markSVG} from './design.js';
 
 const customerCSS=String.raw`
@@ -177,6 +178,7 @@ a.hchip,button.hchip{cursor:pointer}a.hchip:hover,button.hchip:hover{border-colo
 .style-card__name{font-family:var(--display);font-weight:800;font-size:19px;color:var(--ink);line-height:1.35}
 .style-card__en{font-size:12px;color:var(--muted);direction:ltr;text-align:end}
 .style-card__tag{font-size:12px;color:var(--accent-ink);font-weight:600;margin-top:4px}
+.style-card__shade{display:block;font-size:11.5px;color:var(--muted);font-weight:600;margin-top:3px;letter-spacing:.02em}
 .rail{display:grid;grid-auto-flow:column;grid-auto-columns:138px;gap:12px;overflow-x:auto;padding:4px 2px 10px;scroll-snap-type:x mandatory;scrollbar-width:thin}
 .port-card{scroll-snap-align:start;border:0;background:transparent;padding:0;text-align:start}
 .port-card .mirror{padding:5px;transition:box-shadow .14s var(--ease)}
@@ -185,6 +187,7 @@ a.hchip,button.hchip{cursor:pointer}a.hchip:hover,button.hchip:hover{border-colo
 .port-card.is-on .mirror{box-shadow:0 0 0 3px var(--accent),var(--lift)}
 .port-card.is-on span.pc-name{color:var(--accent-ink)}
 .picked{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:14px;padding:10px 12px 10px 10px;border-radius:14px;background:var(--accent-soft);color:var(--accent-ink);font-size:13.5px;font-weight:600}
+.picked__buy{font-size:12.5px;font-weight:700;color:var(--accent-ink);text-decoration:underline;text-underline-offset:3px;white-space:nowrap}
 .picked .btn{min-height:34px}
 .ref-photo{width:min(100%,240px);margin:14px auto 0}
 .ref-photo .mirror__glass{aspect-ratio:3/4}
@@ -780,6 +783,14 @@ body.is-studio .result-actions>:last-child:nth-child(odd){grid-column:1/-1}
 .cfield__top b{font-size:13.5px}
 .cconf{font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:var(--accent-soft,#E4F1EC);color:var(--accent-ink,#0b5c46);white-space:nowrap}
 .cconf.is-low{background:var(--warn-soft);color:var(--warn)}
+/* Phase 2 — the colour-condition estimate sheet */
+.condgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0}
+.condstat{display:flex;flex-direction:column;gap:4px;align-items:flex-start;padding:12px;border-radius:14px;background:var(--surface-2,#f2f5f7);border:1px solid var(--line,#e5e9ee)}
+.condstat.is-low{border-color:var(--warn-soft)}
+.condstat__l{font-size:11.5px;color:var(--muted)}
+.condstat__v{font-size:18px;font-weight:800}
+.condresult{margin-bottom:16px}
+.condresult__banner{font-size:12.5px;color:var(--muted);background:var(--surface-2,#f2f5f7);border:1px solid var(--line,#e5e9ee);border-radius:12px;padding:10px 12px}
 .cfield__hint{font-size:12px;color:var(--muted);line-height:1.7}
 .cchips{display:flex;flex-wrap:wrap;gap:6px}
 .cpick{border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-bottom:10px;background:var(--surface);display:grid;gap:6px}
@@ -835,6 +846,7 @@ var ICO={
  globe:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.4 3.6 5.4 3.6 8.5S14.4 18.1 12 20.5c-2.4-2.4-3.6-5.4-3.6-8.5S9.6 5.9 12 3.5z"/></svg>',
  send:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M20 4 3.5 10.6l6.3 2.6 2.6 6.3z"/><path d="M20 4l-7.6 15.5"/></svg>',
  spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z"/><path d="M18.5 16.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg>',
+ droplet:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.8s6 6.6 6 10.2A6 6 0 0 1 6 14c0-3.6 6-10.2 6-10.2Z"/><path d="M9.5 13.5a2.6 2.6 0 0 0 2.5 2.6"/></svg>',
  download:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7.5 11 4.5 4.5L16.5 11"/><path d="M4.5 19.5h15"/></svg>',
  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12.5 4.5 4.5L19 7"/></svg>',
  info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5.5M12 7.8v.4"/></svg>',
@@ -1398,7 +1410,7 @@ function openAbout(){
 /* ---------- steps ---------- */
 /* ---------- service lines: hairstyle, hair colour, nails, lashes ---------- */
 // Each line keeps its own photo, choices and result; switching is one tap and loses nothing.
-var LINE_FIELDS=['busy','rating','seen','step','original','preview','ratio','reference','refTitle','style','custom','q','tab','transfer','color','opts','result','gen','genState','views','viewsIdem','idem','filter','error','justUploaded','base','genBase','resultBase','genT0'];
+var LINE_FIELDS=['busy','rating','seen','step','original','preview','ratio','reference','refTitle','style','custom','q','tab','transfer','color','opts','place','result','gen','genState','views','viewsIdem','idem','filter','error','justUploaded','base','genBase','resultBase','genT0'];
 var LINE_LIST=[['hair','مدل مو','scissors'],['color','رنگ مو','drop'],['nails','ناخن','nails'],['lashes','مژه','lashes']];
 /* «مدل مو، رنگ مو، طرح ناخن یا مژه» — only the lines this salon offers. */
 var LINE_WORDS={hair:'مدل مو',color:'رنگ مو',nails:'طرح ناخن',lashes:'مژه'};
@@ -1406,7 +1418,7 @@ function offerText(ez){var w=LINE_LIST.map(function(x){return LINE_WORDS[x[0]]})
 var FACE=['hair','color','lashes'];
 var lineStore={};
 function hasLineWork(line){return (state.pub&&state.pub.portfolio||[]).some(function(p){return (p.published||p.try_on)&&(p.line||'hair')===line})}
-function lineDefaults(to){return {busy:false,rating:0,seen:null,custom:'',q:'',step:1,original:null,preview:null,ratio:'',reference:null,refTitle:'',style:null,tab:hasLineWork(to)?'salon':'catalog',transfer:'both',color:'',opts:{},result:null,gen:null,genState:null,views:null,viewsIdem:null,idem:null,filter:'همه',error:'',justUploaded:false,base:'hair',genBase:null,resultBase:null,genT0:0,fromConsult:null}}
+function lineDefaults(to){return {busy:false,rating:0,seen:null,custom:'',q:'',step:1,original:null,preview:null,ratio:'',reference:null,refTitle:'',style:null,tab:hasLineWork(to)?'salon':'catalog',transfer:'both',color:'',opts:{},place:'full',result:null,gen:null,genState:null,views:null,viewsIdem:null,idem:null,filter:'همه',error:'',justUploaded:false,base:'hair',genBase:null,resultBase:null,genT0:0,fromConsult:null}}
 function LP(){return LINES.photo[state.line]||LINES.photo.hair}
 function lineCat(){return state.line==='hair'?null:LINES[state.line]}
 function catalogImg(i){return '/catalog/'+(state.line==='hair'?'':state.line+'/')+String(i+1).padStart(2,'0')+'.webp'}
@@ -1445,7 +1457,7 @@ function switchLine(to,opts){
  if(!(opts&&opts.silent)&&from!==to&&opts&&opts.scroll)focusFlow();
 }
 /* Studio: her photo, choices and results per service survive a trip to the profile (this tab only). */
-var KEEP=['original','ratio','result','resultBase','style','reference','refTitle','custom','base','gen','color','opts','filter','tab','seen','rating'];
+var KEEP=['original','ratio','result','resultBase','style','reference','refTitle','custom','base','gen','color','opts','place','filter','tab','seen','rating'];
 function keepStudio(){if(!studio()||accountMode())return;try{var o={line:state.line,lines:{}};LINE_LIST.forEach(function(x){var d=lineData(x[0]);if(!d||!d.original)return;var k={};KEEP.forEach(function(f){k[f]=d[f]});k.step=d.result?3:2;o.lines[x[0]]=k});sessionStorage.setItem('ayneh-studio-'+SLUG,JSON.stringify(o))}catch(e){}}
 window.addEventListener('pagehide',function(){keepStudio()});
 function restoreStudio(){try{var o=JSON.parse(sessionStorage.getItem('ayneh-studio-'+SLUG)||'null');if(!o||!o.lines)return false;Object.keys(o.lines).forEach(function(k){if(!LINES.label[k])return;var d=Object.assign(lineDefaults(k),o.lines[k]);if(k===state.line)Object.assign(state,d);else lineStore[k]=d});return true}catch(e){return false}}
@@ -1559,8 +1571,8 @@ function stepPhoto(){
  }
  return box;
 }
-function pickedBar(text,onRemove){
- return el('div',{class:'picked'},[el('span',{text:text}),el('button',{class:'btn btn--ghost btn--sm',type:'button',onclick:onRemove,text:'حذف انتخاب'})]);
+function pickedBar(text,onRemove,extra){
+ return el('div',{class:'picked'},[el('span',{text:text}),extra||null,el('button',{class:'btn btn--ghost btn--sm',type:'button',onclick:onRemove,text:'حذف انتخاب'})]);
 }
 var TAB_LABEL={hair:['کارهای سالن','مدل‌های آماده','عکس مدل من'],color:['کارهای سالن','رنگ‌های آماده','عکس رنگ دلخواه'],nails:['کارهای سالن','طرح‌های آماده','عکس طرح من'],lashes:['کارهای سالن','مدل‌های آماده','عکس مدل من']};
 var MODEL_HEAD={
@@ -1641,6 +1653,9 @@ function stepModel(){
  /* The consultant analyses hair and colour only: a nails or lashes close-up says nothing about
     a hairstyle, so the card — and the paid vision behind it — is absent on both lines. */
  if(studio()&&!STUDIO_PREVIEW&&L!=='nails'&&L!=='lashes')box.append(consultCard());
+ /* The colour-condition estimate lives on the colour line only; like the consultant, the paid
+    vision behind it never shows on a studio preview page. */
+ if(studio()&&!STUDIO_PREVIEW&&L==='color')box.append(condCard());
  if(L==='color'){var bc=baseChooser();if(bc)box.append(bc)}
  var seg=el('div',{class:'seg',role:'tablist'});
  [['salon',0],['catalog',1],['upload',2]].filter(function(x){return x[0]!=='salon'||own}).forEach(function(x){
@@ -1714,7 +1729,7 @@ function stepModel(){
    pic.addEventListener('error',function(){art.classList.add('is-missing');pic.remove();if(L!=='color'&&!on){var w=art.closest('.style-wrap')||art.closest('.style-card');if(w)w.remove()}});
    var card=el('button',{class:'style-card'+(on?' is-on':''),type:'button','aria-pressed':on?'true':'false'},[
     art,
-    el('span',{class:'style-card__body'},[el('span',{class:'style-card__name',text:s[0]}),el('span',{class:'style-card__tag',text:s[2]})])
+    el('span',{class:'style-card__body'},[el('span',{class:'style-card__name',text:s[0]}),el('span',{class:'style-card__tag',text:s[2]})].concat(L==='color'&&shadeOf(s[0])?[el('span',{class:'style-card__shade',dir:'ltr',text:shadeOf(s[0]).brand+' · '+shadeOf(s[0]).code})]:[]))
    ]);
    card.addEventListener('click',function(){track('look',lookPrefix()+i);if(L==='color')track('color',s[0]);chooseLook(function(){state.style=i;state.custom='';state.reference=null;state.refTitle='';if(L==='color')state.color=''})});
    if(studio()){if(hot[i])art.append(el('span',{class:'style-card__hot',html:ICO.fire+'<span>ترند</span>'}));grid.append(el('div',{class:'style-wrap'},[card,reactBtns(L+':'+i)]))}
@@ -1723,7 +1738,9 @@ function stepModel(){
   box.append(grid);
   if(Q&&!shown)box.append(h('p','نمونهٔ آماده‌ای با این نام نداریم؛ دکمهٔ بالا همین را برایتان می‌سازد.','hint'));
   if(state.custom&&!state.reference)box.append(pickedBar('انتخاب شما: '+state.custom,function(){pickLook(function(){state.custom=''})}));
-  if(state.style!==null&&!state.reference)box.append(pickedBar((L==='color'?'رنگ انتخابی: ':L==='nails'?'طرح انتخابی: ':'مدل انتخابی: ')+LIST[state.style][0],function(){pickLook(function(){state.style=null})}));
+  if(state.style!==null&&!state.reference){var pk=(L==='color'?'رنگ انتخابی: ':L==='nails'?'طرح انتخابی: ':'مدل انتخابی: ')+LIST[state.style][0],ex=null;
+  if(L==='color'){var sd=shadeOf(LIST[state.style][0]);if(sd){pk+=' · '+sd.brand+' · '+sd.code;if(sd.link)ex=el('a',{class:'picked__buy',href:sd.link,target:'_blank',rel:'noopener noreferrer nofollow',text:'کجا بخرم'})}}
+  box.append(pickedBar(pk,function(){pickLook(function(){state.style=null})},ex))}
  }else{
   if(!state.reference||state.refTitle){
    var input2=el('input',{type:'file',accept:'image/jpeg,image/png,image/webp',id:'pickref',class:'sr-only'});
@@ -1749,6 +1766,9 @@ function stepModel(){
  });
  // Nails and lashes: a colour box for every way of choosing. Hair colour: a colour can also just be typed.
  if(L!=='hair'||state.pub.demo)box.append(colorPicker());
+ // Phase 2: the colour placement pattern, on the colour line without a reference photo.
+ if(L==='color'&&!state.reference)box.append(placementRow());
+ if(L==='color'&&state.reference)box.append(h('p','الگوی رنگ از عکس مرجع می‌آید؛ در عکس خودت الگوی انتخابی را می‌بینی.','hint'));
  if(state.reference&&!state.pub.reference&&state.pub.generation)box.append(notice('warn','ساخت تصویر از عکس مرجع یا کار سالن هنوز برای این سالن فعال نشده. می‌توانی از موارد آماده انتخاب کنی، یا همین را بدون شبیه‌سازی برای '+artist()+' بفرستی.'));
  var can=canGenerate()||!!state.tourDemo,ready=hasChoice()||!!state.tourDemo,left=quotaLeft();
  box.append(el('div',{class:'flow__nav'},[
@@ -1805,6 +1825,9 @@ var COLORS=[
 ];
 var POPULAR=['دودی زیتونی','نسکافه‌ای','بالیاژ عسلی','شکلاتی','مش دودی','کاراملی','بلوند شامپاینی','شرابی'];
 function normFa(s){return String(s||'').replace(/ي/g,'ی').replace(/ك/g,'ک').replace(/[‌\s]/g,'')}
+/* Phase 2 — the brand shade linked to a catalog colour (owner-editable in /admin), so the
+   customer sees the real brand and code behind a colour, plus the shop link when there is one. */
+function shadeOf(name){var sh=(state.pub&&state.pub.shades)||[];for(var i=0;i<sh.length;i++)if(normFa(sh[i].color)===normFa(name))return sh[i];return null}
 function swatch(hex){var c=hex.split(',');return el('span',{class:'swatch',style:'background:'+(c.length>1?'linear-gradient(135deg,'+c[0]+' 0 45%,'+c[1]+' 55%)':c[0])})}
 function colorPicker(){
  var wrap=el('div',{class:'color'});
@@ -1844,6 +1867,19 @@ function colorPicker(){
  return wrap;
 }
 
+/* Phase 2 — where the colour sits: one chip per placement pattern, single-select. The chip
+   row only appears on the colour line without a reference photo: a reference carries its own
+   placement, so picking one there would be ignored by the prompt. Tapping the active chip
+   resets to «کل مو» (the default), never to "nothing". */
+function placementRow(){
+ var P=LINES.placements||[],keys=P.map(function(p){return p[0]}),cur=keys.indexOf(state.place)>=0?state.place:'full';
+ var row=el('div',{class:'filters opt-row',role:'group','aria-label':'الگوی قرارگیری رنگ'});
+ P.forEach(function(p){
+  var on=p[0]===cur;
+  row.append(el('button',{class:'chip'+(on?' is-on':''),type:'button','aria-pressed':on?'true':'false',text:p[1],onclick:function(){state.place=on?'full':p[0];state.result=null;renderFlow();renderDock()}}));
+ });
+  return el('div',{class:'opt'},[h('p','الگوی قرارگیری رنگ','lbl'),row,el('span',{class:'hint',text:'الگو روی موهایتِ خودت قرار می‌گیرد؛ اگر عکس مرجع گذاشتی، الگو از همان عکس می‌آید.'})]);
+}
 function renderDockSoon(){clearTimeout(renderDockSoon.t);renderDockSoon.t=setTimeout(function(){renderDock();var b=$('#flow .btn--build');if(b){var c=canGenerate(),r=hasChoice();b.innerHTML=buildLabel(c);b.disabled=!r;var hn=$('#flow .build-hint');if(hn)hn.textContent=buildHint(r,c,quotaLeft())}},60)}
 function typedColor(){return state.line==='color'&&state.style===null&&!state.reference&&String(state.color||'').trim().length>=2}
 function hasChoice(){return !!state.original&&(state.style!==null||!!state.reference||!!state.custom||typedColor())}
@@ -1925,7 +1961,7 @@ function lookName(){
  var base=state.reference?(state.refTitle?'«'+state.refTitle+'» از کارهای سالن':({nails:'عکس طرح دلخواه',color:'عکس رنگ دلخواه'}[L]||'عکس مدل دلخواه')):(state.custom?state.custom:state.style!==null?LIST[state.style][0]:(typedColor()?state.color.trim():''));
  if(!base)return '';
  if(L==='hair')return base;
- if(L==='color'){var hr=hairResult();return 'رنگ مو: '+base+(hr&&state.base!=='original'?' روی مدل «'+hr.name+'»':'')}
+ if(L==='color'){var hr=hairResult(),pl=(LINES.placements||[]).find(function(p){return p[0]===state.place});return 'رنگ مو: '+base+(hr&&state.base!=='original'?' روی مدل «'+hr.name+'»':'')+(pl&&!state.reference?' · '+pl[1]:'')}
  var extra=cat.options.map(function(o){return Number.isInteger(state.opts[o.key])?o.items[state.opts[o.key]]:''}).filter(Boolean).join('، ');
  return (L==='nails'?'ناخن: ':'مژه: ')+base+(extra?' ('+extra+')':'');
 }
@@ -2250,7 +2286,7 @@ function generate(){
   L().idem=L().idem||uuid();
   var o=L(),col=line==='hair'?(state.pub.demo?o.color:''):line==='color'?(o.style===null&&!o.reference&&String(o.color||'').trim().length>=2?o.color.trim():''):o.color;
   // The page's own note under «بساز» says the photo is sent for the simulation; no extra checkbox.
-  return api('generate',{apply_color:!!(state.pub.demo&&line==='hair'&&L().color),v:VISITOR,image_consent:true,idem:L().idem,line:line,opts:L().opts,ratio:L().ratio||undefined,original_id:L().original,base_id:line==='color'?(L().genBase||undefined):undefined,reference_id:L().reference||undefined,custom:L().custom&&!L().reference?L().custom:undefined,style:L().reference||L().custom?undefined:(L().style===null?undefined:L().style),color:col||undefined});
+  return api('generate',{apply_color:!!(state.pub.demo&&line==='hair'&&L().color),v:VISITOR,image_consent:true,idem:L().idem,line:line,opts:L().opts,ratio:L().ratio||undefined,placement:line==='color'?(L().place||undefined):undefined,original_id:L().original,base_id:line==='color'?(L().genBase||undefined):undefined,reference_id:L().reference||undefined,custom:L().custom&&!L().reference?L().custom:undefined,style:L().reference||L().custom?undefined:(L().style===null?undefined:L().style),color:col||undefined});
  }).then(function(job){
   track('generate',L().reference?(L().refTitle?'salon':'upload'):'catalog');
   spentQuota(line);
@@ -2809,6 +2845,7 @@ function openAsk(){
 
 /* ---------- consultant: card in the studio → 3-step sheet → save/share ---------- */
 var consult=null,consultPanel=null;
+var cond=null,condPanel=null;
 function consultCard(){
  return el('button',{class:'consult-card',type:'button',onclick:function(){openConsult()}},[
   el('span',{class:'consult-card__ico',html:ICO.spark}),
@@ -2816,6 +2853,122 @@ function consultCard(){
   el('span',{class:'consult-card__go',html:ICO.arrow})
  ]);
 }
+function condCard(){
+ return el('button',{class:'consult-card',type:'button',onclick:function(){openCond()}},[
+  el('span',{class:'consult-card__ico',html:ICO.droplet}),
+  el('span',{},[el('b',{text:'وضعیت موهات رو تخمین بزنیم'}),el('small',{text:'سطح پایه، میزان سفیدی و نفوذپذیری موهایت را با عکس و دو سؤال تخمین می‌زنیم؛ این تخمین است و قیدِ «تخمینی» دارد، برای مشورت با متخصصت مفید است.'})]),
+  el('span',{class:'consult-card__go',html:ICO.arrow})
+ ]);
+}
+function openCond(){
+ if(!state.original){toast('اول عکس خودت را اضافه کن');return}
+ if(state.line!=='color'){toast('این بخش برای رنگ مو است');return}
+ cond={step:1,photo:state.original,cond:null,answers:{},busy:false,note:'',tried:false,photoFailed:false};
+ track('color_condition',state.line);
+ condPanel=el('div',{class:'sheet__panel csheet'});
+ openSheet(condPanel);
+ condDraw();
+}
+function condDraw(){
+ var p=condPanel;if(!p||!cond)return;
+ p.replaceChildren();
+ p.append(el('div',{class:'sheet__head'},[h('h2','وضعیت موهات رو تخمین بزنیم'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]));
+ p.append(el('div',{class:'csteps'},[['تحلیل',1],['پرسش‌نامه',2],['نتایج',3]].map(function(x){return el('span',{class:'cstep'+(cond.step>=x[1]?' is-on':''),text:x[0]})})));
+ if(cond.step===1)condStep1(p);
+ else if(cond.step===2)condStep2(p);
+ else condStep3(p);
+}
+function condStep1(p){
+ p.append(el('div',{class:'cphoto'},[el('img',{src:state.preview||media(cond.photo),alt:''}),el('div',{},[el('b',{text:'عکس خودت'}),el('small',{text:'رنگ مو'})])]));
+ if(cond.note)p.append(el('p',{class:'cfield__hint',text:cond.note}));
+ if(!cond.cond){
+  p.append(el('button',{class:'btn btn--primary btn--block',type:'button',disabled:!!cond.busy,text:cond.busy?'در حال تخمین…':'شروع تخمین',onclick:function(){condAnalyze()}}));
+  p.append(el('p',{class:'cfield__hint',text:'با عکست و دو سؤال وضعیت موهات را تخمین می‌زنیم؛ تخمین است و قیدِ «تخمینی» دارد، نه نتیجه‌ی دقیق. چیزی ذخیره نمی‌شود.'}));
+  if(cond.note)p.append(el('button',{class:'btn btn--ghost btn--block',type:'button',text:'به پرسش‌نامه برسم',onclick:function(){cond.step=2;condDraw()}}));
+  return;
+ }
+ var c=cond.cond;
+ p.append(el('p',{class:'cfield__hint',text:'تخمین اولیه از عکست:'}));
+ p.append(el('div',{class:'condgrid'},[
+  condStat('سطح پایه (۱ تا ۱۰)',c.base_level,cond.low&&cond.low.indexOf('base_level')>=0),
+  condStat('سفیدی (٪)',c.gray_percent,cond.low&&cond.low.indexOf('gray_percent')>=0),
+  condStat('نفوذپذیری',c.porosity?{low:'کم',medium:'متوسط',high:'زیاد'}[c.porosity]:null,cond.low&&cond.low.indexOf('porosity')>=0)
+ ]));
+ if(cond.low&&cond.low.length){p.append(el('p',{class:'cfield__hint',text:'بعضی موارد اطمینان کمِاطمینان وجود دارد؛ در پرسش‌نامه، جواب تو به نظر خودت باشد.'}))}
+ p.append(el('button',{class:'btn btn--primary btn--block',type:'button',text:'بعدی: پرسش‌نامه',onclick:function(){cond.step=2;condDraw()}}));
+}
+function reasonText(code){
+ return {
+  'no-key':'سرویس در این لحظه فعال نیست؛ می‌توانی با پرسش‌نامه‌ی کوتاه، وضعیت موهات را خودت بررسی کنی.',
+  'limited':'در این لحظه محدودیت وجود دارد؛ می‌توانی با پرسش‌نامه‌ی کوتاه، وضعیت موهات را خودت بررسی کنی.',
+  'no-photo':'ابتدا عکس خودت را اضافه کن تا تخمین انجام شود.',
+  'busy':'در این لحظه در حال پاسخگویی هستیم؛ کمی بعد دوباره تلاش کن.',
+  'skip':'تخمین از عکست انجام نشد؛ با جواب‌های تو نفوذپذیری را تخمین می‌زنیم.'
+ }[code]||'در این باره محدودیت وجود دارد.';
+}
+function condStat(label,value,low){
+ return el('div',{class:'condstat'+(low?' is-low':'')},[
+  el('span',{class:'condstat__l',text:label}),
+  el('b',{class:'condstat__v',text:value==null?'ناشناخته':String(value)}),
+  low?el('span',{class:'cconf is-low',text:'کم‌اطمینان'}):null
+ ]);
+}
+function condStep2(p){
+ p.append(el('p',{class:'cfield__hint',text:'هر کدام را نخواستی رد کن؛ در صورت امکان، جواب‌های تو نفوذپذیری را دقیق‌تر می‌کند.'}));
+ CONSULT.c.q.forEach(function(q){
+  var box=el('div',{class:'cfield'},[el('div',{class:'cfield__top'},[el('b',{text:q.label})])]);
+  var chips=el('div',{class:'cchips'}),cur=cond.answers[q.key];
+  q.options.forEach(function(o){
+   var on=cur===o[0];
+   var b=el('button',{class:'chip'+(on?' is-on':''),type:'button','aria-pressed':on?'true':'false',text:o[1]});
+   b.addEventListener('click',function(){
+    if(cond.answers[q.key]===o[0])delete cond.answers[q.key];else cond.answers[q.key]=o[0];
+    condDraw();
+   });
+   chips.append(b);
+  });
+  box.append(chips);
+  p.append(box);
+ });
+ p.append(el('button',{class:'btn btn--ghost btn--block',type:'button',text:'برگشت',onclick:function(){cond.step=1;condDraw()}}));
+ p.append(el('button',{class:'btn btn--primary btn--block',type:'button',disabled:!!cond.busy,text:cond.busy?'در حال محاسبه…':'نتایج را ببین',onclick:function(){condShow()}}));
+}
+function condStep3(p){
+ if(!cond.cond){p.append(el('p',{class:'muted',text:'نتایجی برای نمایش نیست.'}));return}
+ var c=cond.cond;
+ p.append(el('div',{class:'condresult'},[
+  el('p',{class:'condresult__banner',text:'این تخمین است — و قیدِ «تخمینی» دارد. برای حساس‌تر شدن جواب‌ها و عکست مهم است، نه جایگزین مراجعه به متخصص.'}),
+  el('div',{class:'condgrid'},[
+   condStat('سطح پایه',c.base_level,false),
+   condStat('سفیدی',c.gray_percent==null?'ناشناخته':c.gray_percent+'٪',false),
+   condStat('نفوذپذیری (بعد از جواب‌ها)',c.porosity?{low:'کم',medium:'متوسط',high:'زیاد'}[c.porosity]:null,false)
+  ])
+ ]));
+ p.append(el('button',{class:'btn btn--soft btn--block',type:'button',text:'برگشت',onclick:function(){cond.step=1;condDraw()}}));
+}
+async function condAnalyze(){
+ cond.busy=true;cond.tried=true;condDraw();
+ try{
+  /* After the photo analysis has failed once, do not pay for the vision call again: ask the
+     server for the answers-only porosity (skip_vision — no AI call, no counters). */
+  var r=await ensureSession().then(function(){return api('color/analyze',{line:'color',photo_id:cond.photo,v:VISITOR,answers:cond.answers,skip_vision:cond.photoFailed?true:undefined})});
+  if(r&&r.ok&&r.estimate){
+   cond.cond={base_level:r.base_level,gray_percent:r.gray_percent,porosity:r.porosity,confidence:r.confidence||{}};
+   cond.low=r.low||[];
+   cond.answers=r.answers||cond.answers;
+   cond.note='';
+   cond.photoFailed=false;
+   cond.step=3;
+  }else{
+   cond.note=(r&&r.reason)?reasonText(r.reason):'در این باره محدودیت وجود دارد.';
+   if(r&&r.porosity){cond.cond={base_level:null,gray_percent:null,porosity:r.porosity,confidence:{}};cond.low=[];cond.note='تخمین از عکست انجام نشد، اما با جواب‌های تو نفوذپذیری را حدس زده‌ایم؛ قیدِ «تخمینی» دارد.';cond.step=3}
+   cond.photoFailed=true;
+   cond.tried=false;
+  }
+ }catch(e){cond.note='در این باره محدودیت وجود دارد.';cond.photoFailed=true;cond.tried=false}
+ cond.busy=false;condDraw();
+}
+function condShow(){return condAnalyze()}
 function openConsult(){
  if(!state.original){toast('اول عکس خودت را اضافه کن');return}
  consult={step:1,line:state.line,photo:state.original,analysis:null,picked:{},skipped:{},answers:{},picks:null,savedId:null,busy:false,self:false,tried:false,note:''};
@@ -3122,4 +3275,4 @@ export const customerHTML=String.raw`<!doctype html><html lang="fa" dir="rtl"><h
 <script>__JS__</script>
 </body></html>`
  .replace('__CSS__',()=>baseCSS+customerCSS+embeddedCSS)
- .replace('__JS__',()=>draftScript+';'+clientJS.replace('__STYLES__',()=>JSON.stringify(styles)).replace('__LINES__',()=>LINES_JSON).replace('__MARK__',()=>JSON.stringify(markSVG)).replace('__CONSULT__',()=>JSON.stringify({q:QUESTIONS,f:ANALYSIS_FIELDS,r:RELEVANT})));
+ .replace('__JS__',()=>draftScript+';'+clientJS.replace('__STYLES__',()=>JSON.stringify(styles)).replace('__LINES__',()=>LINES_JSON).replace('__MARK__',()=>JSON.stringify(markSVG)).replace('__CONSULT__',()=>JSON.stringify({q:QUESTIONS,f:ANALYSIS_FIELDS,r:RELEVANT,c:{q:CONDITION_QUESTIONS,p:CONDITION_PROBLEMS}})));

@@ -220,6 +220,26 @@ export async function publicOrder(db, env, row, {key = '', password = '', origin
     panel_url: paid ? (base ? base + '/panel' : '/panel') : '',
     page_url: paid && salon ? (base ? base : '') + '/s/' + salon.slug : '',
     salon: row.salon_name, contact: row.contact_name,
+    /* After payment: exactly what was switched on, for which mobile, and what the salon has now
+       (the «پرداخت شما با موفقیت تأیید شد» popup on /pricing). Only a masked mobile. */
+    ...(paid && row.salon_id && isV2Row(row) ? {activated: await activatedView(db, row)} : {}),
+  };
+}
+const maskTel = tel => { const d = String(tel || '').replace(/^\+98/, '0'); return d.length === 11 ? d.slice(0, 4) + '***' + d.slice(7) : ''; };
+const SUB_FEATURES = ['صفحهٔ اختصاصی و نمونه‌کارها', 'درخواست مشتری‌ها در ربات تلگرام و بله', 'نوبت‌دهی و پیگیری مشتری', 'گزارش عملکرد', 'قیمت ارزان‌تر هر عکس با بسته‌های ۵۰ تا ۲۰۰ تایی'];
+async function activatedView(db, row) {
+  const salon = await one(db, 'SELECT id,settings FROM salons WHERE id=?', row.salon_id);
+  const b = salon ? await balance(db, salon) : null;
+  const plan = salon ? planOf(salon) : null;
+  const sheet = PLANS[row.plan] || {};
+  const sub = row.kind === 'plan' && sheet.tier === 'full'
+    ? {name: sheet.name || 'اشتراک ماهانه', until: Number(plan?.until) || null, features: SUB_FEATURES, seats: Number(sheet.seats || 0)}
+    : null;
+  const lines = b ? Object.entries(b.lines).filter(([, v]) => v.left > 0 || v.granted > 0).map(([k, v]) => ({line: k, label: LINE_FA[k] || k, left: v.left})) : [];
+  return {
+    phone: maskTel(row.phone),
+    images: Number(row.credits || 0), line: row.line || '', line_label: LINE_FA[row.line] || '',
+    sub, lines, subscribed: !!b?.active,
   };
 }
 /* '6219 8619 1234 5678 — علی ادلی' → owner part only; empty when the owner typed digits alone. */
@@ -429,7 +449,9 @@ const v2Tell = (q, who) => (q.kind === 'images' ? 'خرید ' + planName(q) : q.
 /* A purchase from /pricing by someone not signed in: the name and mobile only. A returning buyer
    (same mobile, an earlier paid order) gets the same salon (provisionSalon). The name is the
    salon's / brand name shown on its try-on page, never asked twice. */
-export async function createPurchase(db, env, b, origin = '') {
+/* trialSalon: the free-signup page of the same mobile (server-side only, from the «ayneh_trial»
+   cookie; never from the request body): the order turns that page into the paid salon. */
+export async function createPurchase(db, env, b, origin = '', trialSalon = '') {
   const q = quote(b);
   const name = text(String(b.name || ''), 60);
   must(name.length >= 2, 'نام سالن یا نام کاری خود را بنویسید.');
@@ -443,7 +465,7 @@ export async function createPurchase(db, env, b, origin = '') {
   const key = newAccessKey(), panelPass = newPanelPassword();
   const row = {
     id, ref: ref(), plan: q.plan, kind: q.kind, service: q.service, users: q.users, credits: q.credits, line: q.line,
-    amount: q.amount * 10, salon_name: name, contact_name: name, phone: tel, city: '', note: '', status: 'open',
+    amount: q.amount * 10, salon_name: name, contact_name: name, phone: tel, city: '', note: !prior && trialSalon ? 'trial:' + trialSalon : '', status: 'open',
     expires_at: now + ORDER_MINUTES * 60000, access_key_hash: await hashKey(key), pass_hash: await hashPassword(panelPass),
     draft: '', coupon: '', discount: 0, created_at: now, updated_at: now,
   };
@@ -739,6 +761,23 @@ async function provisionSalon(db, row) {
   if (row.salon_id) {
     const own = await one(db, 'SELECT id,name,slug FROM salons WHERE id=?', row.salon_id);
     if (own) return own;
+  }
+  /* The free-signup page of the same mobile becomes the paid salon: same id, same address, the
+     images already made stay. It stops being a trial (settings.trial off, trials.converted_at). */
+  const fromTrial = /^trial:/.test(row.note || '') ? row.note.slice(6) : '';
+  if (fromTrial) {
+    const t = await one(db, 'SELECT t.id,t.phone,s.id AS sid,s.name,s.slug,s.settings FROM trials t JOIN salons s ON s.id=t.salon_id WHERE t.salon_id=?', fromTrial);
+    if (t && t.phone === row.phone) {
+      let cfg = {};
+      try { cfg = JSON.parse(t.settings || '{}') || {}; } catch {}
+      delete cfg.trial;
+      cfg.service = row.service || cfg.service || '';
+      cfg.panel_user = t.slug;
+      if (row.pass_hash) cfg.panel_pass_hash = row.pass_hash;
+      await run(db, 'UPDATE salons SET settings=?,owner_id=? WHERE id=?', JSON.stringify(cfg), 'order:' + row.id, t.sid);
+      await run(db, 'UPDATE trials SET converted_at=? WHERE id=? AND converted_at IS NULL', Date.now(), t.id);
+      return {id: t.sid, name: t.name, slug: t.slug};
+    }
   }
   const prior = await priorSalon(db, row.phone, row.id);
   if (prior) return {id: prior.id, name: prior.name, slug: prior.slug};

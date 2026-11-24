@@ -160,10 +160,60 @@
     if (!d || !d.salon) return;
     me = d;
     window.__AYN_PANEL = {name: d.salon.name};
+    if (freeBox) freeBox.hidden = true;
+    if (freeOut) freeOut.hidden = true;
+    window.__AYN_TRIAL = null;
     if (!LABEL[pick]) {
       const s = d.pricing?.sub, offered = d.pricing?.offered || [];
       show(s ? (s.line === 'all' ? 'salon' : s.line) : offered[0] || 'hair');
     } else drawSigned();
+  }).catch(() => {});
+
+  /* ---------- free signup: 3 images (owner's decision, Nov 2026) ----------
+     Name + mobile (+ the SMS code when SMS is on) → /api/trial makes the page, sets the signup
+     cookie and answers with the page address; the browser goes straight there. A browser that
+     already signed up (cookie) buys for the same mobile and page without a form (src/pay.js). */
+  const freeBox = document.getElementById('prFree'), freeOut = document.getElementById('prFreeOut');
+  const su = document.getElementById('prSignup'), suForm = document.getElementById('prSignupForm');
+  const suErr = document.getElementById('prSuErr'), codeBox = document.getElementById('prSuCodeBox'), go = document.getElementById('prSuGo');
+  const openSu = () => { if (!su) return; su.hidden = false; document.documentElement.classList.add('pr-lock'); setTimeout(() => document.getElementById('prSuName')?.focus(), 60); };
+  const shutSu = () => { if (!su) return; su.hidden = true; document.documentElement.classList.remove('pr-lock'); };
+  document.getElementById('prFreeBtn')?.addEventListener('click', openSu);
+  document.getElementById('prSignupX')?.addEventListener('click', shutSu);
+  su?.addEventListener('click', e => { if (e.target === su) shutSu(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && su && !su.hidden) shutSu(); });
+  suForm?.addEventListener('submit', async e => {
+    e.preventDefault();
+    suErr.textContent = '';
+    const name = document.getElementById('prSuName').value.trim(), tel = document.getElementById('prSuPhone').value.trim(), code = document.getElementById('prSuCode').value.trim();
+    if (name.length < 2) { suErr.textContent = 'نام سالن یا نام کاری خود را بنویسید.'; return; }
+    if (!tel) { suErr.textContent = 'شمارهٔ موبایل را بنویسید.'; return; }
+    if (!codeBox.hidden && !code) { suErr.textContent = 'کد پیامک‌شده را بنویسید.'; return; }
+    go.disabled = true;
+    try {
+      const r = await fetch('/api/trial', {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name, salon: name, phone: tel, line: current === 'salon' ? 'hair' : current, consent: true, code: codeBox.hidden ? '' : code})});
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || 'ثبت‌نام انجام نشد؛ دوباره امتحان کنید.');
+      if (d.code_sent) { codeBox.hidden = false; go.textContent = 'تأیید کد و گرفتن ۳ تصویر رایگان'; document.getElementById('prSuCode').focus(); return; }
+      go.textContent = 'صفحهٔ شما آماده شد…';
+      const line = d.line || (current === 'salon' ? 'hair' : current);
+      location.href = d.url + (d.url.includes('?') ? '&' : '?') + 'l=' + line;
+    } catch (err) { suErr.textContent = err.message; } finally { go.disabled = false; }
+  });
+  fetch('/api/trial/me', {credentials: 'same-origin'}).then(r => r.ok ? r.json() : null).then(d => {
+    const t = d?.trial;
+    if (!t || window.__AYN_PANEL) return;
+    if (freeBox) freeBox.hidden = true;
+    if (t.converted) return;
+    window.__AYN_TRIAL = {name: t.name, phone: t.phone};
+    if (freeOut) {
+      freeOut.hidden = false;
+      freeOut.textContent = t.images_left > 0
+        ? 'صفحهٔ رایگان شما فعال است · ' + fa(t.images_left) + ' تصویر رایگان مانده. هر بسته یا اشتراکی بخرید، روی شمارهٔ ' + '\u2066' + t.phone + '\u2069 و همان صفحه فعال می‌شود.'
+        : 'تصویرهای رایگان شما تمام شد. بسته یا اشتراک را انتخاب کنید؛ روی شمارهٔ ' + '\u2066' + t.phone + '\u2069 و همان صفحه فعال می‌شود.';
+    }
+    if (!LABEL[pick] && t.line) show(t.line);
   }).catch(() => {});
 
   /* ---------- the checkout sheet: a close button and no page scroll behind it ---------- */

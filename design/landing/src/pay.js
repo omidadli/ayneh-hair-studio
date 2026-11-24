@@ -113,13 +113,16 @@
   function liteForm(btn) {
     const v2 = !!btn && btn.dataset.buy === 'v2';
     const panel = v2 && window.__AYN_PANEL;
+    /* A professional who signed up for the free images: the same mobile and page, no form. */
+    const free = v2 && !panel && window.__AYN_TRIAL;
     LITE.forEach(l => { l.hidden = v2; });
     $('payConsent').closest('label').hidden = v2;
-    [$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!panel; });
+    [$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free); });
     if (nameLabel) nameLabel.textContent = v2 ? 'نام سالن یا نام کاری شما' : NAME_TEXT;
     if (!who) { who = document.createElement('p'); who.className = 'pay-who'; $('payForm').prepend(who); }
-    who.hidden = !panel;
+    who.hidden = !(panel || free);
     if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
+    else if (free) who.textContent = 'خرید برای «' + free.name + '» با شمارهٔ ' + free.phone + '؛ روی همین شماره و همان صفحه فعال می‌شود.';
     $('payStart').textContent = v2 ? 'تأیید خرید · ' + money(Number(btn.dataset.amount)) : START_TEXT;
     const steps = section.querySelectorAll('#paySteps li span');
     if (!STEP_TEXT.length) steps.forEach(x => STEP_TEXT.push(x.textContent));
@@ -182,7 +185,7 @@
   async function openV2() {
     const panel = window.__AYN_PANEL;
     const body = v2Body(state.buy);
-    if (!panel) {
+    if (!panel && !window.__AYN_TRIAL) {
       body.name = $('payName').value.trim();
       body.phone = $('payPhone').value.trim();
       if (body.name.length < 2) return err($('payErr'), 'نام سالن یا نام کاری خود را بنویسید.');
@@ -271,6 +274,33 @@
 
   const group = digits => digits.replace(/(\d{4})(?=\d)/g, '$1 ');
 
+  /* «پرداخت شما با موفقیت تأیید شد»: what was switched on, for which mobile, and what the salon
+     has now (orders.js activatedView). Text only; nothing here changes anything. */
+  function drawActivated(a) {
+    let box = $('payActivated');
+    if (!a) { if (box) box.hidden = true; return; }
+    if (!box) {
+      box = document.createElement('div'); box.id = 'payActivated'; box.className = 'pay-activated'; box.setAttribute('role', 'status');
+      const title = $('payDoneTitle'); title?.parentNode?.insertBefore(box, title.nextSibling);
+    }
+    box.hidden = false;
+    $('payDoneTitle').textContent = 'پرداخت شما با موفقیت تأیید شد.';
+    const li = t => { const x = document.createElement('li'); x.textContent = t; return x; };
+    const rows = [];
+    if (a.phone) rows.push(li('فعال‌شده روی شمارهٔ \u2066' + a.phone + '\u2069'));
+    if (a.sub) rows.push(li(a.sub.name + (a.sub.until ? ' تا ' + new Date(a.sub.until).toLocaleDateString('fa-IR', {day: 'numeric', month: 'long'}) : '') + ' فعال است'));
+    if (a.images) rows.push(li(fa(a.images) + ' عکس ' + (a.line_label || '') + ' به اعتبار شما اضافه شد'));
+    for (const l of a.lines || []) rows.push(li('موجودی ' + l.label + ': ' + fa(l.left) + ' عکس'));
+    const ul = document.createElement('ul'); ul.append(...rows);
+    const parts = [ul];
+    if (a.sub?.features?.length) {
+      const h = document.createElement('p'); h.className = 'pay-activated__h'; h.textContent = 'با اشتراک شما این‌ها باز است:';
+      const f = document.createElement('ul'); f.className = 'pay-activated__perks'; f.append(...a.sub.features.map(li));
+      parts.push(h, f);
+    }
+    box.replaceChildren(...parts);
+  }
+
   function drawState(order) {
     section.hidden = false;
     if (order.status === 'paid') {
@@ -321,6 +351,7 @@
         state.entered = true;
         panel.href = '/panel?key=' + encodeURIComponent(shown);
       }
+      drawActivated(order.activated);
       const act = $('payActivating'), ready = $('payReady');
       show('done');
       if (act && ready && !state.activated && !order.same_key) {
@@ -394,7 +425,8 @@
         err($('payErr'), '');
         show('form');
         track('order_intent', btn.dataset.kind);
-        const first = !window.__AYN_PANEL && !$('payName').value.trim() ? $('payName') : !window.__AYN_PANEL && !$('payPhone').value.trim() ? $('payPhone') : $('payStart');
+        const known = window.__AYN_PANEL || window.__AYN_TRIAL;
+        const first = !known && !$('payName').value.trim() ? $('payName') : !known && !$('payPhone').value.trim() ? $('payPhone') : $('payStart');
         setTimeout(() => first?.focus({preventScroll: true}), 60);
         return;
       }

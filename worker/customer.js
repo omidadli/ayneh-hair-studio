@@ -5,6 +5,9 @@ import {QUESTIONS,ANALYSIS_FIELDS,RELEVANT} from './consult.js';
 const lineJSON=(line,list)=>({styles:list.map(x=>[x[0],x[1],x[2]]),filters:LINE_FILTERS[line],options:(LINE_OPTIONS[line]||[]).map(o=>({key:o.key,label:o.label,items:o.items.map(i=>i[0])})),colors:(LINE_COLORS[line]||[]).map(c=>[c[0],c[1]]),popular:LINE_POPULAR[line]||[]});
 const LINES_JSON=JSON.stringify({label:LINE_LABEL,photo:LINE_PHOTO,color:{...lineJSON('color',COLOR_STYLES),swatches:COLOR_SWATCHES},nails:lineJSON('nails',NAIL_STYLES),lashes:lineJSON('lashes',LASH_STYLES)});
 import {baseCSS,markSVG} from './design.js';
+import {IMAGE_PRICES,SUB_PACKS,PLANS as V2_PLANS} from './prices.js';
+/* The free-signup popup's prices (worker/prices.js; the server prices every purchase again). */
+const V2P_JSON=JSON.stringify({images:IMAGE_PRICES,subPacks:SUB_PACKS,subs:Object.fromEntries(['hair','color','nails','lashes'].map(k=>[k,V2_PLANS['sub_'+k]?.amount||0]))});
 
 const customerCSS=String.raw`
 /* ---------- hero: full-width cover, logo on its edge, the name on one line ---------- */
@@ -804,6 +807,7 @@ var STYLES=__STYLES__;
 var LINES=__LINES__;
 var MARK=__MARK__;
 var CONSULT=__CONSULT__;
+window.__V2P=__V2P__;
 var EMBED=/[?&]embed=1(?:&|$)/.test(location.search);if(EMBED)document.body.classList.add('embedded-demo');
 /* Embedded on the landing page: report the height of what is actually on screen, so the
    frame there can be exactly as tall as this page instead of putting one scrollbar inside
@@ -957,10 +961,43 @@ function applyBrand(brand){
 function trialBar(t){
  applyBrand(t.brand);
  var bar=el('div',{class:'trialbar',role:'status'}),fa=function(x){return String(x).replace(/\d/g,function(d){return '۰۱۲۳۴۵۶۷۸۹'[d]})};
- function paint(){var ms=t.expires_at-Date.now();if(t.expired||ms<=0){bar.textContent='مهلت صفحهٔ آزمایشی تمام شد. برای ادامه با آینه تماس بگیرید.';bar.classList.add('is-over');var main=$('#main');if(main&&!$('.trial-over')){main.replaceChildren(el('div',{class:'panel fatal trial-over'},[h('h1','مهلت صفحهٔ آزمایشی تمام شد'),h('p','این صفحه ۱۰ ساعت و ۵ تصویر برای امتحان داشت. برای نسخهٔ دائمی با آینه تماس بگیرید.','muted'),el('a',{class:'btn btn--primary',href:'/#salon-example',text:'درخواست نسخهٔ دائمی'})]))}return}
-  var m=Math.ceil(ms/60000),hh=Math.floor(m/60),mm=m%60;bar.textContent='صفحهٔ آزمایشی · '+fa(hh)+' ساعت و '+fa(mm)+' دقیقه مانده · '+fa(t.images_left)+' تصویر از '+fa(t.images_limit)}
- paint();document.body.prepend(bar);setInterval(paint,30000);
+ function paint(){
+  if(t.expired){bar.textContent='مهلت صفحهٔ رایگان تمام شد.';bar.classList.add('is-over');var main=$('#main');if(main&&!$('.trial-over')){main.replaceChildren(el('div',{class:'panel fatal trial-over'},[h('h1','مهلت صفحهٔ رایگان تمام شد'),h('p','برای ادامه، بستهٔ عکس یا اشتراک ماهانه بخرید؛ همین صفحه برایتان فعال می‌شود.','muted'),el('a',{class:'btn btn--primary',href:pricingUrl(t.line||state.line),text:'خرید بسته یا اشتراک'})]))}return}
+  bar.replaceChildren(document.createTextNode(t.images_left>0?'صفحهٔ رایگان شما · '+fa(t.images_left)+' تصویر رایگان از '+fa(t.images_limit)+' مانده':'تصویرهای رایگان شما تمام شد'),
+   el('a',{class:'trialbar__buy',href:pricingUrl(t.line||state.line),text:t.images_left>0?'دیدن بسته‌ها':'خرید بسته یا اشتراک'}));
+  /* Out on arrival: the popup at once; out after her last free image: a few seconds later, so the
+     result is seen first. */
+  if(t.images_left<=0){if(first)trialUpgrade(t.line||state.line);else setTimeout(function(){trialUpgrade(t.line||state.line)},6000)}
+ }
+ var first=true;paint();first=false;document.body.prepend(bar);
  window.__trialLeft=function(){return api('public').then(function(p){if(p.trial){t.images_left=p.trial.images_left;t.expired=p.trial.expired;paint()}}).catch(function(){})};
+}
+/* The business site's «خرید اشتراک و اعتبار» page; the signup cookie lives there, so the purchase
+   goes to this same page and mobile without a form. */
+function pricingUrl(line){
+ var host=location.host.replace(/^www\./,''),biz=/^business\./.test(host)?host:'business.'+host;
+ return location.protocol+'//'+biz+'/pricing?s='+(LINES.label[line]?line:'hair')+'&from=free';
+}
+/* Free images used up (owner's decision, Nov 2026): one short popup with the two ways on, and one
+   button to /pricing on this service. Shown once per page view. */
+var upgradeShown=false;
+function trialUpgrade(line){
+ if(upgradeShown)return;upgradeShown=true;
+ var P=window.__V2P||{},img=(P.images||{})[line]||{},sp=(P.subPacks||{})[line]||{},sub=(P.subs||{})[line];
+ var fa=function(n){return Number(n).toLocaleString('fa-IR')},minSub=Object.keys(sp).reduce(function(m,k){return Math.min(m,Math.floor(sp[k]/k))},Infinity);
+ var lab=LINES.label[line]||'';
+ var panel=el('div',{class:'sheet__panel upgrade-sheet'},[
+  el('div',{class:'sheet__head'},[h('h2','تصویرهای رایگانت تمام شد'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),
+  h('p','برای ساختن تصویرهای بیشتر'+(lab?' «'+lab+'»':'')+' یکی از این دو راه را انتخاب کنید:','muted'),
+  el('div',{class:'upgrade-ways'},[
+   el('div',{class:'upgrade-way'},[h('b','بستهٔ عکس'),h('span',img.single?'هر عکس '+fa(img.single)+' تومان؛ بسته‌های ۵، ۱۰ و ۲۰ تایی تا ۱۵٪ ارزان‌تر':'بسته‌های ۵، ۱۰ و ۲۰ تایی'),h('small','بدون اشتراک؛ فقط ساخت تصویر')]),
+   el('div',{class:'upgrade-way is-best'},[h('b','اشتراک ماهانه'),h('span',(sub?'ماهی '+fa(sub)+' تومان؛ ':'')+(isFinite(minSub)?'هر عکس تا '+fa(minSub)+' تومان':'عکس‌ها ارزان‌تر')),
+    el('ul',{class:'upgrade-perks'},['صفحهٔ اختصاصی و نمونه‌کارها','درخواست مشتری‌ها در تلگرام و بله','نوبت‌دهی و گزارش'].map(function(x){return el('li',{text:x})}))])
+  ]),
+  el('a',{class:'btn btn--primary btn--block',href:pricingUrl(line),text:'دیدن بسته‌ها و اشتراک‌ها'}),
+  h('p','خرید روی همین شماره و همین صفحه فعال می‌شود.','upgrade-note')
+ ]);
+ openSheet(panel);
 }
 
 function ownerReturnBar(){
@@ -2267,6 +2304,8 @@ function generate(){
   /* Studio: today's gift images from this internet are used up — every counter says so and the next step is the coin sheet. */
   if(studio()&&/از این اینترنت تمام/.test(e.message)){if(state.quota)state.quota.free=0;if(walletData&&walletData.free)walletData.free.left=0;giftOut=true;L().step=2;L().error='';paint();paintWallet(false);if(walletData)drawWallet(walletData);toast(e.message,'error');openWallet();return}
   if(state.pub.demo&&/ثبت‌نام کنید/.test(e.message))state.demoOut=true;
+  /* A free signup page whose free images are used up: the «بسته یا اشتراک» popup. */
+  if(state.pub.trial&&/تصویرهای رایگان شما تمام شد/.test(e.message)){state.pub.trial.images_left=0;if(window.__trialLeft)window.__trialLeft();L().error='';paint();trialUpgrade(line);return}
   /* The salon's images are paused (credits or plan): stop offering «بساز», offer sending. */
   if(/ساخت تصویر در این سالن فعلاً متوقف است/.test(e.message))state.paused=true;
   L().error=friendly(e.message);
@@ -2464,7 +2503,7 @@ function tourSteps(){
   {el:mobile?'#dock .dock__inner':'.hero__cta .btn',title:'شروع کنیم؟',text:'اول عکس خودت را بگذار. بعد از دیدن نتیجه، با یک دکمه برای سالن فرستاده می‌شود و خود سالن با تو تماس می‌گیرد.',last:true}
  ].filter(Boolean);
 }
-function maybeTour(){if(SLUG==='demo'&&/[?&]draft=1/.test(location.search))return;/* inside /studio the page around explains the steps; a tour over a frame only confuses */if(state.pub&&state.pub.direct)return;try{if(localStorage.getItem(TOUR_KEY))return}catch(e){return}if(state.busy)return;setTimeout(startTour,700)}
+function maybeTour(){if(SLUG==='demo'&&/[?&]draft=1/.test(location.search))return;/* inside /studio the page around explains the steps; a tour over a frame only confuses */if(state.pub&&state.pub.direct)return;if(state.pub&&state.pub.trial&&state.pub.trial.images_left<=0)return;try{if(localStorage.getItem(TOUR_KEY))return}catch(e){return}if(state.busy)return;setTimeout(startTour,700)}
 function startTour(){
  if($('.tour'))return;
  var reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -3102,7 +3141,7 @@ export const customerHTML=String.raw`<!doctype html><html lang="fa" dir="rtl"><h
 <link rel="preload" href="/fonts/vazirmatn-arabic.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/estedad-arabic.woff2" as="font" type="font/woff2" crossorigin>
 <title>آینه | مشاورهٔ مو</title>
-<style>__CSS__.trialbar{position:sticky;top:0;z-index:30;padding:8px 14px;text-align:center;font-size:13px;font-weight:700;background:var(--accent-ink);color:#fff}.trialbar.is-over{background:var(--danger)}.trialbar.owner-return{display:flex;align-items:center;justify-content:center;gap:8px 14px;flex-wrap:wrap;background:#102c3b;padding:9px 14px;text-align:center}.owner-return__note{font-size:12.5px;font-weight:500;line-height:1.7;opacity:.95}.owner-return__cta{display:inline-flex;align-items:center;min-height:44px;flex:none;background:#fff;color:#102c3b;border-radius:999px;padding:6px 15px;font-size:12.5px;font-weight:800;text-decoration:none}.owner-return__cta:hover{background:#f0dcae}.owner-return__cta:focus-visible{outline:2px solid #fff;outline-offset:2px}</style>
+<style>__CSS__.trialbar__buy{margin-inline-start:10px;color:inherit;text-decoration:underline;font-weight:800}.upgrade-sheet .upgrade-ways{display:grid;gap:10px;margin:14px 0}.upgrade-way{border:1px solid var(--line,#e6ddd0);border-radius:14px;padding:12px 14px;display:grid;gap:4px}.upgrade-way.is-best{border-color:var(--accent,#1f5a4b);background:color-mix(in srgb,var(--accent,#1f5a4b) 6%,transparent)}.upgrade-way span{font-size:14px}.upgrade-way small{color:var(--muted,#7a6f63)}.upgrade-perks{margin:4px 0 0;padding-inline-start:18px;font-size:13px;display:grid;gap:2px}.upgrade-note{margin:10px 0 0;text-align:center;font-size:13px;color:var(--muted,#7a6f63)}.trialbar{position:sticky;top:0;z-index:30;padding:8px 14px;text-align:center;font-size:13px;font-weight:700;background:var(--accent-ink);color:#fff}.trialbar.is-over{background:var(--danger)}.trialbar.owner-return{display:flex;align-items:center;justify-content:center;gap:8px 14px;flex-wrap:wrap;background:#102c3b;padding:9px 14px;text-align:center}.owner-return__note{font-size:12.5px;font-weight:500;line-height:1.7;opacity:.95}.owner-return__cta{display:inline-flex;align-items:center;min-height:44px;flex:none;background:#fff;color:#102c3b;border-radius:999px;padding:6px 15px;font-size:12.5px;font-weight:800;text-decoration:none}.owner-return__cta:hover{background:#f0dcae}.owner-return__cta:focus-visible{outline:2px solid #fff;outline-offset:2px}</style>
 </head><body>
 <a class="skip" href="#main">پرش به محتوای اصلی</a>
 <header class="hero" id="head"><div class="wrap"><div class="hero__bar"><div class="skel" style="width:70px;height:22px"></div></div><div class="skel cover"></div><div class="hero__body"><div><div class="skel" style="width:70%;height:38px"></div><div class="skel" style="width:52%;height:14px;margin-top:14px"></div></div></div></div></header>
@@ -3122,4 +3161,4 @@ export const customerHTML=String.raw`<!doctype html><html lang="fa" dir="rtl"><h
 <script>__JS__</script>
 </body></html>`
  .replace('__CSS__',()=>baseCSS+customerCSS+embeddedCSS)
- .replace('__JS__',()=>draftScript+';'+clientJS.replace('__STYLES__',()=>JSON.stringify(styles)).replace('__LINES__',()=>LINES_JSON).replace('__MARK__',()=>JSON.stringify(markSVG)).replace('__CONSULT__',()=>JSON.stringify({q:QUESTIONS,f:ANALYSIS_FIELDS,r:RELEVANT})));
+ .replace('__JS__',()=>draftScript+';'+clientJS.replace('__STYLES__',()=>JSON.stringify(styles)).replace('__LINES__',()=>LINES_JSON).replace('__MARK__',()=>JSON.stringify(markSVG)).replace('__V2P__',()=>V2P_JSON).replace('__CONSULT__',()=>JSON.stringify({q:QUESTIONS,f:ANALYSIS_FIELDS,r:RELEVANT})));

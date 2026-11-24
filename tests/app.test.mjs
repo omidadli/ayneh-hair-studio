@@ -815,21 +815,21 @@ test('landing page is public at business./ and the owner console stays at /admin
  assert.equal((await app.fetch(new Request(BIZ+'/hairs'),e)).status,404,'only the listed page paths exist');
  assert.equal((await app.fetch(new Request(origin+'/admin'),e)).status,200);});
 
-test('free trial salon: built from the landing form, one per mobile, 5 images and 10 hours enforced by the server',async()=>{const e=tgEnv(fixture());e.KIE_API_KEY='mock';const tg=mockTelegram();const previous=globalThis.fetch;let tasks=0;
+test('free signup page: one per mobile, 3 free images enforced by the server, then the «بسته یا اشتراک» answer',async()=>{const e=tgEnv(fixture());e.KIE_API_KEY='mock';const tg=mockTelegram();const previous=globalThis.fetch;let tasks=0;
  const net=globalThis.fetch;globalThis.fetch=async(url,opts)=>{const u=String(url);if(u.includes('file-base64-upload'))return Response.json({success:true,data:{downloadUrl:'https://provider.example/'+crypto.randomUUID()+'.jpg'}});if(u.includes('createTask')){tasks++;return Response.json({code:200,data:{taskId:'t'+tasks}})}return net(url,opts)};
  try{await linkOwnerChat(e);
   const body={name:'سارا',salon:'سالن رز',city:'تهران',phone:'۰۹۱۲۱۲۳۴۵۶۷',brand:'#8E3050',consent:true};
   assert.equal((await call(e,'/api/trial',{...body,consent:false})).status,400);
   assert.equal((await call(e,'/api/trial',{...body,website:'x'})).status,200);assert.equal(e.DB.sql.prepare('SELECT count(*) n FROM trials').get().n,0,'honeypot is dropped');
-  const r=await call(e,'/api/trial',body);assert.equal(r.status,200,JSON.stringify(r));assert.match(r.data.path,/^\/s\/t-[a-f0-9]{8}$/);assert.equal(r.data.images,5);assert.equal(r.data.hours,10);
+  const r=await call(e,'/api/trial',body);assert.equal(r.status,200,JSON.stringify(r));assert.match(r.data.path,/^\/s\/t-[a-f0-9]{8}$/);assert.equal(r.data.images,3);assert.equal(r.data.token,undefined,'the token is only in the cookie');assert.match(r.cookie||'',/^ayneh_trial=[a-f0-9]{48}$/);
   assert.equal((await call(e,'/api/trial',body)).status,409,'one trial per mobile');
-  const slug=r.data.path.slice(3),row=e.DB.sql.prepare('SELECT * FROM trials').get();assert.ok(Math.abs(row.expires_at-row.created_at-36000000)<1000);
+  const slug=r.data.path.slice(3),row=e.DB.sql.prepare('SELECT * FROM trials').get();assert.ok(Math.abs(row.expires_at-row.created_at-90*86400000)<1000);
   assert(toOwner(tg).find(t=>/سالن رز/.test(t)&&new RegExp(slug).test(t)),'owner chat got the trial link');
-  const pub=await call(e,'/api/s/'+slug+'/public');assert.equal(pub.status,200);assert.equal(pub.data.trial.images_left,5);assert.equal(pub.data.trial.brand,'#8E3050');
+  const pub=await call(e,'/api/s/'+slug+'/public');assert.equal(pub.status,200);assert.equal(pub.data.trial.images_left,3);assert.equal(pub.data.trial.brand,'#8E3050');
   const g=await guest(e,{slug}),original=await upload(e,{slug},g);
   const gen=()=>call(e,'/api/s/'+slug+'/generate',{image_consent:true,idem:crypto.randomUUID(),original_id:original,style:0,color:'عسلی'},g);
-  for(let i=0;i<5;i++)assert.equal((await gen()).status,200);assert.equal(tasks,5);
-  const sixth=await gen();assert.equal(sixth.status,402);assert.equal(tasks,5,'no paid task after the budget');
+  for(let i=0;i<3;i++)assert.equal((await gen()).status,200);assert.equal(tasks,3);
+  const fourth=await gen();assert.equal(fourth.status,402);assert.equal(fourth.data.code,'trial_empty');assert.match(fourth.data.error,/تصویرهای رایگان شما تمام شد/);assert.equal(tasks,3,'no paid task after the free images');
   assert.equal((await call(e,'/api/s/'+slug+'/public')).data.trial.images_left,0);
   e.DB.sql.prepare('UPDATE trials SET expires_at=?, images_used=0').run(Date.now()-1000);
   assert.equal((await gen()).status,410);assert.equal((await call(e,'/api/s/'+slug+'/session',{})).status,410);
@@ -964,7 +964,8 @@ test('free trial with SMS on: the mobile is confirmed by a texted code before th
  assert.equal((await call(e,'/api/trial',{...body,code:'11111'})).status,400);
  const ok=await call(e,'/api/trial',{...body,code:'۴۸۲۱۳'});assert.equal(ok.status,200,JSON.stringify(ok));assert.match(ok.data.path,/^\/s\/t-/);
  assert.equal(e.DB.sql.prepare("SELECT count(*) n FROM otps WHERE session_id LIKE 'trial:%'").get().n,0,'a used code is gone');
- assert.equal((await call(e,'/api/trial',{...body,code:'48213'})).status,409);
+ // The same mobile again (another device): the used code is gone, so a new code is needed first.
+ assert.equal((await call(e,'/api/trial',{...body,code:'48213'})).status,400);
 }finally{tg.restore();sms.restore()}});
 test('each person gets 3 images per service: a new session in the same browser still counts, failures do not, the message names what is left',async()=>{
  const e=fixture(),s=await salon(e),g=await guest(e,s);e.KIE_API_KEY='mock';await call(e,'/api/s/salon-a/owner/settings',{generation_enabled:true,reference_verified:true},OWNER);

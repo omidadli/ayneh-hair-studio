@@ -187,3 +187,40 @@ test('/pricing: two paths, four services + salon, honest copy and a 3-click chec
  for(const [k,s] of [['hair','hair'],['color','color'],['nails','nails'],['lashes','lashes'],['salon','salon']])assert.ok(servicePages[k].includes('href="/pricing?s='+s+'"'),k);
  assert.doesNotMatch(landingHTML+Object.values(servicePages).join(''),/data-buy="(essential|pro|signature|salon[136])"/,'the old plans are no longer sold on any page');
 });
+
+test('free signup: 3 images, then a purchase with the signup cookie goes to the same mobile and page without a form, and the paid order says what was switched on',async()=>{
+ const e=fixture();e.KIE_API_KEY='mock';const p=mockProvider();
+ try{
+  const su=await call(e,'/api/trial',{name:'استودیو مهتاب',phone:'09125556677',line:'nails',consent:true});
+  assert.equal(su.status,200,JSON.stringify(su));assert.equal(su.data.images,3);assert.equal(su.data.line,'nails');assert.equal(su.data.token,undefined);
+  assert.match(su.cookie||'',/^ayneh_trial=[a-f0-9]{48}$/);const ck={cookie:su.cookie},slug=su.data.path.slice(3);
+  const me=await call(e,'/api/trial/me',undefined,ck);assert.equal(me.data.trial.phone,'0912***6677','only a masked mobile');assert.equal(me.data.trial.images_left,3);assert.equal(me.data.trial.line,'nails');
+  assert.equal((await call(e,'/api/trial/me')).data.trial,null,'no cookie, nobody');
+  for(let i=0;i<3;i++)assert.equal((await guestGen(e,slug,'nails')).status,200);
+  const out=await guestGen(e,slug,'nails');assert.equal(out.status,402);assert.equal(out.data.code,'trial_empty');
+  // The same browser buys: name and mobile come from the signup, not from the request.
+  const o=await call(e,'/api/buy',{kind:'images',line:'nails',count:10,name:'someone else',phone:'09120000000'},ck);
+  assert.equal(o.status,200,JSON.stringify(o));
+  const row=e.DB.sql.prepare('SELECT phone,note FROM orders WHERE id=?').get(o.data.id);assert.equal(row.phone,'+989125556677');assert.match(row.note,/^trial:/);
+  // A stranger cannot point an order at someone's signup page.
+  const x=await call(e,'/api/buy',{kind:'images',line:'nails',count:5,name:'غریبه',phone:'09123334455',trial_salon:row.note.slice(6)});
+  assert.equal(e.DB.sql.prepare('SELECT note FROM orders WHERE id=?').get(x.data.id).note,'');
+  const c=await confirm(e,o.data.id);assert.equal(c.status,200,JSON.stringify(c));
+  const salon=e.DB.sql.prepare('SELECT s.id,s.slug,s.settings FROM orders o JOIN salons s ON s.id=o.salon_id WHERE o.id=?').get(o.data.id);
+  assert.equal(salon.slug,slug,'the same page');assert.equal(JSON.parse(salon.settings).trial,undefined,'no longer a trial');
+  assert.ok(e.DB.sql.prepare('SELECT converted_at FROM trials WHERE salon_id=?').get(salon.id).converted_at);
+  const paid=await call(e,'/api/order/'+o.data.id);const a=paid.data.activated;
+  assert.equal(a.phone,'0912***6677');assert.equal(a.images,10);assert.equal(a.line_label,'ناخن');assert.deepEqual(a.lines.map(l=>[l.line,l.left]),[['nails',10]]);
+  // The paid page now spends the salon's credit (the free images stay free).
+  assert.equal((await guestGen(e,slug,'nails')).status,200);
+  assert.equal((await call(e,'/api/trial/me',undefined,ck)).data.trial.converted,true);
+  // A mobile with a paid panel cannot sign up for free images again.
+  assert.equal((await call(e,'/api/trial',{name:'دوباره',phone:'09125556677',consent:true})).status,409);
+ }finally{p.restore()}
+});
+
+test('the free-signup popup and the success summary ship in the pages',()=>{
+ assert.ok(pricingHTML.includes('id="prFreeBtn"')&&pricingHTML.includes('ثبت‌نام رایگان'),'signup on /pricing');
+ assert.ok(pricingHTML.includes('/api/trial/me')&&pricingHTML.includes('__AYN_TRIAL'),'buying for the signed-up mobile');
+ assert.ok(pricingHTML.includes('پرداخت شما با موفقیت تأیید شد'),'the success popup');
+});

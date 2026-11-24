@@ -106,3 +106,23 @@ html.pr-lock{overflow:hidden}
 }
 body[data-page="pricing"] #pay .pay-card{grid-template-columns:minmax(0,1fr);width:100%}
 body[data-page="pricing"] #pay .btn{white-space:normal;text-align:center}
+/* Free signup (3 images) and what was switched on after payment. */
+.pr-free{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px;margin:0 0 18px;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--emerald-wash);color:var(--ink)}
+.pr-free p{margin:0;font-size:14.5px;line-height:1.9}
+.pr-free--out{display:block;font-weight:700;color:var(--emerald-deep)}
+.pr-signup{position:fixed;inset:0;z-index:80;display:grid;place-items:end center;background:rgba(20,16,12,.45);padding:0}
+.pr-signup[hidden]{display:none}
+.pr-signup__card{position:relative;width:min(100%,460px);display:grid;gap:12px;padding:22px 18px calc(18px + env(safe-area-inset-bottom));background:var(--paper,#fffaf3);border-radius:22px 22px 0 0;box-shadow:0 -10px 40px rgba(0,0,0,.18)}
+@media (min-width:700px){.pr-signup{place-items:center}.pr-signup__card{border-radius:22px}}
+.pr-signup__card h2{margin:0;font-size:20px;font-weight:800;color:var(--ink)}
+.pr-signup__sub,.pr-signup__note{margin:0;font-size:13.5px;line-height:1.9;color:var(--ink-soft)}
+.pr-signup__card label{display:grid;gap:6px;font-size:14px;font-weight:700;color:var(--ink)}
+.pr-signup__card input{font:inherit;font-weight:500;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r-md);background:#fff;color:var(--ink)}
+.pr-signup__card input:focus{outline:2px solid var(--emerald-deep);outline-offset:1px}
+.pr-signup__go{width:100%;justify-content:center}
+.pay-activated{width:100%;max-width:440px;display:grid;gap:8px;text-align:start;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r-lg);background:var(--emerald-wash)}
+.pay-activated ul{margin:0;padding-inline-start:18px;display:grid;gap:4px;font-size:14px;line-height:1.8;color:var(--ink)}
+.pay-activated__h{margin:4px 0 0!important;font-size:13.5px;font-weight:800;color:var(--emerald-deep)!important;max-width:none!important}
+.pay-activated__perks{font-size:13.5px!important}
+.pr-free[hidden]{display:none}
+.pr-signup__card .pay-err:empty{display:none}

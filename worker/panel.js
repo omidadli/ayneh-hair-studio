@@ -209,15 +209,15 @@ function welcomeCard(d){
   el('div',{class:'pn-progress'},[bar]),count,
   el('ul',{class:'pn-check'},rows),note,
   pending.length?el('p',{class:'pn-note'},['صفحهٔ شما: '+pending.map(function(s){return s.label}).join('؛ ')+' ',el('a',{href:'#page',text:'«صفحهٔ من»'})]):null,
-  c.started_at?h('p',today?'اعتبار پنل از امروز شروع شد.':'اعتبار پنل از '+day(c.started_at)+' شروع شد.'):null,
-  c.until?h('small','پایان اعتبار: '+day(c.until),'pn-who'):null
+  c.started_at&&!d.pricing?h('p',today?'اعتبار پنل از امروز شروع شد.':'اعتبار پنل از '+day(c.started_at)+' شروع شد.'):null,
+  c.until?h('small',(d.pricing?'پایان اشتراک: ':'پایان اعتبار: ')+day(c.until),'pn-who'):null
  ]);
 }
 function stepRow(s){return el('li',{'class':s.done?'is-done':''},[h('span','✓','pn-tick'),h('span',s.label)])}
 /* Plan and image credits: what is left, until when, and buying more through the same checkout. */
 function creditCardV2(d){
  var p=d.pricing,lines=(p.sub&&p.sub.line==='all')?['hair','color','nails','lashes']:(p.offered&&p.offered.length?p.offered:['hair','color','nails','lashes']);
- var rows=lines.map(function(k){var x=p.lines[k]||{left:0,used:0};return el('div',{class:'pn-credit'+(x.left<=3?' is-low':'')},[h('span','اعتبار '+LINE_FA[k],'pn-who'),h('b',fa(x.left)+' عکس'),h('span',fa(x.used)+' عکس ساخته شده؛ عکس‌های ناموفق حساب نمی‌شوند.','pn-who'),el('a',{class:'btn btn--ghost btn--sm',href:buyHref(d,k),text:'خرید عکس '+LINE_FA[k]})])});
+ var rows=lines.map(function(k){var x=p.lines[k]||{left:0,used:0};return el('div',{class:'pn-credit'+(x.left<=3?' is-low':'')},[h('span','اعتبار '+LINE_FA[k],'pn-who'),h('b',fa(x.left)+' عکس'),h('span',fa(x.used)+' عکس ساخته شده؛ عکس‌های ناموفق حساب نمی‌شوند.','pn-who'),lines.length>1?el('a',{class:'btn btn--ghost btn--sm',href:buyHref(d,k),text:'خرید عکس '+LINE_FA[k]}):null])});
  return el('div',{class:'pn-card'},[
   h('h2',p.image_only?'اعتبار عکس':'اشتراک و اعتبار عکس'),
   p.sub&&p.active?h('p',p.sub.name+' تا '+fmt(p.until)+' فعال است.'):p.image_only?h('p','حساب «فقط ساخت تصویر»: هر عکسِ ساخته‌شده یک اعتبار از همان خدمت کم می‌کند. اعتبار هیچ‌وقت منقضی نمی‌شود.'):null,
@@ -252,10 +252,10 @@ function creditCard(d){
 
 /* Referral: the salon's own link; a salon that buys a plan through it and this salon both get
    gift images once the payment is confirmed (worker/rewards.js). Filled in after the first paint. */
-function referralCard(){
+function referralCard(d){
  var link=el('code',{dir:'ltr',text:'…'}),note=h('p','','pn-note'),copy=el('button',{class:'btn btn--soft btn--sm',type:'button',text:'کپی لینک',onclick:function(){var t=link.textContent;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(function(){copy.textContent='کپی شد'},function(){copy.textContent='لینک را نگه دارید و بفرستید'})}});
  var card=el('div',{class:'pn-card pn-ref'},[h('h2','معرفی'),h('p','آرایشگر دیگری را معرفی کنید. هر دو ۱۰ عکس هدیه می‌گیرید.'),el('div',{class:'pn-link'},[link,copy]),note]);
- api('/api/panel/referral').then(function(r){link.textContent=r.link;note.textContent=fa(r.rewarded)+' معرفی تا حالا هدیه گرفته؛ هر معرفی که پلن بخرد، ۱۰ تصویر هدیه.'}).catch(function(){card.hidden=true});
+ api('/api/panel/referral').then(function(r){link.textContent=r.link;note.textContent=fa(r.rewarded)+' معرفی تا حالا هدیه گرفته؛ هر معرفی که '+(d&&d.pricing?'اشتراک':'پلن')+' بخرد، ۱۰ تصویر هدیه.'}).catch(function(){card.hidden=true});
  return card;
 }
 var LINE={hair:'مدل مو',color:'رنگ مو',nails:'ناخن',lashes:'مژه'};
@@ -473,7 +473,7 @@ function plansTabV2(d,box){
  box.replaceChildren(h('h2','اشتراک و اعتبار'),
   h('p',p.sub&&p.active?'«'+p.sub.name+'» تا '+fmt(p.until)+' فعال است. تمدید یک‌ماهه است و خودکار نیست.':p.sub?'اشتراک «'+p.sub.name+'» تمام شده؛ اعتبار عکس‌ها سر جایش است.':'حساب شما «فقط ساخت تصویر» است. با «اشتراک ماهانه» این‌ها هم باز می‌شود:'),
   el('ul',{class:'pn-steps'},feats.map(function(f){var on=has(d,f[0]);return el('li',{'class':on?'is-done':''},[h('span',on?'✓':'—','pn-tick'),h('span',f[1])])})),
-  d.seats?h('p','کاربران: '+fa(d.seats.used)+' از '+fa(d.seats.cap)+' (با خود مدیر). همکارها از ربات با /team اضافه می‌شوند.','pn-note'):null,
+  d.seats?h('p','کاربران: '+fa(d.seats.used)+' از '+fa(d.seats.cap)+' (با خود مدیر). همکارها از ربات با /team اضافه می‌شوند.','pn-note'):'',
   el('a',{class:'btn btn--primary',href:buyHref(d),text:p.sub&&p.active?'تمدید اشتراک یا خرید عکس':'خرید اشتراک و اعتبار'}),
   h('p','پرداخت کارت‌به‌کارت است و با همین پنل انجام می‌شود؛ کلید ورودتان عوض نمی‌شود.','pn-note'));
 }
@@ -516,7 +516,7 @@ function dash(d){
     el('a',{class:'btn btn--ghost btn--sm',href:'#page',text:'جزئیات صفحه و نمونه‌کارها'})
    ]),
    creditCard(d),
-   referralCard(),
+   referralCard(d),
    d.checklist||has(d,'bot')?botCard(d):null
   ]);
  /* Only what this plan opens gets a tab; everything else waits in «پلن و ارتقا». */

@@ -18,6 +18,8 @@
 .pr-cards{grid-template-columns:repeat(3,minmax(0,1fr))}
 .pr-cards--4{grid-template-columns:repeat(4,minmax(0,1fr))}
 .pr-card{gap:8px}
+.pr .plan__amount{font-variant-numeric:normal;font-size:clamp(17px,1.7vw,20px)}
+.pr .plan__amount b{font-size:1.2em}
 .pr-card h3{font-size:18px}
 .pr-card .plan__price{padding:11px 12px 12px}
 .pr-card ul{flex:0}
@@ -34,6 +36,9 @@
 .pr-step input::-webkit-inner-spin-button,.pr-step input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 .pr-custom__sum{font-size:16px;font-weight:900;color:var(--ink);margin-inline-start:auto}
 .pr-custom .btn{min-height:44px}
+.pr-goto{display:flex;flex-wrap:wrap;gap:8px}
+.pr-goto .btn{min-height:46px;display:inline-grid;gap:0;line-height:1.5;padding:4px 16px}
+.pr-goto small{font-size:11.5px;font-weight:600;color:var(--muted)}
 .pr-fine{margin:12px 0 0;font-size:12.5px;line-height:1.9;color:var(--muted)}
 .pr-pick{display:grid;gap:4px;font-size:13px;font-weight:800;color:var(--ink-2)}
 .pr-pick small{font-weight:600;color:var(--muted)}
@@ -80,11 +85,24 @@ html.pr-lock{overflow:hidden}
 @media(max-width:900px){.pr-cards--4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:640px){
   .pr-tabs{top:64px}
-  .pr-cards,.pr-cards--4{grid-template-columns:1fr}
-  .pr-cards--4{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .pr-cards--4 .plan__amount b{font-size:19px}
-  .pr-card{padding:14px}
+  .pr-path{padding:14px 12px;border-radius:var(--r-lg)}
+  .pr-path__head p{font-size:13.5px}
+  /* phone: each card is one compact row — name, price and per-image on the start side, «خرید» on the end */
+  .pr-cards,.pr-cards--3,.pr-cards--4{grid-template-columns:1fr;gap:10px}
+  .pr-card{display:grid;grid-template-columns:1fr auto;column-gap:12px;row-gap:2px;align-items:center;padding:12px 14px}
+  .pr-card>h3{grid-column:1;font-size:15.5px;line-height:1.6}
+  .pr-card>.plan__price{grid-column:1;padding:0;background:none;border:0;box-shadow:none;margin:0}
+  .pr-card>.plan__price .plan__amount{text-align:start;padding:0}
+  .pr-card>.pr-save{grid-column:1}
+  .pr-card>.btn{grid-column:2;grid-row:1/span 3;width:auto;min-width:86px;margin:0}
+  .pr-card>ul,.pr-card>.pr-pick{grid-column:1/-1}
+  .pr-card>ul+.pr-pick~.btn,.pr-card>.pr-pick~.btn{grid-column:1/-1;grid-row:auto;width:100%;margin-top:6px}
+  .pr-card{text-align:start}
+  .pr-card.plan--lead{margin-top:10px}
   .pr-teaser{grid-template-columns:1fr}
   .pr-calc__res{grid-template-columns:1fr}
   .pr-custom__sum{margin-inline-start:0}
+  .pr-compare .pcompare th,.pr-compare .pcompare td{padding:10px 10px;font-size:13px}
 }
+body[data-page="pricing"] #pay .pay-card{grid-template-columns:minmax(0,1fr);width:100%}
+body[data-page="pricing"] #pay .btn{white-space:normal;text-align:center}

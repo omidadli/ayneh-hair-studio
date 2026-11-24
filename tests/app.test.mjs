@@ -7,7 +7,7 @@ const brand=()=>({brandMark:generatedMark,faviconMark});import {tick} from '../w
 const origin='https://test.example';
 const BIZ='https://business.test.example'; // the salons' site (owner's decision, Nov 2026)
 const migrations=readdirSync(new URL('../drizzle/',import.meta.url)).filter(f=>f.endsWith('.sql')).sort();
-function fixture(){const DB=database();for(const f of migrations)DB.sql.exec(readFileSync(new URL('../drizzle/'+f,import.meta.url),'utf8'));return {DB,BUCKET:memoryBucket(),OWNER_EMAIL:'owner@test',JOB_TOKEN:'job-test',TRUST_PLATFORM_IDENTITY:'true'};}
+function fixture(){const DB=database();for(const f of migrations)DB.sql.exec(readFileSync(new URL('../drizzle/'+f,import.meta.url),'utf8'));DB.sql.exec("INSERT INTO app_settings(key,value,updated_at) VALUES('legacy_plans','1',0)");return {DB,BUCKET:memoryBucket(),OWNER_EMAIL:'owner@test',JOB_TOKEN:'job-test',TRUST_PLATFORM_IDENTITY:'true'};}
 const OWNER={user:'owner-a',email:'owner@test'};
 // Older price tests expect the round list price on a first order; production always offsets (worker/paysms.js).
 import {amountMode} from '../worker/paysms.js';

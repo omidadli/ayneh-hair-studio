@@ -302,12 +302,24 @@ export async function closeExpired(db) {
   await run(db, "UPDATE orders SET status='expired',updated_at=? WHERE status='open' AND expires_at<=?", Date.now(), Date.now());
 }
 
+/* The plans before pricing v2 (essential/pro/signature, salon1/3/6, the 10-image top-up) are no
+   longer sold (owner's decision, Nov 2026; nobody had bought one). Their code stays so an older
+   order still reads, confirms and logs in; a sale needs app_settings 'legacy_plans' = '1' (the
+   tests set it). A salon on a v2 plan never buys them: they would undercut the v2 sheet. */
+export const LEGACY_PLANS = 'legacy_plans';
+async function legacyOpen(db, salon = null) {
+  must(!salon || !isV2(planOf(salon)?.key), 'خرید از صفحهٔ «خرید اشتراک و اعتبار» انجام می‌شود.', 409);
+  const on = (await one(db, 'SELECT value FROM app_settings WHERE key=?', LEGACY_PLANS))?.value === '1';
+  must(on, 'این پلن دیگر فروخته نمی‌شود؛ از صفحهٔ «خرید اشتراک و اعتبار» بخرید.', 410);
+}
+
 /* A plan order from a service page. A second order from the same mobile replaces the first:
    the earlier open order is cancelled, and nothing about it is returned to this caller. */
 export async function createOrder(db, env, b, origin = '') {
   const plan = String(b.plan || '');
   must(PLANS[plan], 'این پلن وجود ندارد.', 404);
   must(!isV2(plan), 'اشتراک‌ها از صفحهٔ «خرید اشتراک و اعتبار» خریده می‌شوند.', 409);
+  await legacyOpen(db);
   /* The service is the buyer's choice and decides what the salon offers (worker/plans.js
      linesOf): a single-service plan needs one of the four, «پنل آرایشگاه» is 'all'. An empty or
      unknown service would open every line for the price of one, so it is refused. */
@@ -463,6 +475,7 @@ export async function createPanelPurchase(db, env, {order: panelOrder, salon}, b
 /* A top-up from the salon's own panel: n packs of TOPUP.images images. The salon is known
    from the panel session, so no key is minted and the panel stays the same. */
 export async function createTopup(db, env, {order: panelOrder, salon}, packs, origin = '') {
+  await legacyOpen(db, salon);
   const n = Number(packs);
   must(Number.isInteger(n) && n >= 1 && n <= 20, 'تعداد بستهٔ عکس معتبر نیست.');
   const now = Date.now();
@@ -504,6 +517,7 @@ export async function createTestOrder(db, env, amountToman, origin = '') {
 export async function createRenewal(db, env, {order: panelOrder, salon}, plan, origin = '', usersIn) {
   must(PLANS[plan], 'این پلن وجود ندارد.', 404);
   must(!isV2(plan), 'اشتراک‌ها از صفحهٔ «خرید اشتراک و اعتبار» خریده می‌شوند.', 409);
+  await legacyOpen(db, salon);
   /* A salon on «پنل آرایشگاه» renews or changes length within it; going back to one service
      means choosing which one, so the panel sends that to Ayneh support instead. */
   must(!seatsOf(salon) || PLANS[plan].seats > 0, 'برای برگشت از «پنل آرایشگاه» به پلن یک‌خدمتی با پشتیبانی آینه تماس بگیرید.', 409);

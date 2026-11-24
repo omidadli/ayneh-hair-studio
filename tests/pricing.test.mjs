@@ -68,6 +68,8 @@ test('the order amount is computed only on the server from the sheet; the browse
  // only the minimum fields: a name and a mobile
  assert.equal((await call(e,'/api/buy',{kind:'images',line:'hair',count:5,phone:'09125556677'})).status,400);
  assert.equal((await call(e,'/api/buy',{kind:'images',line:'hair',count:5,name:'سالن'})).status,400);
+ // the old plans are not sold any more (a switch in app_settings, off by default), nor to a v2 salon
+ assert.equal((await call(e,'/api/order',{plan:'essential',service:'hair',salon:'سالن',name:'سارا',phone:'09126667788',consent:true})).status,410);
  // subscriptions are not sold through the old plan checkout
  assert.equal((await call(e,'/api/order',{plan:'sub_hair',service:'hair',salon:'سالن',name:'سارا',phone:'09126667788',consent:true})).status,409);
 });
@@ -100,7 +102,10 @@ test('per-line spending: a hair credit cannot be spent on nails; an empty line s
  try{
   const s=await bought(e,{kind:'images',line:'nails',count:1});
   const more=await call(e,'/api/panel/buy',{kind:'images',line:'hair',count:5},{cookie:s.cookie});assert.equal(more.status,200,JSON.stringify(more));
-  assert.equal(more.data.same_key,true,'signed in: same panel, no new key');assert.equal(more.data.amount,238000);
+  assert.equal(more.data.same_key,true,'signed in: same panel, no new key');
+  e.DB.sql.exec("INSERT INTO app_settings(key,value,updated_at) VALUES('legacy_plans','1',0)");
+  assert.equal((await call(e,'/api/panel/topup',{packs:1},{cookie:s.cookie})).status,409,'no cheap legacy top-up for a v2 salon');
+  assert.equal((await call(e,'/api/panel/renew',{plan:'signature'},{cookie:s.cookie})).status,409,'no legacy plan for a v2 salon');assert.equal(more.data.amount,238000);
   await confirm(e,more.data.id);
   const settings=JSON.parse(e.DB.sql.prepare('SELECT settings FROM salons WHERE id=?').get(s.id).settings);assert.deepEqual(settings.lines,['hair','nails'],'the new line is offered');
   assert.equal((await guestGen(e,s.slug,'nails')).status,200);

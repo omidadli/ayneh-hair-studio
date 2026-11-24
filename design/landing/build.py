@@ -707,7 +707,7 @@ def v2_images(line):
     cards = []
     for n, a in sorted(p['packs'].items()):
         cards.append(
-            '<article class="plan pr-card' + (' plan--lead' if n == 10 else '') + '">'
+            '<article class="plan pr-card">'
             + '<h3>' + fa_int(n) + ' عکس</h3>'
             + '<div class="plan__price"><p class="plan__amount"><b>' + toman(a) + '</b> تومان</p>'
             + '<p class="pr-each">هر عکس ' + toman(a // n) + ' تومان</p></div>'
@@ -739,7 +739,7 @@ def v2_sub(line):
     for n, total, name, each in opts:
         title = sub['name'] + (' + بستهٔ ' + fa_int(n) + ' عکس' if n else '')
         cards.append(
-            '<article class="plan pr-card' + (' plan--lead' if n == 100 else '') + '">'
+            '<article class="plan pr-card' + (' plan--lead' if n == 200 else '') + '">'
             + ('<span class="plan__badge">' + CROWN + 'به‌صرفه‌تر برای کار زیاد</span>' if n == 200 else '')
             + '<h3>' + name + '</h3>'
             + '<div class="plan__price"><p class="plan__amount"><b>' + toman(total) + '</b> تومان</p>'
@@ -772,7 +772,7 @@ def v2_salon():
     for x in salon_subs:
         sid = 'prPack-' + x['key']
         cards.append(
-            '<article class="plan pr-card' + (' plan--lead' if x['seats'] == 8 else '') + '">'
+            '<article class="plan pr-card">'
             + '<h3>تا ' + fa_int(x['seats']) + ' نفر</h3>'
             + '<div class="plan__price"><p class="plan__amount"><b>' + toman(x['amount']) + '</b> تومان</p><p class="pr-each">در ماه، برای کل سالن</p></div>'
             + '<ul><li>' + TICK + '<span>هر چهار خدمت: مدل مو، رنگ مو، ناخن و مژه</span></li>'
@@ -784,14 +784,18 @@ def v2_salon():
         '<div class="pr-subscriber__row"><b>' + V2_LABEL[k] + '</b>' + ''.join(
             v2_buy(fa_int(n) + ' عکس · ' + toman(a), 'بستهٔ ' + fa_int(n) + ' عکس ' + V2_LABEL[k], a, cls='btn btn--ghost btn--sm', kind='pack', line=k, pack=n)
             for n, a in sorted(SUB_PACKS[k].items())) + '</div>' for k in LINE_ORDER)
-    return ('<div class="pr-path pr-path--sub" data-path="sub">'
+    path1 = ('<div class="pr-path" data-path="images"><div class="pr-path__head"><span class="pr-num" aria-hidden="true">۱</span><div>'
+             '<h2>فقط ساخت تصویر</h2><p>بدون اشتراک، برای هر خدمت جدا. خدمت را انتخاب کنید تا بسته‌هایش را ببینید:</p></div></div>'
+             '<div class="pr-goto">' + ''.join('<button type="button" class="btn btn--ghost btn--sm" data-goto="%s">%s <small>هر عکس از %s تومان</small></button>'
+                                               % (k, V2_LABEL[k], toman(min(a_ // n for n, a_ in IMAGE_PRICES[k]['packs'].items()))) for k in LINE_ORDER) + '</div></div>')
+    return (path1 + '<div class="pr-path pr-path--sub" data-path="sub">'
             '<div class="pr-path__head"><span class="pr-num" aria-hidden="true">۲</span><div>'
             '<h2>اشتراک ماهانهٔ آرایشگاه</h2>'
             '<p>همهٔ امکانات پنل برای هر چهار خدمت و کل تیم. عکس‌ها را برای هر خدمت جدا، با قیمت مشترکان می‌خرید.</p>'
             '</div></div>'
             '<div class="pr-subscriber" data-subscriber="all" hidden><p class="pr-subscriber__note">اشتراک شما فعال است؛ بستهٔ عکس هر خدمت را جدا بخرید:</p>' + alone + '</div>'
             '<div class="plans pr-cards">' + ''.join(cards) + '</div>'
-            '<p class="pr-fine">«فقط ساخت تصویر» هم برای هر خدمت جداست: از تب همان خدمت بخرید. تمدید خودکار ندارد.</p></div>')
+            '<p class="pr-fine">تمدید خودکار ندارد.</p></div>')
 
 
 def v2_compare():

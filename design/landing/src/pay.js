@@ -109,6 +109,7 @@
   const NAME_TEXT = nameLabel?.textContent || '';
   const START_TEXT = $('payStart').textContent;
   let who = null;
+  const STEP_TEXT = [];
   function liteForm(btn) {
     const v2 = !!btn && btn.dataset.buy === 'v2';
     const panel = v2 && window.__AYN_PANEL;
@@ -119,7 +120,11 @@
     if (!who) { who = document.createElement('p'); who.className = 'pay-who'; $('payForm').prepend(who); }
     who.hidden = !panel;
     if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
-    $('payStart').textContent = v2 ? 'تأیید و نمایش شمارهٔ کارت · ' + money(Number(btn.dataset.amount)) : START_TEXT;
+    $('payStart').textContent = v2 ? 'تأیید خرید · ' + money(Number(btn.dataset.amount)) : START_TEXT;
+    const steps = section.querySelectorAll('#paySteps li span');
+    if (!STEP_TEXT.length) steps.forEach(x => STEP_TEXT.push(x.textContent));
+    steps.forEach((x, i) => { x.textContent = v2 ? ['مشخصات', 'واریز کارت‌به‌کارت', 'فعال‌سازی'][i] || STEP_TEXT[i] : STEP_TEXT[i]; });
+    if (panel && steps[0]) steps[0].textContent = 'تأیید';
   }
   const v2Body = btn => {
     const d = btn.dataset, b = {kind: d.kind};

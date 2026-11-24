@@ -34,7 +34,7 @@
     return {cost: best[at], images: at, parts};
   }
   const describe = parts => Object.entries(parts).sort((a, b) => b[0] - a[0])
-    .map(([s, k]) => Number(s) === 1 ? fa(k) + ' عکس تکی' : (k > 1 ? fa(k) + ' × ' : '') + 'بستهٔ ' + fa(s)).join(' + ');
+    .map(([s, k]) => Number(s) === 1 ? fa(k) + ' عکس تکی' : (k > 1 ? fa(k) + ' بستهٔ ' : 'یک بستهٔ ') + fa(s) + 'تایی').join(' + ');
 
   const calc = document.getElementById('prCalc'), range = document.getElementById('prCalcN'), out = document.getElementById('prCalcOut');
   function drawCalc() {
@@ -57,9 +57,15 @@
     pb.classList.toggle('is-best', sub < a.cost);
     const diff = Math.abs(a.cost - sub);
     document.getElementById('prCalcVerdict').textContent = sub < a.cost
-      ? 'برای ' + fa(n) + ' عکس در ماه، اشتراک ' + money(diff) + ' ارزان‌تره و همهٔ امکانات پنل رو هم داره.'
-      : diff === 0 ? 'برای ' + fa(n) + ' عکس در ماه، هزینهٔ دو راه یکیه؛ اشتراک امکانات پنل رو هم داره.'
-      : 'برای ' + fa(n) + ' عکس در ماه، «فقط ساخت تصویر» ' + money(diff) + ' ارزان‌تره.';
+      ? 'برای ' + fa(n) + ' عکس در ماه، اشتراک ' + money(diff) + ' ارزان‌تر است و همهٔ امکانات پنل را هم دارد.'
+      : diff === 0 ? 'برای ' + fa(n) + ' عکس در ماه، هزینهٔ دو راه یکی است؛ اشتراک امکانات پنل را هم دارد.'
+      : 'برای ' + fa(n) + ' عکس در ماه، «فقط ساخت تصویر» ' + money(diff) + ' ارزان‌تر است. از حدود ' + fa(breakEven()) + ' عکس در ماه، اشتراک به‌صرفه‌تر می‌شود.';
+  }
+  /* The first monthly count (in the slider's steps) where the subscription costs less. */
+  function breakEven() {
+    const img = P.images[current], both = {...img.packs, ...P.subPacks[current]};
+    for (let n = 5; n <= 1000; n += 5) if (P.subs[current] + cheapest(n, both, img.single).cost < cheapest(n, img.packs, img.single).cost) return n;
+    return 1000;
   }
   range?.addEventListener('input', drawCalc);
 
@@ -85,6 +91,7 @@
     try { const u = new URL(location.href); u.searchParams.set('s', key); history.replaceState(null, '', u); } catch {}
   }
   tabs.forEach(t => t.addEventListener('click', () => show(t.dataset.ptab)));
+  root.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => { show(b.dataset.goto); root.querySelector('.pr-tabs')?.scrollIntoView({behavior: 'smooth', block: 'start'}); }));
   root.querySelector('[role="tablist"]')?.addEventListener('keydown', e => {
     const i = tabs.indexOf(document.activeElement); if (i < 0 || !/Arrow/.test(e.key)) return;
     const next = tabs[(i + (e.key === 'ArrowLeft' ? 1 : -1) + tabs.length) % tabs.length];

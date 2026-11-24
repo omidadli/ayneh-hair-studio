@@ -6,14 +6,29 @@
 // beyond seats costs seat_amount toman for the whole period (the «پنل آرایشگاه» plans).
 export const PRICE_MINUTES = 10;
 export const PLANS = {
-  essential: {name: 'پایه', title: '', months: 1, amount: 2900000, was: 0, credits: 20, tier: 'essential', seats: 0, seat_amount: 0},
-  pro: {name: 'حرفه‌ای', title: '', months: 3, amount: 6000000, was: 8700000, credits: 75, tier: 'pro', seats: 0, seat_amount: 0},
-  signature: {name: 'کامل', title: '', months: 6, amount: 10000000, was: 17400000, credits: 180, tier: 'signature', seats: 0, seat_amount: 0},
-  salon1: {name: 'پنل آرایشگاه ۱ ماهه', title: 'آرایشگاه', months: 1, amount: 5000000, was: 0, credits: 40, tier: 'essential', seats: 3, seat_amount: 2000000},
-  salon3: {name: 'پنل آرایشگاه ۳ ماهه', title: 'آرایشگاه', months: 3, amount: 10000000, was: 0, credits: 150, tier: 'pro', seats: 3, seat_amount: 1500000},
-  salon6: {name: 'پنل آرایشگاه ۶ ماهه', title: 'آرایشگاه', months: 6, amount: 15000000, was: 0, credits: 360, tier: 'signature', seats: 3, seat_amount: 1000000},
+  essential: {name: 'پایه', title: '', months: 1, amount: 2900000, was: 0, credits: 20, tier: 'essential', seats: 0, seat_amount: 0, sold: false},
+  pro: {name: 'حرفه‌ای', title: '', months: 3, amount: 6000000, was: 8700000, credits: 75, tier: 'pro', seats: 0, seat_amount: 0, sold: false},
+  signature: {name: 'کامل', title: '', months: 6, amount: 10000000, was: 17400000, credits: 180, tier: 'signature', seats: 0, seat_amount: 0, sold: false},
+  salon1: {name: 'پنل آرایشگاه ۱ ماهه', title: 'آرایشگاه', months: 1, amount: 5000000, was: 0, credits: 40, tier: 'essential', seats: 3, seat_amount: 2000000, sold: false},
+  salon3: {name: 'پنل آرایشگاه ۳ ماهه', title: 'آرایشگاه', months: 3, amount: 10000000, was: 0, credits: 150, tier: 'pro', seats: 3, seat_amount: 1500000, sold: false},
+  salon6: {name: 'پنل آرایشگاه ۶ ماهه', title: 'آرایشگاه', months: 6, amount: 15000000, was: 0, credits: 360, tier: 'signature', seats: 3, seat_amount: 1000000, sold: false},
+  sub_hair: {name: 'اشتراک مدل مو', title: 'مدل مو', months: 1, amount: 1490000, was: 0, credits: 0, tier: 'full', seats: 0, seat_amount: 0, sold: true, line: 'hair'},
+  sub_color: {name: 'اشتراک رنگ مو', title: 'رنگ مو', months: 1, amount: 2900000, was: 0, credits: 0, tier: 'full', seats: 0, seat_amount: 0, sold: true, line: 'color'},
+  sub_nails: {name: 'اشتراک ناخن', title: 'ناخن', months: 1, amount: 990000, was: 0, credits: 0, tier: 'full', seats: 0, seat_amount: 0, sold: true, line: 'nails'},
+  sub_lashes: {name: 'اشتراک مژه', title: 'مژه', months: 1, amount: 990000, was: 0, credits: 0, tier: 'full', seats: 0, seat_amount: 0, sold: true, line: 'lashes'},
+  sub_salon3: {name: 'اشتراک آرایشگاه تا ۳ نفر', title: 'آرایشگاه تا ۳ نفر', months: 1, amount: 4900000, was: 0, credits: 0, tier: 'full', seats: 3, seat_amount: 0, sold: true, line: 'all'},
+  sub_salon8: {name: 'اشتراک آرایشگاه تا ۸ نفر', title: 'آرایشگاه تا ۸ نفر', months: 1, amount: 7900000, was: 0, credits: 0, tier: 'full', seats: 8, seat_amount: 0, sold: true, line: 'all'},
+  sub_salon20: {name: 'اشتراک آرایشگاه تا ۲۰ نفر', title: 'آرایشگاه تا ۲۰ نفر', months: 1, amount: 12900000, was: 0, credits: 0, tier: 'full', seats: 20, seat_amount: 0, sold: true, line: 'all'},
 };
 // title: the checkout line «پلن <title> · ۳ ماهه»; empty = the service's own title below.
 export const SERVICE_TITLES = {'hair': 'مدل مو', 'color': 'رنگ مو', 'nails': 'ناخن', 'lashes': 'مژه', 'all': 'آرایشگاه'};
 // After the gift credit runs out: every TOPUP.images images cost TOPUP.amount toman.
 export const TOPUP = {images: 10, amount: 200000};
+// Pricing v2 (owner's decision, Nov 2026). Path 1 «فقط ساخت تصویر»: per service, one image at
+// `single` or a pack {count: amount}; any custom count costs count × single (a count equal to a
+// pack size costs the pack). Path 2: the sub_* plans above (monthly) and SUB_PACKS for subscribers.
+export const IMAGE_PRICES = {hair: {single: 50000, packs: {5: 238000, 10: 450000, 20: 850000}}, color: {single: 60000, packs: {5: 285000, 10: 540000, 20: 1020000}}, nails: {single: 40000, packs: {5: 190000, 10: 360000, 20: 680000}}, lashes: {single: 40000, packs: {5: 190000, 10: 360000, 20: 680000}}};
+export const PACK_SAVE = {5: 5, 10: 10, 20: 15};
+export const SUB_PACKS = {hair: {50: 1700000, 100: 3000000, 200: 5400000}, color: {50: 2000000, 100: 3500000, 200: 6000000}, nails: {50: 1300000, 100: 2200000, 200: 3800000}, lashes: {50: 1300000, 100: 2200000, 200: 3800000}};
+export const CUSTOM_MAX = 500;
+export const SUB_KEYS = ['sub_hair', 'sub_color', 'sub_nails', 'sub_lashes', 'sub_salon3', 'sub_salon8', 'sub_salon20'];

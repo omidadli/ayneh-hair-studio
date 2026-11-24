@@ -13,19 +13,29 @@ import {LINE_KEYS} from './lines.js';
 const ESSENTIAL = ['page', 'gallery', 'reference', 'inbox', 'bot'];
 const PRO = [...ESSENTIAL, 'booking', 'report_simple'];
 const SIGNATURE = [...PRO, 'report_full', 'archive', 'priority_support'];
-export const FEATURES = {essential: ESSENTIAL, pro: PRO, signature: SIGNATURE};
+/* Pricing v2 (owner's decision, Nov 2026): a monthly subscription (sub_* keys, tier 'full') opens
+   every feature; «فقط ساخت تصویر» (plan key 'images', tier 'images') opens none of them — only the
+   try-on images on the salon's own page. A subscription that ran out falls back to 'images': its
+   bought image credits never expire and stay spendable. */
+export const FEATURES = {essential: ESSENTIAL, pro: PRO, signature: SIGNATURE, full: SIGNATURE, images: []};
 export const ALL = SIGNATURE;
 /* The plan that first opens a feature, for the «در پلن …» note on a locked card. */
 export const OPENED_BY = Object.fromEntries(ALL.map(f => [f, ESSENTIAL.includes(f) ? 'پایه' : PRO.includes(f) ? 'حرفه‌ای' : 'کامل']));
 
 /* The feature tier of a plan key: the sheet's `tier`, else the key itself (essential/pro/signature). */
 export const tierOf = key => PLANS[key]?.tier || (FEATURES[key] ? key : 'essential');
+/* The tier a salon has right now: a v2 subscription past its end is image-only. */
+export const tierNow = (plan, t = Date.now()) => {
+  const tier = tierOf(plan.key);
+  return tier === 'full' && !(Number(plan.until) > t) ? 'images' : tier;
+};
+export const imageOnly = salon => { const p = planOf(salon); return !!p && tierNow(p) === 'images'; };
 
 /* Does this salon have the feature? A salon without a plan has everything (legacy). */
 export function can(salon, feature) {
   const plan = planOf(salon);
   if (!plan) return true;
-  return (FEATURES[tierOf(plan.key)] || ESSENTIAL).includes(feature);
+  return (FEATURES[tierNow(plan)] || ESSENTIAL).includes(feature);
 }
 
 export const featuresOf = salon => ALL.filter(f => can(salon, f));

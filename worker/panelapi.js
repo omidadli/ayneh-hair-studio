@@ -7,7 +7,7 @@
 // team member's customers (AGENTS.md: a member's customers go only to that member).
 import {must, text, uid, phone as normPhone, limited, Problem} from './domain.js';
 import {panelSalon} from './orders.js';
-import {can, OPENED_BY} from './plans.js';
+import {can, OPENED_BY, imageOnly} from './plans.js';
 import {salonReport} from './reports.js';
 import {bucketFor, putImage} from './storage.js';
 import {LINE_KEYS} from './lines.js';
@@ -19,7 +19,7 @@ const all = async (db, sql, ...a) => (await db.prepare(sql).bind(...a).all()).re
 const ID = /^[a-f0-9-]{36}$/;
 const DAY = 86400000;
 
-const need = (salon, feature) => must(can(salon, feature), 'این امکان در پلن ' + OPENED_BY[feature] + ' و بالاتر باز است.', 403);
+const need = (salon, feature) => must(can(salon, feature), imageOnly(salon) ? 'این امکان با «اشتراک ماهانه» باز است.' : 'این امکان در پلن ' + OPENED_BY[feature] + ' و بالاتر باز است.', 403);
 
 /* Persian day, date and time in Tehran: «شنبه ۲۴ آبان، ساعت ۱۶:۳۰». */
 export const whenText = ms => {

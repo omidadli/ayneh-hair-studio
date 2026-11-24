@@ -25,9 +25,10 @@ export const planOf = salon => {
   return p && typeof p === 'object' && p.start ? p : null;
 };
 
-export async function grant(db, salonId, delta, reason, orderId = null) {
-  await run(db, 'INSERT INTO credit_ledger(id,salon_id,delta,reason,order_id,created_at) VALUES(?,?,?,?,?,?)',
-    uid(), salonId, Math.trunc(delta), String(reason), orderId, Date.now());
+/* line: the service the credit is for (pricing v2, drizzle/0032); null = any line of the salon. */
+export async function grant(db, salonId, delta, reason, orderId = null, line = null) {
+  await run(db, 'INSERT INTO credit_ledger(id,salon_id,delta,reason,order_id,created_at,line) VALUES(?,?,?,?,?,?,?)',
+    uid(), salonId, Math.trunc(delta), String(reason), orderId, Date.now(), LINE_KEYS.includes(line) ? line : null);
 }
 
 /* Paid users at time t. settings.plan.seats is what the current period paid for; a renewal with
@@ -40,6 +41,7 @@ export function seatsAt(plan, t = Date.now()) {
   return seats;
 }
 const LEGACY_LINES = {hair: ['hair', 'color'], color: ['color'], nails: ['nails'], lashes: ['lashes']};
+const LINE_FA = {hair: 'مدل مو', color: 'رنگ مو', nails: 'ناخن', lashes: 'مژه'};
 
 /* A confirmed plan: start (or extend) the plan and add its gift images.
    The order (when given) also decides what the salon offers and how many users it may have:
@@ -89,28 +91,50 @@ export async function applyPlan(db, salonId, {key, months, credits}, orderId) {
   return settings.plan;
 }
 
-/* What the salon has: null for a salon without a plan (not metered). */
+/* Pricing v2 keys (sub_* = tier 'full', and the image-only plan 'images'): bought credits never
+   expire, so the plan's end never stops images (only an empty line does). */
+export const V2_IMAGES = 'images';
+export const isV2 = key => key === V2_IMAGES || PLANS[key]?.tier === 'full';
+const lineOf = l => LINE_KEYS.includes(l) ? l : 'hair';
+
+/* What the salon has: null for a salon without a plan (not metered).
+   Credits are per line (credit_ledger.line). A line spends its own credits first, then the shared
+   pool (line NULL: older plan gifts, top-ups, referral rewards); so lines[x].left is what an image
+   on line x can still use, and `left` is the salon's total. Spending is still counted from the
+   salon's non-failed generations since the plan started (a failed image never costs a credit);
+   the 360 view counts as hairstyle. */
 export async function balance(db, salon) {
   const plan = planOf(salon);
   if (!plan) return null;
-  const granted = Number((await one(db, 'SELECT COALESCE(SUM(delta),0) n FROM credit_ledger WHERE salon_id=?', salon.id))?.n || 0);
+  const g = (await db.prepare('SELECT line,COALESCE(SUM(delta),0) n FROM credit_ledger WHERE salon_id=? GROUP BY line').bind(salon.id).all()).results || [];
   /* An image a customer paid for herself (generations.paid_by, worker/customers.js) is not the salon's. */
-  const used = Number((await one(db, "SELECT COUNT(*) n FROM generations WHERE salon_id=? AND state<>'fail' AND paid_by IS NULL AND created_at>=?", salon.id, plan.start))?.n || 0);
-  const now = Date.now();
+  const u = (await db.prepare("SELECT line,COUNT(*) n FROM generations WHERE salon_id=? AND state<>'fail' AND paid_by IS NULL AND created_at>=? GROUP BY line").bind(salon.id, plan.start).all()).results || [];
+  const own = Object.fromEntries(LINE_KEYS.map(k => [k, 0])), used = Object.fromEntries(LINE_KEYS.map(k => [k, 0]));
+  let shared = 0;
+  for (const r of g) { if (LINE_KEYS.includes(r.line)) own[r.line] += Number(r.n); else shared += Number(r.n); }
+  for (const r of u) used[lineOf(r.line)] += Number(r.n);
+  const over = LINE_KEYS.reduce((a, k) => a + Math.max(0, used[k] - own[k]), 0);
+  const sharedLeft = Math.max(0, shared - over);
+  const lines = Object.fromEntries(LINE_KEYS.map(k => [k, {granted: own[k], used: used[k], left: Math.max(0, own[k] - used[k]) + sharedLeft}]));
+  const granted = shared + LINE_KEYS.reduce((a, k) => a + own[k], 0), usedAll = LINE_KEYS.reduce((a, k) => a + used[k], 0);
+  const now = Date.now(), v2 = isV2(plan.key);
+  const until = Number(plan.until) || 0;
   return {
-    plan: plan.key, start: plan.start, until: plan.until,
-    days_left: Math.max(0, Math.ceil((plan.until - now) / DAY)),
-    expired: now >= plan.until,
-    granted, used, left: Math.max(0, granted - used),
+    plan: plan.key, start: plan.start, until: until || null,
+    days_left: until ? Math.max(0, Math.ceil((until - now) / DAY)) : 0,
+    /* A v2 plan never "expires" for images; `active` says whether its subscription runs. */
+    expired: v2 ? false : now >= until,
+    v2, active: v2 ? PLANS[plan.key]?.tier === 'full' && until > now : now < until,
+    granted, used: usedAll, left: Math.max(0, granted - usedAll), shared: sharedLeft, lines,
   };
 }
 
 /* Called right before an image is ordered. Throws a plain Persian message for the customer;
    the owner hears about it (once a day per salon), never with the customer's mobile or photo. */
-export async function spendCredit(db, env, salon) {
+export async function spendCredit(db, env, salon, line = 'hair') {
   const b = await balance(db, salon);
   if (!b) return null;
-  const reason = b.expired ? 'expired' : b.left <= 0 ? 'empty' : '';
+  const reason = b.expired ? 'expired' : b.lines[lineOf(line)].left <= 0 ? 'empty' : '';
   if (!reason) return b;
   /* One alert per salon per day: the limiter throws on the second call, which only skips it. */
   try {
@@ -118,11 +142,50 @@ export async function spendCredit(db, env, salon) {
     const {notifyOwner} = await import('./alerts.js');
     await notifyOwner(env, {
       salon, kind: 'credits', level: 'warn',
-      text: reason === 'expired' ? 'پلن «' + salon.name + '» تمام شده و ساخت تصویر متوقف شد' : 'اعتبار تصویر «' + salon.name + '» تمام شد',
+      text: reason === 'expired' ? 'پلن «' + salon.name + '» تمام شده و ساخت تصویر متوقف شد' : 'اعتبار تصویر «' + salon.name + '» تمام شد' + (b.v2 ? ' (' + LINE_FA[lineOf(line)] + ')' : ''),
       detail: 'از /panel می‌تواند اعتبار تازه بخرد یا پلن را تمدید کند.',
     });
   } catch {}
   throw new Problem(402, reason === 'expired'
     ? 'ساخت تصویر در این سالن فعلاً متوقف است. انتخابت را بدون شبیه‌سازی برای سالن بفرست؛ خودشان با تو تماس می‌گیرند.'
     : 'ساخت تصویر در این سالن فعلاً متوقف است. انتخابت را بدون شبیه‌سازی برای سالن بفرست؛ خودشان با تو تماس می‌گیرند.');
+}
+
+/* ---------- pricing v2: a confirmed order of kind 'images' / 'pack', or a sub_* plan ----------
+   * 'images' (path 1) and 'pack' (a subscriber pack): the order's images go to its line only.
+     A salon with no plan yet becomes image-only (plan key 'images', no end); the line is added to
+     what the salon offers (settings.lines) unless it already offers every line.
+   * a sub_* plan: applyPlan as before (one month; a salon subscription opens every line), then
+     the lines the salon had bought images for stay offered, and the first pack bought with it
+     (orders.credits on orders.line) is granted.
+   Credits never expire (balance() never marks a v2 plan expired). */
+export async function applyOrder(db, salonId, order) {
+  const salon = await one(db, 'SELECT id,settings FROM salons WHERE id=?', salonId);
+  if (!salon) throw new Problem(404, 'سالن پیدا نشد.');
+  const before = settingsOf(salon);
+  const had = Array.isArray(before.lines) ? before.lines : before.plan ? LEGACY_LINES[before.service] || null : [];
+  const line = LINE_KEYS.includes(order.line) ? order.line : null;
+  if (order.kind === 'plan') {
+    const sheet = PLANS[order.plan] || {};
+    await applyPlan(db, salonId, {key: order.plan, months: sheet.months || 1, credits: 0}, order.id);
+    if (!(sheet.seats > 0) && had) {
+      const now = settingsOf(await one(db, 'SELECT settings FROM salons WHERE id=?', salonId));
+      const lines = LINE_KEYS.filter(k => had.includes(k) || (now.lines || []).includes(k));
+      if (lines.length) { now.lines = lines; await run(db, 'UPDATE salons SET settings=? WHERE id=?', JSON.stringify(now), salonId); }
+    }
+  } else {
+    const settings = before, now = Date.now();
+    if (!settings.plan || typeof settings.plan !== 'object' || !settings.plan.start) {
+      settings.plan = {key: V2_IMAGES, start: now};
+      settings.lines = line ? [line] : [];
+      settings.service = line || '';
+    } else if (had && line && !had.includes(line)) {
+      settings.lines = LINE_KEYS.filter(k => had.includes(k) || k === line);
+    }
+    await run(db, 'UPDATE salons SET settings=? WHERE id=?', JSON.stringify(settings), salonId);
+  }
+  /* A subscription without a pack still leaves a (zero) ledger row: confirmOrder's repair path
+     reads the ledger to know an order was applied, so a retry never extends the month twice. */
+  await grant(db, salonId, Math.max(0, Number(order.credits) || 0), order.kind === 'plan' ? 'sub:' + order.plan : order.kind, order.id, line);
+  return planOf(await one(db, 'SELECT settings FROM salons WHERE id=?', salonId));
 }

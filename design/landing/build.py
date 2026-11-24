@@ -70,6 +70,50 @@ TOPUP_IMAGES, TOPUP_AMOUNT = 10, 200000
 # The checkout window the customer sees and the server enforces (worker/orders.js).
 PRICE_MINUTES = 10
 
+# ---------------- pricing v2: per service (owner's decision, Nov 2026; final numbers) ----------------
+# The plans above (PLANS / SALON_PLANS) are no longer sold on any page: no salon bought one, so
+# their keys stay in worker/prices.js only so older orders and tests still read (sold: false).
+# What is sold now, all in TOMAN, all drawn on /pricing («خرید اشتراک و اعتبار») from these tables:
+#  PATH 1 «فقط ساخت تصویر»: image credits for one service, any count at `single`, or a pack.
+#         Only the try-on images; no page, bot, booking or reports (worker/plans.js tier 'images').
+#  PATH 2 «اشتراک ماهانه»: a monthly subscription per service (or the whole salon, by staff size)
+#         that opens every panel feature, plus subscriber image packs (cheaper per image).
+# Credits are per service (credit_ledger.line) and never expire. No free images before payment.
+LINE_ORDER = ['hair', 'color', 'nails', 'lashes']
+IMAGE_PRICES = {
+    'hair': {'single': 50000, 'packs': {5: 238000, 10: 450000, 20: 850000}},   # 5 × 50,000 × 95% = 237,500 → shown 238,000
+    'color': {'single': 60000, 'packs': {5: 285000, 10: 540000, 20: 1020000}},
+    'nails': {'single': 40000, 'packs': {5: 190000, 10: 360000, 20: 680000}},
+    'lashes': {'single': 40000, 'packs': {5: 190000, 10: 360000, 20: 680000}},
+}
+PACK_SAVE = {5: 5, 10: 10, 20: 15}  # % saved against `single` × count (shown on each pack)
+for _k, _v in IMAGE_PRICES.items():
+    for _n, _a in _v['packs'].items():
+        assert abs(_v['single'] * _n * (100 - PACK_SAVE[_n]) / 100 - _a) <= 500, 'pack saving off: %s %d' % (_k, _n)
+CUSTOM_MAX = 500  # largest custom count in one order
+SUBS = [  # months: 1 (monthly, no auto-renewal). seats 0 = one specialist, no user cap.
+    {'key': 'sub_hair', 'line': 'hair', 'amount': 1490000, 'seats': 0},
+    {'key': 'sub_color', 'line': 'color', 'amount': 2900000, 'seats': 0},
+    {'key': 'sub_nails', 'line': 'nails', 'amount': 990000, 'seats': 0},
+    {'key': 'sub_lashes', 'line': 'lashes', 'amount': 990000, 'seats': 0},
+    {'key': 'sub_salon3', 'line': 'all', 'amount': 4900000, 'seats': 3},
+    {'key': 'sub_salon8', 'line': 'all', 'amount': 7900000, 'seats': 8},
+    {'key': 'sub_salon20', 'line': 'all', 'amount': 12900000, 'seats': 20},
+]
+SUB_PACKS = {  # subscriber image packs, per service: the more images, the cheaper each
+    'hair': {50: 1700000, 100: 3000000, 200: 5400000},
+    'color': {50: 2000000, 100: 3500000, 200: 6000000},
+    'nails': {50: 1300000, 100: 2200000, 200: 3800000},
+    'lashes': {50: 1300000, 100: 2200000, 200: 3800000},
+}
+for _k, _v in SUB_PACKS.items():
+    _each = [a // n for n, a in sorted(_v.items())]
+    assert _each == sorted(_each, reverse=True) and _each[0] < IMAGE_PRICES[_k]['single'], 'subscriber packs must get cheaper: ' + _k
+SUB_NAMES = {'hair': 'اشتراک مدل مو', 'color': 'اشتراک رنگ مو', 'nails': 'اشتراک ناخن', 'lashes': 'اشتراک مژه'}
+_FA = str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹')
+for _s in SUBS:
+    _s['name'] = SUB_NAMES[_s['line']] if _s['line'] != 'all' else 'اشتراک آرایشگاه تا ' + str(_s['seats']).translate(_FA) + ' نفر'
+
 
 def fa_int(n):
     return str(n).translate(str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹'))
@@ -221,9 +265,21 @@ def plans_block(tabs, selected):
 
 plans = '<!--PLANPANELS-->'  # filled per page by make_pages (pricing_for)
 assert all(p['amount'] > 0 for p in PLANS + SALON_PLANS)
-plans_js = ''.join("  %s: {name: '%s', title: '%s', months: %d, amount: %d, was: %d, credits: %d, tier: '%s', seats: %d, seat_amount: %d},\n"
+plans_js = ''.join("  %s: {name: '%s', title: '%s', months: %d, amount: %d, was: %d, credits: %d, tier: '%s', seats: %d, seat_amount: %d, sold: false},\n"
                    % (p['key'], p['name'], SERVICE_TITLES['all'] if p['seats'] else '', p['months'], p['amount'], p['was'], p['credits'], p['tier'], p['seats'], p['seat_amount'])
                    for p in PLANS + SALON_PLANS)
+plans_js += ''.join("  %s: {name: '%s', title: '%s', months: 1, amount: %d, was: 0, credits: 0, tier: 'full', seats: %d, seat_amount: 0, sold: true, line: '%s'},\n"
+                    % (s['key'], s['name'], s['name'].replace('اشتراک ', ''), s['amount'], s['seats'], s['line'])
+                    for s in SUBS)
+_obj = lambda d: '{' + ', '.join('%s: %s' % (k, v) for k, v in d.items()) + '}'
+prices_v2 = ('// Pricing v2 (owner\'s decision, Nov 2026). Path 1 «فقط ساخت تصویر»: per service, one image at' + NL
+             + '// `single` or a pack {count: amount}; any custom count costs count × single (a count equal to a' + NL
+             + '// pack size costs the pack). Path 2: the sub_* plans above (monthly) and SUB_PACKS for subscribers.' + NL
+             + 'export const IMAGE_PRICES = ' + _obj({k: _obj({'single': v['single'], 'packs': _obj(v['packs'])}) for k, v in IMAGE_PRICES.items()}) + ';' + NL
+             + 'export const PACK_SAVE = ' + _obj(PACK_SAVE) + ';' + NL
+             + 'export const SUB_PACKS = ' + _obj({k: _obj(v) for k, v in SUB_PACKS.items()}) + ';' + NL
+             + 'export const CUSTOM_MAX = %d;' % CUSTOM_MAX + NL
+             + 'export const SUB_KEYS = ' + json.dumps([s['key'] for s in SUBS]).replace('"', "'") + ';' + NL)
 W('../../worker/prices.js',
   '// The plan table — GENERATED by design/landing/build.py from PLANS, the same table that draws' + NL
   + '// the price cards on every service page. Never edit by hand: change build.py and rebuild.' + NL
@@ -236,7 +292,8 @@ W('../../worker/prices.js',
   + '// title: the checkout line «پلن <title> · ۳ ماهه»; empty = the service\'s own title below.' + NL
   + 'export const SERVICE_TITLES = ' + json.dumps(SERVICE_TITLES, ensure_ascii=False).replace('"', "'") + ';' + NL
   + '// After the gift credit runs out: every TOPUP.images images cost TOPUP.amount toman.' + NL
-  + 'export const TOPUP = {images: %d, amount: %d};' % (TOPUP_IMAGES, TOPUP_AMOUNT) + NL)
+  + 'export const TOPUP = {images: %d, amount: %d};' % (TOPUP_IMAGES, TOPUP_AMOUNT) + NL
+  + prices_v2)
 
 
 # ---------------- studio (live salon-page builder) ----------------

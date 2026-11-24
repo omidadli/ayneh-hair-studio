@@ -18,9 +18,10 @@
 //    provisions the salon and grants credits. Retries and double clicks are harmless.
 //  * Money is TOMAN on the page; amounts are stored in RIALS (×10).
 import {must, phone, text, uid, digits, hash} from './domain.js';
-import {PLANS, PRICE_MINUTES, TOPUP, SERVICE_TITLES} from './prices.js';
-import {applyPlan, grant, balance, MONTH} from './credits.js';
-import {featuresOf, OPENED_BY, can, seatsOf} from './plans.js';
+import {PLANS, PRICE_MINUTES, TOPUP, SERVICE_TITLES, IMAGE_PRICES, SUB_PACKS, SUB_KEYS, CUSTOM_MAX, PACK_SAVE} from './prices.js';
+import {applyPlan, applyOrder, grant, balance, isV2, MONTH} from './credits.js';
+import {featuresOf, OPENED_BY, can, seatsOf, imageOnly, tierNow} from './plans.js';
+import {planOf} from './credits.js';
 import {confirmCustomerPack} from './customers.js';
 import {rewardReferral} from './rewards.js';
 import {uniqueAmount} from './paysms.js';
@@ -147,7 +148,14 @@ export function orderTotal(plan, users = 0) {
   if (!p) return 0;
   return planAmount(plan) + Math.max(0, Number(users || 0) - Number(p.seats || 0)) * Number(p.seat_amount || 0);
 }
-const planName = row => row.kind === 'test' ? 'سفارش آزمایشی' : row.kind === 'topup' ? 'اعتبار ' + Number(row.credits || 0).toLocaleString('fa-IR') + ' عکس' : (PLANS[row.plan]?.name || row.plan);
+const LINE_FA = {hair: 'مدل مو', color: 'رنگ مو', nails: 'ناخن', lashes: 'مژه'};
+const nFa = n => Number(n || 0).toLocaleString('fa-IR');
+/* Pricing v2 order names: «۱۰ عکس مدل مو», «بستهٔ ۵۰ عکس رنگ مو», «اشتراک ناخن + بستهٔ ۵۰ عکس ناخن». */
+const packName = row => 'بستهٔ ' + nFa(row.credits) + ' عکس ' + (LINE_FA[row.line] || '');
+const planName = row => row.kind === 'test' ? 'سفارش آزمایشی' : row.kind === 'topup' ? 'اعتبار ' + Number(row.credits || 0).toLocaleString('fa-IR') + ' عکس'
+  : row.kind === 'images' ? nFa(row.credits) + ' عکس ' + (LINE_FA[row.line] || '') : row.kind === 'pack' ? packName(row)
+  : isV2(row.plan) ? (PLANS[row.plan]?.name || row.plan) + (Number(row.credits) > 0 ? ' + ' + packName(row) : '') + ' · یک ماه'
+  : (PLANS[row.plan]?.name || row.plan);
 
 /* Coupons: {CODE:{percent|amount, max, used}} in app_settings, editable without a deploy. */
 export async function couponTable(db) {
@@ -177,7 +185,7 @@ const toman = rial => Math.round(Number(rial || 0) / 10);
    comes from the generated plan table: a salon plan's own title, else the order's service. An
    order without a known service (an old one) falls back to the plan name. */
 export function orderSummary(row) {
-  if (row.kind === 'topup' || row.kind === 'test') return {title: planName(row), months: 0, users: 0};
+  if (row.kind === 'topup' || row.kind === 'test' || row.kind === 'images' || row.kind === 'pack' || isV2(row.plan)) return {title: planName(row), months: 0, users: Number(row.users || 0)};
   const p = PLANS[row.plan] || {};
   return {title: String(p.title || SERVICE_TITLES[row.service] || p.name || row.plan), months: Number(p.months || 0), users: Number(row.users || p.users || 0)};
 }
@@ -204,6 +212,7 @@ export async function publicOrder(db, env, row, {key = '', password = '', origin
     ...(password ? {panel_password: password} : {}),
     /* A top-up or a renewal from the panel keeps the salon's existing panel key. */
     same_key: row.kind === 'topup' || row.note === 'renewal',
+    line: row.line || '', image_only: row.kind === 'images',
     slug: paid && salon ? salon.slug : '',
     panel_username: paid && salon ? salon.slug : '',
     subdomain_url: paid && salon ? 'https://' + salon.slug + '.' + root + '/' : '',
@@ -298,6 +307,7 @@ export async function closeExpired(db) {
 export async function createOrder(db, env, b, origin = '') {
   const plan = String(b.plan || '');
   must(PLANS[plan], 'این پلن وجود ندارد.', 404);
+  must(!isV2(plan), 'اشتراک‌ها از صفحهٔ «خرید اشتراک و اعتبار» خریده می‌شوند.', 409);
   /* The service is the buyer's choice and decides what the salon offers (worker/plans.js
      linesOf): a single-service plan needs one of the four, «پنل آرایشگاه» is 'all'. An empty or
      unknown service would open every line for the price of one, so it is refused. */
@@ -340,6 +350,114 @@ export async function createOrder(db, env, b, origin = '') {
   await insert(db, row);
   await tell(env, 'سفارش ' + PLANS[plan].name + (service ? ' (' + SERVICE_LABEL[service] + ')' : '') + (users ? ' برای ' + users.toLocaleString('fa-IR') + ' کاربر' : '') + ' برای «' + salon + '» باز شد', row);
   return publicOrder(db, env, row, {key, password: panelPass, origin});
+}
+
+/* ---------- pricing v2 (owner's decision, Nov 2026): «خرید اشتراک و اعتبار» ----------
+   One body, three kinds; the amount is computed here from worker/prices.js only:
+     {kind:'images', line, count}        path 1: `count` images of one line; 5/10/20 = the pack
+                                         price, any other count (1..CUSTOM_MAX) = count × single.
+     {kind:'sub', sub, line?, pack?}     path 2: a monthly subscription (sub_* key), optionally with
+                                         a subscriber pack (50/100/200) in the same order; on a salon
+                                         subscription `line` says which service the pack is for.
+     {kind:'pack', line, pack}           a subscriber pack alone (needs a running subscription).
+   The browser never sends an amount; anything it sends besides these fields is ignored. */
+const V2_KINDS = ['images', 'pack'];
+export const isV2Row = row => V2_KINDS.includes(row.kind) || (row.kind === 'plan' && isV2(row.plan));
+const intOf = v => { const n = Number(digits(String(v ?? ''))); return Number.isInteger(n) ? n : NaN; };
+export function quote(b) {
+  const kind = String(b?.kind || '');
+  if (kind === 'images') {
+    const line = String(b.line || ''), count = intOf(b.count);
+    must(IMAGE_PRICES[line], 'خدمت را انتخاب کنید: مدل مو، رنگ مو، ناخن یا مژه.');
+    must(count >= 1 && count <= CUSTOM_MAX, 'تعداد عکس باید از ۱ تا ' + nFa(CUSTOM_MAX) + ' باشد.');
+    const p = IMAGE_PRICES[line];
+    return {kind, plan: 'images', service: line, line, credits: count, users: 0, amount: p.packs[count] || count * p.single};
+  }
+  if (kind === 'sub') {
+    const sub = String(b.sub || '');
+    must(SUB_KEYS.includes(sub), 'این اشتراک وجود ندارد.', 404);
+    const sheet = PLANS[sub], salonSub = sheet.line === 'all';
+    const pack = b.pack === undefined || b.pack === null || b.pack === '' || b.pack === 0 ? 0 : intOf(b.pack);
+    const line = salonSub ? String(b.line || '') : sheet.line;
+    if (pack) {
+      must(SUB_PACKS[line], 'بستهٔ عکس برای کدام خدمت است؟ مدل مو، رنگ مو، ناخن یا مژه.');
+      must(SUB_PACKS[line][pack], 'این بستهٔ عکس وجود ندارد.');
+    }
+    return {kind: 'plan', plan: sub, service: salonSub ? 'all' : sheet.line, line: pack ? line : '', credits: pack || 0, users: sheet.seats || 0,
+      amount: sheet.amount + (pack ? SUB_PACKS[line][pack] : 0)};
+  }
+  if (kind === 'pack') {
+    const line = String(b.line || ''), pack = intOf(b.pack);
+    must(SUB_PACKS[line], 'خدمت را انتخاب کنید: مدل مو، رنگ مو، ناخن یا مژه.');
+    must(SUB_PACKS[line][pack], 'این بستهٔ عکس وجود ندارد.');
+    return {kind, plan: 'pack', service: line, line, credits: pack, users: 0, amount: SUB_PACKS[line][pack]};
+  }
+  must(false, 'نوع خرید معتبر نیست.');
+}
+/* The same figures again from a stored row (a coupon is applied on the list price). */
+export const quoteOf = row => quote(row.kind === 'images' ? {kind: 'images', line: row.line, count: row.credits}
+  : row.kind === 'pack' ? {kind: 'pack', line: row.line, pack: row.credits}
+  : {kind: 'sub', sub: row.plan, line: row.line, pack: row.credits || 0});
+
+/* What a salon may buy now. A subscriber pack needs a running subscription that covers its line;
+   a single-service subscription is refused while a salon subscription (or a legacy «پنل آرایشگاه»)
+   is still running — the same no-downgrade rule as before. */
+function allowedFor(salon, q) {
+  const plan = planOf(salon), running = !!plan && Number(plan.until) > Date.now();
+  if (q.kind === 'pack') {
+    must(plan && tierNow(plan) === 'full', 'بستهٔ ۵۰، ۱۰۰ و ۲۰۰ عکسی مخصوص مشترک‌هاست. اول «اشتراک ماهانه» را بخرید (می‌شود بسته را همراهش خرید).', 409);
+    const sheet = PLANS[plan.key] || {};
+    must(sheet.line === 'all' || sheet.line === q.line, 'اشتراک شما برای «' + (LINE_FA[sheet.line] || '') + '» است؛ بستهٔ مشترکان همان خدمت را بخرید یا «فقط ساخت تصویر» را انتخاب کنید.', 409);
+  }
+  if (q.kind === 'plan' && !(PLANS[q.plan].seats > 0)) must(!(running && seatsOf(salon)), 'اشتراک آرایشگاه شما هنوز فعال است؛ برای برگشت به یک خدمت با پشتیبانی آینه تماس بگیرید.', 409);
+}
+
+const v2Tell = (q, who) => (q.kind === 'images' ? 'خرید ' + planName(q) : q.kind === 'pack' ? 'خرید ' + planName(q) : 'سفارش ' + planName(q)) + ' برای «' + who + '» باز شد';
+
+/* A purchase from /pricing by someone not signed in: the name and mobile only. A returning buyer
+   (same mobile, an earlier paid order) gets the same salon (provisionSalon). The name is the
+   salon's / brand name shown on its try-on page, never asked twice. */
+export async function createPurchase(db, env, b, origin = '') {
+  const q = quote(b);
+  const name = text(String(b.name || ''), 60);
+  must(name.length >= 2, 'نام سالن یا نام کاری خود را بنویسید.');
+  const tel = phone(b.phone), now = Date.now();
+  const prior = await priorSalon(db, tel);
+  if (prior) allowedFor(prior, q);
+  else must(q.kind !== 'pack', 'بستهٔ ۵۰، ۱۰۰ و ۲۰۰ عکسی مخصوص مشترک‌هاست. اول «اشتراک ماهانه» را بخرید (می‌شود بسته را همراهش خرید).', 409);
+  await closeExpired(db);
+  const id = uid();
+  await run(db, "UPDATE orders SET status='cancelled',replaced_by=?,updated_at=? WHERE phone=? AND kind IN ('plan','images','pack') AND status='open'", id, now, tel);
+  const key = newAccessKey(), panelPass = newPanelPassword();
+  const row = {
+    id, ref: ref(), plan: q.plan, kind: q.kind, service: q.service, users: q.users, credits: q.credits, line: q.line,
+    amount: q.amount * 10, salon_name: name, contact_name: name, phone: tel, city: '', note: '', status: 'open',
+    expires_at: now + ORDER_MINUTES * 60000, access_key_hash: await hashKey(key), pass_hash: await hashPassword(panelPass),
+    draft: '', coupon: '', discount: 0, created_at: now, updated_at: now,
+  };
+  await insert(db, row);
+  await tell(env, v2Tell(row, name), row);
+  return publicOrder(db, env, row, {key, password: panelPass, origin});
+}
+
+/* The same purchase from inside the salon panel (signed in): no form at all. The salon, contact,
+   mobile and panel key come from the panel session; the panel key stays the same. */
+export async function createPanelPurchase(db, env, {order: panelOrder, salon}, b, origin = '') {
+  const q = quote(b);
+  allowedFor(salon, q);
+  const now = Date.now();
+  await closeExpired(db);
+  const id = uid();
+  await run(db, "UPDATE orders SET status='cancelled',replaced_by=?,updated_at=? WHERE salon_id=? AND kind IN ('plan','images','pack') AND status='open'", id, now, salon.id);
+  const row = {
+    id, ref: ref(), plan: q.plan, kind: q.kind, service: q.service, users: q.users, credits: q.credits, line: q.line,
+    amount: q.amount * 10, salon_name: salon.name, contact_name: panelOrder.contact_name, phone: panelOrder.phone,
+    city: '', note: 'renewal', status: 'open', expires_at: now + ORDER_MINUTES * 60000,
+    access_key_hash: panelOrder.access_key_hash, coupon: '', discount: 0, created_at: now, updated_at: now, salon_id: salon.id,
+  };
+  await insert(db, row);
+  await tell(env, v2Tell(row, salon.name), row);
+  return publicOrder(db, env, row, {origin});
 }
 
 /* A top-up from the salon's own panel: n packs of TOPUP.images images. The salon is known
@@ -385,6 +503,7 @@ export async function createTestOrder(db, env, amountToman, origin = '') {
    applies the new plan to this same salon (provisionSalon honours salon_id). */
 export async function createRenewal(db, env, {order: panelOrder, salon}, plan, origin = '', usersIn) {
   must(PLANS[plan], 'این پلن وجود ندارد.', 404);
+  must(!isV2(plan), 'اشتراک‌ها از صفحهٔ «خرید اشتراک و اعتبار» خریده می‌شوند.', 409);
   /* A salon on «پنل آرایشگاه» renews or changes length within it; going back to one service
      means choosing which one, so the panel sends that to Ayneh support instead. */
   must(!seatsOf(salon) || PLANS[plan].seats > 0, 'برای برگشت از «پنل آرایشگاه» به پلن یک‌خدمتی با پشتیبانی آینه تماس بگیرید.', 409);
@@ -412,9 +531,9 @@ async function insert(db, row) {
   if (row.status === 'open') row.amount = await uniqueAmount(db, row.amount, row.id);
   if (row.card === undefined) row.card = await pickCard(db);
   await run(db,
-    'INSERT INTO orders(id,ref,plan,kind,service,users,credits,amount,salon_name,contact_name,phone,city,note,status,expires_at,access_key_hash,pass_hash,draft,coupon,discount,salon_id,card,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    'INSERT INTO orders(id,ref,plan,kind,service,users,credits,amount,salon_name,contact_name,phone,city,note,status,expires_at,access_key_hash,pass_hash,draft,coupon,discount,salon_id,card,created_at,updated_at,line) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
     row.id, row.ref, row.plan, row.kind, row.service, Number(row.users || 0), row.credits, row.amount, row.salon_name, row.contact_name, row.phone, row.city, row.note,
-    row.status, row.expires_at, row.access_key_hash, row.pass_hash || '', row.draft || '', row.coupon, row.discount, row.salon_id || null, row.card || '', row.created_at, row.updated_at);
+    row.status, row.expires_at, row.access_key_hash, row.pass_hash || '', row.draft || '', row.coupon, row.discount, row.salon_id || null, row.card || '', row.created_at, row.updated_at, row.line || '');
 }
 
 /* The owner hears about new orders on the alert channel. The mobile is the buyer's (a salon
@@ -453,7 +572,7 @@ export async function setCoupon(db, env, id, code, origin = '') {
   const row = await orderById(db, id);
   must(row, 'سفارش پیدا نشد.', 404);
   must(row.status === 'open' && row.kind !== 'topup', 'این سفارش دیگر قابل تغییر نیست.', 409);
-  const base = orderTotal(row.plan, row.users);
+  const base = isV2Row(row) ? quoteOf(row).amount : orderTotal(row.plan, row.users);
   const coupon = discountFor(code, base, await couponTable(db));
   must(coupon.code, 'این کد تخفیف معتبر نیست یا ظرفیتش پر شده.', 422);
   await run(db, 'UPDATE orders SET coupon=?,discount=?,amount=?,updated_at=? WHERE id=? AND status=?',
@@ -529,6 +648,12 @@ export async function confirmOrder(db, env, id, {by = 'owner', origin = '', amou
     salon = await one(db, 'SELECT id,name,slug FROM salons WHERE id=?', row.salon_id);
     must(salon, 'سالن این سفارش پیدا نشد.', 404);
     await grant(db, salon.id, Number(row.credits || 0), 'topup', row.id);
+  } else if (isV2Row(row)) {
+    /* Pricing v2: image credits on their own line, a subscription, or both (worker/credits.js applyOrder). */
+    salon = await provisionSalon(db, row);
+    await run(db, 'UPDATE orders SET salon_id=?,updated_at=? WHERE id=?', salon.id, Date.now(), id);
+    await applyOrder(db, salon.id, {...row, salon_id: salon.id});
+    if (row.kind === 'plan') await rewardReferral(db, env, row, salon).catch(e => console.error('referral reward', e?.message));
   } else {
     salon = await provisionSalon(db, row);
     await run(db, 'UPDATE orders SET salon_id=?,updated_at=? WHERE id=?', salon.id, Date.now(), id);
@@ -591,7 +716,7 @@ export async function webhookConfirm(db, env, b, origin = '') {
 }
 
 /* The salon an earlier paid plan of this mobile opened (the one a new plan order renews). */
-const priorSalon = (db, tel, notId = '') => one(db, "SELECT s.* FROM orders o JOIN salons s ON s.id=o.salon_id WHERE o.phone=? AND o.kind='plan' AND o.status='paid' AND o.id<>? ORDER BY o.confirmed_at DESC LIMIT 1", tel, notId);
+const priorSalon = (db, tel, notId = '') => one(db, "SELECT s.* FROM orders o JOIN salons s ON s.id=o.salon_id WHERE o.phone=? AND o.kind IN ('plan','images','pack') AND o.status='paid' AND o.id<>? ORDER BY o.confirmed_at DESC LIMIT 1", tel, notId);
 
 /* The salon a plan unlocks. A returning buyer (same mobile, an earlier paid plan) renews the
    same salon instead of getting a second one. The slug comes from the salon's name when it is
@@ -638,13 +763,13 @@ export async function panelLogin(db, input) {
     let storedHash = '';
     try { storedHash = JSON.parse(salon?.settings || '{}').panel_pass_hash || ''; } catch {}
     must(salon && storedHash && await verifyPassword(pass, storedHash), 'نام کاربری یا رمز عبور درست نیست.', 401);
-    row = await one(db, "SELECT * FROM orders WHERE salon_id=? AND kind='plan' AND status='paid' ORDER BY confirmed_at DESC LIMIT 1", salon.id);
+    row = await one(db, "SELECT * FROM orders WHERE salon_id=? AND kind IN ('plan','images','pack') AND status='paid' ORDER BY confirmed_at DESC LIMIT 1", salon.id);
     must(row, 'پلن فعالی برای این سالن پیدا نشد.', 401);
   } else {
     const rawKey = typeof input === 'object' && input ? input.key : input;
     const k = String(rawKey || '').trim().toUpperCase().replace(/\s+/g, '');
     must(/^AY-[2-9A-HJ-NP-Z]{9}$/.test(k), 'کلید ورود معتبر نیست.', 401);
-    row = await one(db, "SELECT * FROM orders WHERE access_key_hash=? AND kind='plan' AND status='paid' ORDER BY confirmed_at DESC LIMIT 1", await hashKey(k));
+    row = await one(db, "SELECT * FROM orders WHERE access_key_hash=? AND kind IN ('plan','images','pack') AND status='paid' ORDER BY confirmed_at DESC LIMIT 1", await hashKey(k));
     must(row && row.salon_id, 'این کلید یا تأیید نشده یا عوض شده است.', 401);
     salon = await one(db, 'SELECT * FROM salons WHERE id=?', row.salon_id);
     must(salon, 'سالن پیدا نشد.', 404);
@@ -673,7 +798,7 @@ export async function panelLogout(req, db) {
 
 /* A lost key: a new one for the order; every open panel session for it ends at once. */
 export async function rekeyOrder(db, id) {
-  const row = await one(db, "SELECT id FROM orders WHERE id=? AND kind='plan' AND status='paid'", id);
+  const row = await one(db, "SELECT id FROM orders WHERE id=? AND kind IN ('plan','images','pack') AND status='paid'", id);
   must(row, 'این سفارش تأیید نشده است', 409);
   const fresh = newAccessKey();
   await run(db, 'UPDATE orders SET access_key_hash=?,updated_at=? WHERE id=?', await hashKey(fresh), Date.now(), row.id);
@@ -695,7 +820,9 @@ function checklistOf(salon, seen, credit) {
   let ticks = {};
   try { ticks = JSON.parse(salon.settings || '{}').checklist || {}; } catch {}
   const auto = {portfolio: seen.portfolio, bot: seen.bot, try: seen.tried, share: seen.shared};
-  const items = CHECKLIST.map(c => ({...c, done: !!ticks[c.key] || !!auto[c.key], auto: !!auto[c.key]}));
+  /* Only the steps this plan has: an image-only salon has no gallery and no bot. */
+  const items = CHECKLIST.filter(c => (c.key !== 'portfolio' || can(salon, 'gallery')) && (c.key !== 'bot' || can(salon, 'bot')))
+    .map(c => ({...c, done: !!ticks[c.key] || !!auto[c.key], auto: !!auto[c.key]}));
   const plan = PLANS[credit?.plan] || {};
   return {
     items, done: items.filter(i => i.done).length, total: items.length,
@@ -730,11 +857,14 @@ export async function panelDashboard(db, env, {order, salon}) {
   const hasBot = can(salon, 'bot');
   const cap = seatsOf(salon);
   const onSalonPlan = cap > 0;
+  const hasPage = can(salon, 'page');
   const steps = [
-    {key: 'profile', label: 'نشانی، ساعت کار و یک توضیح کوتاه برای صفحه بنویسید', done: !!(p.bio || p.hours)},
-    {key: 'phone', label: 'شمارهٔ تماسی را که مشتری‌ها ببینند بنویسید', done: !!p.phone},
-    {key: 'portfolio', label: 'اولین نمونه‌کارتان را اضافه کنید', done: portfolio.length > 0},
-    {key: 'share', label: 'لینک صفحه را در بیو اینستاگرام بگذارید تا اولین درخواست برسد', done: leads.length > 0},
+    ...(hasPage ? [
+      {key: 'profile', label: 'نشانی، ساعت کار و یک توضیح کوتاه برای صفحه بنویسید', done: !!(p.bio || p.hours)},
+      {key: 'phone', label: 'شمارهٔ تماسی را که مشتری‌ها ببینند بنویسید', done: !!p.phone},
+      {key: 'portfolio', label: 'اولین نمونه‌کارتان را اضافه کنید', done: portfolio.length > 0},
+      {key: 'share', label: 'لینک صفحه را در بیو اینستاگرام بگذارید تا اولین درخواست برسد', done: leads.length > 0},
+    ] : [{key: 'try', label: 'با لینک خودتان یک نمونه بسازید', done: !!tried}]),
     ...(hasBot ? [
       {key: 'telegram', label: 'ربات تلگرام یا بله را وصل کنید', done: !!(salon.telegram_chat_id || salon.bale_chat_id)},
       {key: 'team', label: 'اگر همکار دارید، از ربات اضافه‌شان کنید (اختیاری)', done: team.length > 0},
@@ -757,7 +887,13 @@ export async function panelDashboard(db, env, {order, salon}) {
     profile: {bio: p.bio || '', address: p.address || '', hours: p.hours || '', phone: p.phone || '', instagram: String(p.instagram || '').replace(/^https?:\/\/(www\.)?instagram\.com\//i, '')},
     /* Plans the salon can renew to or upgrade to, straight from the panel. */
     /* A salon on «پنل آرایشگاه» is offered only those (going back to one service is a support call). */
-    plans: Object.entries(PLANS).filter(([, v]) => !onSalonPlan || v.seats > 0)
+    /* Pricing v2: what the salon has now and where it buys more (/pricing, worker/orders.js quote). */
+    pricing: credit && credit.v2 ? {
+      tier: tierNow(planOf(salon)), image_only: imageOnly(salon), active: credit.active, until: credit.until,
+      sub: PLANS[credit.plan]?.tier === 'full' ? {key: credit.plan, name: PLANS[credit.plan].name, line: PLANS[credit.plan].line} : null,
+      lines: credit.lines, offered: (() => { try { const l = JSON.parse(salon.settings || '{}').lines; return Array.isArray(l) ? l : []; } catch { return []; } })(),
+    } : null,
+    plans: Object.entries(PLANS).filter(([key, v]) => !isV2(key) && (!onSalonPlan || v.seats > 0))
       .map(([key, v]) => ({key, name: v.name, months: v.months, amount: planAmount(key), credits: v.credits, seats: v.seats, seat_amount: v.seat_amount})),
     setup: {steps, done: steps.filter(s => s.done).length, total: steps.length},
     checklist: checklistOf(salon, {portfolio: portfolio.length > 0, bot: !!(salon.telegram_chat_id || salon.bale_chat_id), tried: !!tried, shared: leads.length > 0}, credit),

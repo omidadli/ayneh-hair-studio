@@ -88,7 +88,7 @@
   function syncPlans() {
     for (const btn of buyButtons) {
       const key = btn.dataset.buy;
-      const open = btn.dataset.state === 'open' && Number(btn.dataset.amount) > 0;
+      const open = (btn.dataset.buy === 'v2' || btn.dataset.state === 'open') && Number(btn.dataset.amount) > 0;
       const card = btn.closest('.plan');
       if (card) card.dataset.open = String(open);
       /* Not aria-disabled: an unpriced button still works, it opens the demo form. */
@@ -100,10 +100,41 @@
     }
   }
 
+  /* ---------- pricing v2 (/pricing): what to buy, never how much ----------
+     A [data-buy="v2"] button carries kind + line + count / sub / pack. The form then asks only for
+     a name and a mobile (none at all when a salon panel is signed in: window.__AYN_PANEL), and its
+     button is the confirmation. The amount on it is a preview; the server's answer is what is paid. */
+  const LITE = ['paySalon', 'payCity'].map(id => $(id)?.closest('label')).filter(Boolean);
+  const nameLabel = $('payName')?.closest('label')?.querySelector('span');
+  const NAME_TEXT = nameLabel?.textContent || '';
+  const START_TEXT = $('payStart').textContent;
+  let who = null;
+  function liteForm(btn) {
+    const v2 = !!btn && btn.dataset.buy === 'v2';
+    const panel = v2 && window.__AYN_PANEL;
+    LITE.forEach(l => { l.hidden = v2; });
+    $('payConsent').closest('label').hidden = v2;
+    [$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!panel; });
+    if (nameLabel) nameLabel.textContent = v2 ? 'نام سالن یا نام کاری شما' : NAME_TEXT;
+    if (!who) { who = document.createElement('p'); who.className = 'pay-who'; $('payForm').prepend(who); }
+    who.hidden = !panel;
+    if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
+    $('payStart').textContent = v2 ? 'تأیید و نمایش شمارهٔ کارت · ' + money(Number(btn.dataset.amount)) : START_TEXT;
+  }
+  const v2Body = btn => {
+    const d = btn.dataset, b = {kind: d.kind};
+    if (d.line) b.line = d.line;
+    if (d.count) b.count = Number(d.count);
+    if (d.sub) b.sub = d.sub;
+    if (d.pack && d.pack !== '0') b.pack = Number(d.pack);
+    return b;
+  };
+
   /* ---------- step 1 → 2: open the order on the server ---------- */
   async function open(plan) {
     state.plan = plan;
     err($('payErr'), '');
+    if (state.buy?.dataset.buy === 'v2') return openV2();
     const body = {
       plan,
       /* the service of the card that was clicked (hair, color, nails, lashes; 'all' on the salon tab) */
@@ -136,6 +167,31 @@
       draw(order);
       view.form.hidden = true;
       section.scrollIntoView({behavior: 'smooth', block: 'start'});
+    } catch (e) {
+      err($('payErr'), e.message);
+    } finally {
+      $('payStart').disabled = false;
+    }
+  }
+
+  async function openV2() {
+    const panel = window.__AYN_PANEL;
+    const body = v2Body(state.buy);
+    if (!panel) {
+      body.name = $('payName').value.trim();
+      body.phone = $('payPhone').value.trim();
+      if (body.name.length < 2) return err($('payErr'), 'نام سالن یا نام کاری خود را بنویسید.');
+      if (!body.phone) return err($('payErr'), 'شمارهٔ موبایل را بنویسید.');
+    }
+    $('payStart').disabled = true;
+    try {
+      const order = await call(panel ? '/api/panel/buy' : '/api/buy', body);
+      state.order = order;
+      if (order.access_key) state.key = order.access_key;
+      if (order.panel_password) state.pass = order.panel_password;
+      remember(order.id, state.key, state.pass);
+      track('order_open', body.kind + ':' + (body.sub || body.line || ''));
+      draw(order);
     } catch (e) {
       err($('payErr'), e.message);
     } finally {
@@ -226,10 +282,21 @@
       if (!shown && order.same_key) {
         $('payDoneNote').textContent = 'با همان مشخصات قبلی‌تان وارد پنل شوید؛ پلن و اعتبار جدید همان‌جاست.';
         $('payAccessKey').closest('.pay-done__key').hidden = true;
-        $('payDoneTitle').textContent = order.kind === 'topup' ? 'پرداخت تأیید شد. اعتبار عکس به پنل شما اضافه شد.' : 'پرداخت تأیید شد. پنل شما تمدید شد.';
+        $('payDoneTitle').textContent = order.kind === 'topup' || order.kind === 'images' || order.kind === 'pack' ? 'پرداخت تأیید شد. اعتبار عکس به پنل شما اضافه شد.' : order.summary && !order.summary.months ? 'پرداخت تأیید شد. اشتراک شما فعال شد.' : 'پرداخت تأیید شد. پنل شما تمدید شد.';
         if (sub) sub.hidden = true;
         if (creds) creds.hidden = true;
         if (guide) guide.hidden = true;
+      } else if (order.subdomain_url && order.image_only) {
+        /* «فقط ساخت تصویر»: a try-on link and a panel for credits; no page setup to do. */
+        $('paySubUrl').textContent = order.subdomain_url;
+        $('payAdminUrl').textContent = order.subdomain_admin_url || '';
+        $('payUser').textContent = order.panel_username || order.slug || '—';
+        $('payPass').textContent = pass || '—';
+        const pr = $('payPassRow'); if (pr) pr.hidden = !pass;
+        if (creds) creds.hidden = false;
+        if (guide) guide.hidden = true;
+        $('payDoneTitle').textContent = 'پرداخت تأیید شد. اعتبار عکس شما فعال شد.';
+        if (sub) { sub.hidden = false; sub.textContent = 'با لینک زیر، مشتری‌ها روی عکس خودشان امتحان می‌کنند و از اعتبار شما یکی کم می‌شود. اعتبار و خرید دوباره در پنل است.'; }
       } else if (order.subdomain_url) {
         $('paySubUrl').textContent = order.subdomain_url;
         $('payAdminUrl').textContent = order.subdomain_admin_url || '';
@@ -298,7 +365,7 @@
   for (const btn of buyButtons) {
     btn.addEventListener('click', e => {
       const key = btn.dataset.buy;
-      const open = btn.dataset.state === 'open' && Number(btn.dataset.amount) > 0;
+      const open = (btn.dataset.buy === 'v2' || btn.dataset.state === 'open') && Number(btn.dataset.amount) > 0;
       /* No approved amount yet: the button still says «خرید», so the click must not look
          broken and must not open a checkout that cannot take money. It follows the anchor
          to the note under the panels and says the same thing in the panel itself. */
@@ -312,6 +379,21 @@
         return; // the anchor still carries the visitor to #plan-note
       }
       e.preventDefault();
+      if (key === 'v2') {
+        state.plan = key; state.buy = btn; state.service = btn.dataset.line || '';
+        state.order = null; clearInterval(state.poll); clearInterval(state.tick);
+        liteForm(btn);
+        $('payPlan').textContent = btn.dataset.title || '';
+        $('paySub').textContent = 'کارت‌به‌کارت واریز کنید؛ پرداخت شما خودکار تأیید می‌شود.';
+        usersBox.hidden = true;
+        err($('payErr'), '');
+        show('form');
+        track('order_intent', btn.dataset.kind);
+        const first = !window.__AYN_PANEL && !$('payName').value.trim() ? $('payName') : !window.__AYN_PANEL && !$('payPhone').value.trim() ? $('payPhone') : $('payStart');
+        setTimeout(() => first?.focus({preventScroll: true}), 60);
+        return;
+      }
+      liteForm(null);
       /* The chosen plan is remembered here, so the details form below knows what it is for
          even when the customer fills it by hand. */
       state.plan = key;

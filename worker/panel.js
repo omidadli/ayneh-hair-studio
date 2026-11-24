@@ -30,6 +30,7 @@ const css = String.raw`
 .pn-start input{min-height:50px;border:1px solid #d9c7b2;border-radius:12px;padding:0 14px;font:inherit;direction:ltr;text-align:left;letter-spacing:.06em}
 .pn-who{font-size:12.5px;color:var(--muted)}
 .pn-credit{display:grid;gap:4px}
+.pn-credits{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:8px 0 12px}.pn-credits .pn-credit{padding:12px;border:1px solid #EDE0D2;border-radius:14px;background:#fff}.pn-credits .pn-credit b{font-size:24px}.pn-credits .btn{justify-self:start}
 .pn-credit b{font-size:30px;font-weight:900;color:var(--ink);line-height:1.2}
 .pn-credit.is-low b{color:#B4553C}
 .pn-packs{display:flex;flex-wrap:wrap;gap:8px}
@@ -163,7 +164,15 @@ const dash = String.raw`
 /* End of credit (owner's wording): the panel stays open and keeps every customer and photo;
    only new images stop. The soft warning uses the same 7-day rule as the credit card. */
 var ENDED='اعتبار پنل تمام شد. نمونه‌سازی متوقف شده. برای ادامه تمدید کنید.',ENDING='اعتبار پنل نزدیک به پایان است.';
+/* Pricing v2: where a salon buys more (same host, so this panel's cookie comes along: no form). */
+var LINE_FA={hair:'مدل مو',color:'رنگ مو',nails:'ناخن',lashes:'مژه'};
+function buyHref(d,line){var p=d.pricing,s=line||(p&&p.sub?(p.sub.line==='all'?'salon':p.sub.line):(p&&p.offered&&p.offered[0])||d.service||'hair');return '/pricing?s='+encodeURIComponent(LINE_FA[s]||s==='salon'?s:'hair')}
 function endBanner(d){
+ var p=d.pricing;
+ if(p){if(!p.sub||!p.until)return null;var left=Math.ceil((p.until-Date.now())/86400000);if(p.active&&left>7)return null;
+  return el('div',{class:'notice '+(p.active?'notice--warn':'notice--danger')+' pn-end',role:p.active?'status':'alert'},[
+   el('span',{},[h('b',p.active?'اشتراک شما '+fa(Math.max(0,left))+' روز دیگر تمام می‌شود.':'اشتراک شما تمام شد. اعتبار عکس‌هایتان سر جایش است؛ صفحه، درخواست‌ها و نوبت‌ها با تمدید باز می‌شوند.')]),
+   el('a',{class:'btn btn--primary btn--sm',href:buyHref(d),text:'تمدید اشتراک'})]);}
  var c=d.credits;if(!c||!(c.expired||c.days_left<=7))return null;
  return el('div',{class:'notice '+(c.expired?'notice--danger':'notice--warn')+' pn-end',role:c.expired?'alert':'status'},[
   el('span',{},[h('b',c.expired?ENDED:ENDING),c.expired?null:' '+fa(c.days_left)+' روز مانده.']),
@@ -196,7 +205,7 @@ function welcomeCard(d){
  var today=c.started_at&&day(c.started_at)===day(Date.now());
  var pending=(d.setup&&d.setup.steps||[]).filter(function(s){return !s.done&&(s.key==='profile'||s.key==='phone')});
  return el('div',{class:'pn-card pn-welcome'},[
-  h('h2','پنل شما باز شد.'),h('p','چهار کار تا اولین مشتری'),
+  h('h2','پنل شما باز شد.'),h('p',c.total===4?'چهار کار تا اولین مشتری':(['','یک','دو','سه'][c.total]||fa(c.total))+' کار تا اولین مشتری'),
   el('div',{class:'pn-progress'},[bar]),count,
   el('ul',{class:'pn-check'},rows),note,
   pending.length?el('p',{class:'pn-note'},['صفحهٔ شما: '+pending.map(function(s){return s.label}).join('؛ ')+' ',el('a',{href:'#page',text:'«صفحهٔ من»'})]):null,
@@ -206,7 +215,19 @@ function welcomeCard(d){
 }
 function stepRow(s){return el('li',{'class':s.done?'is-done':''},[h('span','✓','pn-tick'),h('span',s.label)])}
 /* Plan and image credits: what is left, until when, and buying more through the same checkout. */
+function creditCardV2(d){
+ var p=d.pricing,lines=(p.sub&&p.sub.line==='all')?['hair','color','nails','lashes']:(p.offered&&p.offered.length?p.offered:['hair','color','nails','lashes']);
+ var rows=lines.map(function(k){var x=p.lines[k]||{left:0,used:0};return el('div',{class:'pn-credit'+(x.left<=3?' is-low':'')},[h('span','اعتبار '+LINE_FA[k],'pn-who'),h('b',fa(x.left)+' عکس'),h('span',fa(x.used)+' عکس ساخته شده؛ عکس‌های ناموفق حساب نمی‌شوند.','pn-who'),el('a',{class:'btn btn--ghost btn--sm',href:buyHref(d,k),text:'خرید عکس '+LINE_FA[k]})])});
+ return el('div',{class:'pn-card'},[
+  h('h2',p.image_only?'اعتبار عکس':'اشتراک و اعتبار عکس'),
+  p.sub&&p.active?h('p',p.sub.name+' تا '+fmt(p.until)+' فعال است.'):p.image_only?h('p','حساب «فقط ساخت تصویر»: هر عکسِ ساخته‌شده یک اعتبار از همان خدمت کم می‌کند. اعتبار هیچ‌وقت منقضی نمی‌شود.'):null,
+  el('div',{class:'pn-credits'},rows),
+  el('a',{class:'btn btn--primary btn--sm',href:buyHref(d),text:'خرید اشتراک و اعتبار'}),
+  h('small','کد آخرین خرید '+d.ref+' · تأیید در '+fmt(d.paid_at),'pn-who')
+ ]);
+}
 function creditCard(d){
+ if(d.pricing)return creditCardV2(d);
  var c=d.credits;
  if(!c)return el('div',{class:'pn-card'},[h('h2','اعتبار تصویر'),h('p','این سالن پلن فعالی ندارد؛ تصویرها محدودیت اعتباری ندارند.')]);
  var low=c.left<=Math.max(3,Math.round(c.granted*.1));
@@ -244,6 +265,7 @@ var has=function(d,f){return (d.features||[]).indexOf(f)>=0};
 /* The service page that sells this salon's plans: hairstyle and hair colour are both on /hair. */
 var PAGE={hair:'hair',color:'hair',nails:'nails',lashes:'lashes'};
 function locked(d,f,title,why){
+ if(d.pricing)return el('div',{class:'pn-locked'},[h('b',title),h('p',why),h('span','این بخش با «اشتراک ماهانه» باز است.','pn-badge'),el('a',{class:'btn btn--primary btn--sm',href:buyHref(d),text:'دیدن اشتراک‌ها'})]);
  return el('div',{class:'pn-locked'},[h('b',title),h('p',why),h('span','این بخش در پلن '+d.opened_by[f]+' و بالاتر باز است.','pn-badge'),el('a',{class:'btn btn--primary btn--sm',href:'/'+(PAGE[d.service]||'hair')+'#services',text:'دیدن پلن‌ها'})]);
 }
 /* Persian day chips for the next 14 days and a 24-hour time: Tehran midnight + hh:mm. */
@@ -446,7 +468,17 @@ var PLAN_ADDS={essential:['صفحهٔ اختصاصی و گالری نمونه‌
 PLAN_ADDS.salon1=['همهٔ خدمت‌ها: مدل مو، رنگ مو، ناخن و مژه','امکانات پلن پایه برای کل سالن'];
 PLAN_ADDS.salon3=['همهٔ خدمت‌ها: مدل مو، رنگ مو، ناخن و مژه','امکانات پلن حرفه‌ای برای کل سالن'];
 PLAN_ADDS.salon6=['همهٔ خدمت‌ها: مدل مو، رنگ مو، ناخن و مژه','امکانات پلن کامل برای کل سالن'];
+function plansTabV2(d,box){
+ var p=d.pricing,feats=[['page','صفحهٔ اختصاصی با نمونه‌کارهای شما'],['inbox','درخواست مشتری در پنل و ربات تلگرام یا بله'],['booking','ثبت نوبت با یادآوری و پیگیری'],['report_simple','گزارش عملکرد و آرشیو مشتریان'],['priority_support','پشتیبانی ویژه از داخل پنل']];
+ box.replaceChildren(h('h2','اشتراک و اعتبار'),
+  h('p',p.sub&&p.active?'«'+p.sub.name+'» تا '+fmt(p.until)+' فعال است. تمدید یک‌ماهه است و خودکار نیست.':p.sub?'اشتراک «'+p.sub.name+'» تمام شده؛ اعتبار عکس‌ها سر جایش است.':'حساب شما «فقط ساخت تصویر» است. با «اشتراک ماهانه» این‌ها هم باز می‌شود:'),
+  el('ul',{class:'pn-steps'},feats.map(function(f){var on=has(d,f[0]);return el('li',{'class':on?'is-done':''},[h('span',on?'✓':'—','pn-tick'),h('span',f[1])])})),
+  d.seats?h('p','کاربران: '+fa(d.seats.used)+' از '+fa(d.seats.cap)+' (با خود مدیر). همکارها از ربات با /team اضافه می‌شوند.','pn-note'):null,
+  el('a',{class:'btn btn--primary',href:buyHref(d),text:p.sub&&p.active?'تمدید اشتراک یا خرید عکس':'خرید اشتراک و اعتبار'}),
+  h('p','پرداخت کارت‌به‌کارت است و با همین پنل انجام می‌شود؛ کلید ورودتان عوض نمی‌شود.','pn-note'));
+}
 function plansTab(d,box){
+ if(d.pricing)return plansTabV2(d,box);
  var cur=(d.credits&&d.credits.plan)||'',err=el('p',{class:'notice notice--warn',hidden:true});
  var cards=(d.plans||[]).map(function(p){var isCur=p.key===cur;
   /* «پنل آرایشگاه»: users (the manager is one); each one beyond the included ones is priced for the whole period.
@@ -488,7 +520,7 @@ function dash(d){
    d.checklist||has(d,'bot')?botCard(d):null
   ]);
  /* Only what this plan opens gets a tab; everything else waits in «پلن و ارتقا». */
- var ALL=[['home','خانه',null],['requests','درخواست‌ها','inbox'],['bookings','نوبت‌ها','booking'],['report','گزارش','report_simple'],['customers','مشتریان','archive'],['page','صفحهٔ من','page'],['support','پشتیبانی','priority_support'],['plans','پلن و ارتقا',null]];
+ var ALL=[['home','خانه',null],['requests','درخواست‌ها','inbox'],['bookings','نوبت‌ها','booking'],['report','گزارش','report_simple'],['customers','مشتریان','archive'],['page','صفحهٔ من','page'],['support','پشتیبانی','priority_support'],['plans',d.pricing?'اشتراک و اعتبار':'پلن و ارتقا',null]];
  var TABS=ALL.filter(function(t){return !t[2]||has(d,t[2])});
  var body=el('div',{}),tabs=el('div',{class:'pn-tabs',role:'tablist','aria-label':'بخش‌های پنل'});
  function show(key){
@@ -504,11 +536,11 @@ function dash(d){
  $('#app').replaceChildren(el('section',{class:'pn'},[
   el('div',{class:'pn-bar'},[
    el('a',{class:'pn-brand',href:(function(){var m=document.querySelector('meta[name="ayneh-biz"]');return m&&m.content?m.content+'/':'/'})()},[el('span',{html:MARK}),'آینه']),
-   el('div',{style:'display:flex;gap:8px;align-items:center'},[h('span',d.salon.name+' · پلن '+d.plan,'pn-who'),el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'خروج',onclick:function(){api('/api/panel/logout',{}).then(function(){location.href='/panel'})}})])
+   el('div',{style:'display:flex;gap:8px;align-items:center'},[h('span',d.salon.name+' · '+(d.pricing?'':'پلن ')+d.plan,'pn-who'),el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'خروج',onclick:function(){api('/api/panel/logout',{}).then(function(){location.href='/panel'})}})])
   ]),
   el('div',{class:'pn-card pn-hero'},[
    h('h1','صفحهٔ '+d.salon.name+' باز است'),
-   h('p',(SERVICE_TEXT[d.service]||SERVICE_TEXT.hair)+' این لینک را در بیو اینستاگرام بگذارید یا برای مشتری‌ها بفرستید.'),
+   h('p',(d.pricing&&d.pricing.image_only?'مشتری با این لینک روی عکس خودش امتحان می‌کند و هر عکس یک اعتبار از همان خدمت کم می‌کند.':(SERVICE_TEXT[d.service]||SERVICE_TEXT.hair))+' این لینک را در بیو اینستاگرام بگذارید یا برای مشتری‌ها بفرستید.'),
    el('div',{class:'pn-link'},[el('code',{id:'pnLink',text:d.salon.url}),shareBtn,el('a',{class:'btn btn--primary btn--sm',href:d.salon.url,target:'_blank',rel:'noopener',text:'دیدن صفحه'})])
   ]),
   endBanner(d),tabs,body

@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync,readdirSync,existsSync} from 'node:fs';
 import {database,memoryBucket} from '../scripts/local-adapter.mjs';import app from '../worker/index.js';
-import {phone,transferPrompt} from '../worker/domain.js';import {appHTML} from '../worker/ui.js';import {customerHTML,customerJS} from '../worker/customer.js';import {landingHTML,servicePages} from '../worker/landing.js';
+import {phone,transferPrompt} from '../worker/domain.js';import {appHTML} from '../worker/ui.js';import {customerHTML,customerJS} from '../worker/customer.js';import {landingHTML,servicePages,pricingHTML} from '../worker/landing.js';
 import {brandMark as generatedMark,favicon as faviconMark} from '../worker/brand.js';
 const brand=()=>({brandMark:generatedMark,faviconMark});import {tick} from '../worker/server.js';import {styles} from '../worker/legacy.js';
 
@@ -1213,7 +1213,7 @@ test('copy plan: salon-panel page and the demo page',()=>{
  assert.equal((salon.match(/class="glance__card"/g)||[]).length,4,'four services at a glance');
  assert.equal((salon.match(/<article class="why">/g)||[]).length,3,'teamwork in three cards');
  assert.ok(salon.includes('لینک اختصاصی')&&salon.includes('درخواست‌ها فقط پیش خودش می‌رسه.'));
- assert.ok(salon.includes('سه تا پلن جدا یا <em>یه پنل آرایشگاه؟</em>')&&salon.includes('کل تیمتون روی یه تصویر دقیق با مشتری هماهنگ می‌شه.'));
+ assert.ok(salon.includes('سه تا اشتراک جدا یا <em>یه اشتراک آرایشگاه؟</em>')&&salon.includes('کل تیمتون روی یه تصویر دقیق با مشتری هماهنگ می‌شه.'));
  assert.doesNotMatch(salon,/class="pbar"|class="pcompare" id="compare"/,'the single-service bar and table are not on the salon page');
  const demo=servicePages.sample;
  for(const step of ['خدمتتون رو انتخاب کنید.','یه عکس روبه‌رو و پرنور بذارید.','مدل و نتیجه رو روی خودتون ببینید.'])assert.ok(demo.includes(step),'step '+step);
@@ -1245,9 +1245,9 @@ test('copy plan: the FAQ is six short answers in the order they block a purchase
  const faq=(landingHTML.match(/<section id="faq"[\s\S]*?<\/section>/)||[])[0]||'';
  const qs=[...faq.matchAll(/<summary>([^<]*)<\/summary>\s*<div class="faq-item__body">([\s\S]*?)<\/div>/g)];
  assert.equal(qs.length,6,'six questions');
- assert.deepEqual(qs.map(m=>m[1]),['عکس مشتری کجا می‌ره؟','نتیجه دقیقاً همون می‌شه؟','مشتری‌ها باید برنامه‌ای نصب کنن؟','سالن چند نفره داریم؛ کدوم پلن مناسبمونه؟','پرداخت و تمدیدش چطوریه؟','اگه عکس‌های هدیه تموم شد چی؟']);
+ assert.deepEqual(qs.map(m=>m[1]),['عکس مشتری کجا می‌ره؟','نتیجه دقیقاً همون می‌شه؟','مشتری‌ها باید برنامه‌ای نصب کنن؟','سالن چند نفره داریم؛ کدوم پلن مناسبمونه؟','پرداخت و تمدیدش چطوریه؟','اگه اعتبار عکس تموم شد چی؟']);
  for(const [,q,a] of qs)assert.ok((a.replace(/<[^>]*>/g,'').match(/[.؛]/g)||[]).length<=3,'short answer: '+q);
- assert.match(faq,/بستهٔ ۱۰ تایی جدا می‌خرید\. قیمت فعلی هر بسته ۲۰۰ هزار تومانه\./,'the top-up price comes from the price table');
+ assert.match(faq,/href="\/pricing">خرید اشتراک و اعتبار<\/a> عکس بیشتر می‌خرید\. اعتبار عکس هیچ‌وقت منقضی نمی‌شه\./,'more images: the pricing page (pricing v2)');
  assert.match(faq,/href="\/salon-panel">پنل آرایشگاه/,'the salon answer links to the salon page');
  const foot=(landingHTML.match(/<footer class="site-footer">[\s\S]*?<\/footer>/)||[])[0]||'';
  assert.ok(foot,'footer exists');
@@ -1471,35 +1471,20 @@ test('step 24 layout: the grids collapse cleanly at 1120 / 900 / 600',()=>{
  assert.match(landingHTML,/\[hidden\]\{display:none!important\}/,'hidden always wins over a display rule');
 });
 
-test('step 24 pricing: the three plans of the owner\'s price sheet, on the home page and every service page',()=>{
- for(const k of ['home','hair','color','nails','lashes']){
+test('step 24 pricing (v2): every business page points its price section at /pricing with its own service; no old plan is sold',()=>{
+ for(const [k,s] of [['home','hair'],['hair','hair'],['color','color'],['nails','nails'],['lashes','lashes'],['salon','salon']]){
   const html=k==='home'?landingHTML:servicePages[k];
-  for(const [name,months,price,was,key] of [['پایه','۱','۲٫۹','','essential'],['حرفه‌ای','۳','۶','۸٫۷','pro'],['کامل','۶','۱۰','۱۷٫۴','signature']]){
-   const card=html.match(new RegExp('<article class="plan[^"]*" data-plan="'+key+'">[\\s\\S]*?</article>'))[0];
-   assert.ok(card.includes('>'+name+'</h3>'),k+' '+name);
-   assert.ok(card.includes(months+' ماهه'),name+' runs '+months+' months');
-   assert.ok(card.includes('<b>'+price+'</b> میلیون تومان'),name+' costs '+price);
-   if(was)assert.ok(card.includes('<s>'+was+' میلیون تومان</s>'),name+' was '+was);
-  }
-  for(const f of ['صفحهٔ اختصاصی شما','گالری نمونه‌کار','امتحان مدل با عکس دلخواه مشتری','دریافت درخواست مشتری','۲۰ عکس هدیه',
-   'همهٔ امکانات پلن پایه','۷۵ عکس هدیه','اتصال پیام‌رسان','نوبت‌دهی و پیگیری','گزارش عملکرد ساده',
-   'همهٔ امکانات پلن حرفه‌ای','۱۸۰ عکس هدیه','گزارش عملکرد کامل','آرشیو مشتریان','پشتیبانی ویژه'])
-   assert.ok(html.includes(f),k+' lists «'+f+'» as on the sheet');
-  assert.match(html,/data-plan="signature">[\s\S]*?class="plan__badge">[\s\S]*?پیشنهاد آینه/,'SIGNATURE carries the badge');
-  assert.ok(html.includes('بعد از تموم شدن عکس‌های هدیه، هر ۱۰ عکس ۲۰۰ هزار تومانه'),'the top-up note');
+  const sec=(html.match(/<section id="services"[\s\S]*?<\/section>/)||[''])[0];
+  assert.ok(sec.includes('href="/pricing?s='+s+'"'),k+' links /pricing?s='+s);
+  assert.ok(sec.includes('خرید اشتراک و اعتبار'),k+': the one action');
+  assert.doesNotMatch(html,/data-buy="/,k+': nothing is bought on this page any more');
  }
- // five visible tabs (four services and the salon); the home page opens «مدل مو»
- assert.match(landingHTML,/<div class="ptabs" data-ptabs>/,'the tab row is on');
- assert.match(landingHTML,/id="ptab-hair" aria-controls="plans-single" data-tab="hair" aria-selected="true"/);
- for(const t of ['hair','color','nails','lashes','salon'])assert.match(landingHTML,new RegExp('data-tab="'+t+'"'),t+' tab');
- // the server charges from the same table
- assert.deepEqual(Object.fromEntries(Object.entries(PLANS).map(([k,v])=>[k,[v.months,v.amount,v.credits]])),
-  {essential:[1,2900000,20],pro:[3,6000000,75],signature:[6,10000000,180],
-   salon1:[1,5000000,40],salon3:[3,10000000,150],salon6:[6,15000000,360]});
- // «پنل آرایشگاه»: 3 users included; each user beyond is priced for the whole period
- assert.deepEqual(['salon1','salon3','salon6'].map(k=>[PLANS[k].seats,PLANS[k].seat_amount,PLANS[k].tier]),
-  [[3,2000000,'essential'],[3,1500000,'pro'],[3,1000000,'signature']]);
- for(const k of ['essential','pro','signature'])assert.equal(PLANS[k].seats,0,k+' has no user count');
+ // the figures in the teaser come from the sheet
+ assert.ok(servicePages.color.includes('هر عکس ۶۰٬۰۰۰ تومان')&&servicePages.color.includes('ماهی ۲٬۹۰۰٬۰۰۰ تومان'));
+ assert.ok(servicePages.nails.includes('هر عکس ۴۰٬۰۰۰ تومان')&&servicePages.nails.includes('ماهی ۹۹۰٬۰۰۰ تومان'));
+ assert.ok(servicePages.salon.includes('از ماهی ۴٬۹۰۰٬۰۰۰ تومان'));
+ // the old plans stay readable for older orders, but none is sold
+ for(const k of ['essential','pro','signature','salon1','salon3','salon6'])assert.equal(PLANS[k].sold,false,k);
  assert.deepEqual(TOPUP,{images:10,amount:200000});
 });
 
@@ -1528,7 +1513,7 @@ test('step 24 studio: the live salon preview survives the rebuild',()=>{
  assert.match(servicePages.hair,/id="builderActivate" href="#services"[^>]*>فعال‌سازی سریع صفحه</,'the studio hands over to the panels');
  assert.match(landingHTML,/id="previewModal"[^>]*\bhidden\b/,'the preview modal starts hidden');
  assert.match(bundle,/ayneh:preview-open/,'wizard opens the preview popup');
- assert.ok(landingHTML.includes('برای فعال‌سازی صفحه‌تون یکی از پلن‌های زیر رو انتخاب کنید؛ بعد از تکمیل خرید، صفحهٔ اختصاصی‌تون فوراً فعال می‌شه.'),'pricing activation guidance');
+ assert.ok(landingHTML.includes('href="/pricing?s=hair"'),'pricing activation: the price section hands over to /pricing');
  assert.match(servicePages.hair,/const studio=document\.getElementById\('salon-example'\)/,'mobile sticky action knows the builder section');
  assert.match(servicePages.hair,/!overStudio/,'mobile sticky action stays out of the live builder');
  assert.match(bundle,/querySelector\('\.upload-name'\)/,'the file label keeps a node to update');
@@ -1581,19 +1566,12 @@ function priced(plan, amount, quota = 30) {
   return () => Object.assign(PLANS[plan], before);
 }
 
-test('step 25 funnel: every plan sells with «خرید» and opens the checkout on its own page',()=>{
- for(const k of ['hair','nails','lashes']){
-  const html=servicePages[k];
-  const labels=[...html.matchAll(/<a\b[^>]*data-buy="([a-z]+)"[^>]*>([^<]*)<\/a>/g)];
-  assert.deepEqual(labels.map(m=>m[1]),['essential','pro','signature']);
-  for(const [tag,plan,text] of labels){
-   assert.equal(text,'خرید',plan+' says خرید');
-   assert.match(tag,/data-state="open"/);assert.match(tag,new RegExp('data-amount="'+PLANS[plan].amount+'"'),plan+' carries the sheet amount');
-   assert.match(tag,/href="#pay"/,'the anchor lands on the checkout');
-  }
-  assert.match(html,/id="pay"/);
- }
- assert.match(payJS,/service,/,'the checkout tells the server which service page it came from');
+test('step 25 funnel (v2): /pricing sells with «خرید» buttons that name what to buy, never an amount the server trusts',()=>{
+ const buys=[...pricingHTML.matchAll(/<button type="button" class="[^"]*pr-buy" data-buy="v2"([^>]*)>/g)].map(m=>m[1]);
+ assert.ok(buys.length>=4*3+4*4+3,'path-1 packs, subscription cards and salon cards');
+ for(const b of buys)assert.match(b,/data-kind="(images|sub|pack)"/);
+ assert.match(payJS,/\/api\/buy/,'the checkout opens the order on the server');
+ assert.match(payJS,/\/api\/panel\/buy/,'a signed-in panel buys without a form');
 });
 
 test('step 25 narrow phones: nothing in the header or the studio preview widens the page under 430px', () => {
@@ -1873,16 +1851,15 @@ test('step 25 key: the panel key is handed out when the order opens (once), neve
 test('step 25 pages: /panel and /pay are real routes, the panel page parses, and only service pages sell',async()=>{
   new Function(panelHTML.split('<script>')[1].split('</script>')[0]);
   assert.match(landingHTML,/id="pay"/,'the home page carries the checkout its price cards open');
-  for(const k of ['home','hair','color','nails','lashes','salon']){
-   const html=k==='home'?landingHTML:servicePages[k];
-   assert.equal((html.match(/data-state="open"/g)||[]).length,k==='salon'?3:6,k+': every plan on the page sells (three single-service, three «پنل آرایشگاه»)');
+  for(const k of ['home','hair','color','nails','lashes','salon','pricing']){
+   const html=k==='home'?landingHTML:k==='pricing'?pricingHTML:servicePages[k];
    assert.match(html,/پرداخت موقتاً ممکن نیست: شمارهٔ کارت آینه هنوز ثبت نشده/);
    assert.match(html,/هر سفارش فقط ۱۰ دقیقه اعتبار دارد/);
    assert.doesNotMatch(html,/[0-9۰-۹]{16}/,'no card number is ever baked into the page');
   }
   const e=fixture();
   const pay=await app.fetch(new Request(BIZ+'/pay'),e);
-  assert.equal(pay.status,200);assert.match(await pay.text(),/id="payForm"/,'/pay serves a page with the checkout');
+  assert.equal(pay.status,200);const payPage=await pay.text();assert.match(payPage,/id="payForm"/,'/pay serves a page with the checkout');assert.match(payPage,/id="pricing"/,'/pay is the pricing page (pricing v2)');
   assert.match(panelHTML,/\/api\/panel\/topup/,'the panel can buy more images');
 });
 
@@ -1907,7 +1884,7 @@ test('step 25 checkout never leaves a "buy a panel" bar over a payment, and an u
   assert.match(js, /order\//, 'status, receipt and coupon all go through the order endpoints');
   assert.match(js, /expires_at/, 'the countdown mirrors the server deadline');
   assert.doesNotMatch(js, /تومان\/\s*\d/, 'the page does not compute its own prices');
-  assert.equal((landingHTML.match(/data-state="open"/g) || []).length, 6, 'the home page sells the three plans and the three salon plans');
+  assert.doesNotMatch(landingHTML, /data-buy="/, 'the home page links to /pricing instead of selling (pricing v2)');
 });
 
 test('step 25 brand: the favicon is the owner\'s mirror logo, never the retired brass mark', () => {
@@ -2751,35 +2728,11 @@ test('pay page: the owner\'s final copy, no receipt or manager step anywhere, th
 import {SERVICE_TITLES} from '../worker/prices.js';
 const mil=t=>String(t/1e6).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d]).replace('.','٫');
 const panelOf=(html,key)=>(html.match(new RegExp('<div class="plans-panel"[^>]*data-plans-panel="'+key+'"[^>]*>[\\s\\S]*?</article></div></div>'))||[])[0]||'';
-test('pricing tabs: five visible tabs, each service page opens its own, /salon-panel sells only the salon plans',()=>{
- for(const [k,own] of [['home','hair'],['hair','hair'],['color','color'],['nails','nails'],['lashes','lashes']]){
-  const html=k==='home'?landingHTML:servicePages[k];
-  assert.match(html,/<div class="ptabs" data-ptabs>/,k+': the tab row is visible');
-  assert.match(html,new RegExp('id="ptab-'+own+'"[^>]*aria-selected="true"'),k+' opens the '+own+' tab');
-  assert.equal((html.match(/aria-selected="true" tabindex="0"/g)||[]).length,1,k+': one selected tab');
-  const single=panelOf(html,'hair color nails lashes');assert.ok(single,k+': the single-service panel');
-  assert.doesNotMatch(single.slice(0,200),/ hidden>/,k+': the own panel is visible without a script');
-  const buys=[...single.matchAll(/data-buy="(\w+)" data-service="(\w+)" data-title="([^"]+)" data-months="(\d)"/g)];
-  assert.deepEqual(buys.map(m=>m[1]),['essential','pro','signature']);
-  for(const m of buys){assert.equal(m[2],own,k+' sells '+own);assert.equal(m[3],SERVICE_TITLES[own]);assert.equal(Number(m[4]),PLANS[m[1]].months)}
-  const salon=panelOf(html,'salon');assert.match(salon,/data-plans-panel="salon" hidden>/,k+': the salon tab waits behind its tab');
- }
- const s=servicePages.salon;
- assert.match(s,/<div class="ptabs" data-ptabs hidden>/,'one tab: no tab row');
- assert.doesNotMatch(s,/data-plans-panel="hair/,'no single-service cards on the salon page');
- const sp=panelOf(s,'salon');assert.ok(sp&&!/data-plans-panel="salon" hidden/.test(sp),'the salon cards are visible');
- assert.ok(sp.includes('به‌صرفه‌ترین برای ۲ نفر به بعد'),'the value badge');
- for(const k of ['salon1','salon3','salon6']){
-  const p=PLANS[k],card=sp.match(new RegExp('<article class="plan[^"]*" data-plan="'+k+'">[\\s\\S]*?</article>'))[0];
-  assert.ok(card.includes('<b>'+mil(p.amount)+'</b> میلیون تومان'),k+' price from the table');
-  const each=Math.round(p.amount/p.seats/1e5)/10;
-  assert.ok(card.includes('برای ۳ نفر: نفری '+(each*1e6*p.seats===p.amount?'':'حدود ')+mil(each*1e6)+' میلیون تومان'),k+' per-person share computed');
-  assert.ok(card.includes('نفر چهارم به بعد: هر نفر '+mil(p.seat_amount)+' میلیون تومان برای کل دوره'),k+' extra-user line');
-  assert.ok(card.includes('اعتبار هدیه '+String(p.credits).replace(/[0-9]/g,d=>'۰۱۲۳۴۵۶۷۸۹'[d])+' عکس'),k+' gift images');
-  assert.match(card,new RegExp('data-buy="'+k+'" data-service="all" data-title="آرایشگاه" data-months="'+p.months+'" data-state="open" data-amount="'+p.amount+'" data-seats="3" data-seat-amount="'+p.seat_amount+'"'));
-  assert.equal(/class="plan__badge"[\s\S]*?پیشنهاد آینه/.test(card),k==='salon6',k+' «پیشنهاد آینه» only on 6 months');
- }
- for(const k of ['salon1','salon3','salon6'])assert.ok(panelOf(landingHTML,'salon').includes('data-buy="'+k+'"'),'the home salon tab sells '+k);
+test('pricing tabs (v2): /pricing has five tabs, the hair tab is open without a script, the others wait',()=>{
+ for(const k of ['hair','color','nails','lashes','salon'])assert.match(pricingHTML,new RegExp('id="prtab-'+k+'" data-ptab="'+k+'"'));
+ assert.match(pricingHTML,/id="prtab-hair"[^>]*aria-selected="true"/);
+ assert.match(pricingHTML,/id="prpanel-hair"[^>]*data-panel="hair">/,'the hair panel is visible');
+ for(const k of ['color','nails','lashes','salon'])assert.match(pricingHTML,new RegExp('id="prpanel-'+k+'"[^>]*data-panel="'+k+'" hidden>'),k+' waits');
  // amounts enter only through build.py: no partial carries a price
  for(const f of readdirSync(new URL('../design/landing/src/',import.meta.url)).filter(f=>f.endsWith('.html')))
   assert.doesNotMatch(readFileSync(new URL('../design/landing/src/'+f,import.meta.url),'utf8'),/[0-9۰-۹][0-9۰-۹٫.]*\s*میلیون/,f+' types no price');

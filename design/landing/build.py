@@ -28,7 +28,7 @@ shutil.copyfile('assets/ayneh-favicon.svg', '../../public/favicon.svg')
 # ---------------- styles ----------------
 # site.css is the new visual system and owns every base rule. trial.css is scoped
 # to the studio block only (see the guard below), so no legacy selector can leak.
-css = R('src/site.css') + NL + R('src/studio.css') + NL + R('src/copy.css')
+css = R('src/site.css') + NL + R('src/studio.css') + NL + R('src/copy.css') + NL + R('src/pricing.css')
 assert '.site-header{' in css, 'site.css must own the header'
 
 # ---------------- plans (the owner's price sheet) ----------------
@@ -404,7 +404,7 @@ HOME_NOTE = 'نمونهٔ نمایشی'
 SERVICE_NOTE = 'نمونهٔ نمایشی؛ برای انتخاب قبل از نوبت.'
 SALON_HERO = {
     'title': 'پنل آرایشگاه',
-    'desc': 'پنل آرایشگاه: هر چهار خدمت، تا ۳ کاربر، لینک اختصاصی برای هر همکار. نمونه، پلن‌ها و روش کار.',
+    'desc': 'پنل آرایشگاه: هر چهار خدمت برای ۳، ۸ یا ۲۰ نفر، لینک اختصاصی برای هر همکار. نمونه، قیمت‌ها و روش کار.',
     'eyebrow': 'پنل آرایشگاه',
     'h1': 'هر همکار، مشتری‌های خودش؛ همه توی یه صفحهٔ حرفه‌ای.',
     'lead': 'با آینه، کل تیمتون دقیقاً همون تصویری رو می‌بینه که مشتری انتخاب کرده.',
@@ -489,7 +489,7 @@ def make_pages(full):
             out = out.replace('<div class="ptabs" data-ptabs hidden>', '<div class="ptabs" data-ptabs>', 1)
         assert '<!--PLANPANELS-->' not in out and out.count('data-plans-panel="') == bool(set(tabs) & set(PLAN_TABS)) + ('salon' in tabs)
         return out
-    pricing = pricing_for(PLAN_TABS + ['salon'], 'hair')
+    pricing = teaser('home')  # pricing v2: the cards live on /pricing (pricing_main)
     chat_tpl = R('src/chat.html')
     chat = lambda pair, req: chat_tpl.replace('{{PAIR}}', pair).replace('{{REQ}}', req)
 
@@ -634,15 +634,13 @@ def make_pages(full):
                     '<button type="button" role="tab" data-try="demo" aria-selected="false">روی عکس خودتون <small>با عکس شما</small></button></div>\n') + R('src/play.html')
         main = (hero(s['pair'], back, s['h1'], s['accent'], s['lead'], s['f2'], s['req'], SERVICE_NOTE, ' hero--service')
                 + play + demo([s['line']], s['demo_title'], 'بدون نصب، روی گوشی.', s['line'])
-                + sample + ben + studio + pricing_for(PLAN_TABS + ['salon'], key) + R('src/pay.html') + cta(s['cta_title']))
+                + sample + ben + studio + teaser(key) + R('src/pay.html') + cta(s['cta_title']))
         pages[key] = shell(full, main, other_nav, service=key, title=s['title'], desc=s['desc'], tab=key)
 
     # ---- the salon panel ----
     S = SALON_HERO
     back = '          <a class="hero-back" href="/"><span aria-hidden="true">→</span> آینه · همهٔ خدمات</a>\n          <span class="eyebrow">' + S['eyebrow'] + '</span>\n'
-    salon_pricing = pricing_for(['salon'], 'salon')
-    salon_pricing = re.sub(r'<!--SINGLE-->[\s\S]*?<!--/SINGLE-->\s*', '', salon_pricing).replace('پلن مناسب کارتون رو <em>انتخاب کنید</em>', 'پنل آرایشگاه رو <em>انتخاب کنید</em>', 1)
-    assert 'pbar' not in salon_pricing and 'data-ptabs hidden' in salon_pricing
+    salon_pricing = teaser('salon')
     salon_main = (
         hero('style', back, S['h1'], '', S['lead'], 'مدل رو می‌بینه', 'درخواست مدل مو', HOME_NOTE, ' hero--service')
         + section(salon_src, 'glance').replace('{{GLANCE}}', NL.join(glance_card(k, s) for k, s in SERVICES.items()))
@@ -670,11 +668,210 @@ def make_pages(full):
     return pages
 
 
+
+
+# ---------------- /pricing «خرید اشتراک و اعتبار» (pricing v2) ----------------
+# One page for both paths, drawn only from IMAGE_PRICES / SUBS / SUB_PACKS above. Every buy button
+# carries what to buy (kind, line, count / sub / pack) — never an amount the server would trust:
+# worker/orders.js quote() prices it again from worker/prices.js. src/pricing.js switches the
+# service tabs, runs the calculator and knows a signed-in panel; src/pay.js is the same checkout.
+def toman(n):
+    return format(int(n), ',').replace(',', '٬').translate(str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹'))
+
+
+V2_TABS = LINE_ORDER + ['salon']
+V2_LABEL = {'hair': 'مدل مو', 'color': 'رنگ مو', 'nails': 'ناخن', 'lashes': 'مژه', 'salon': 'آرایشگاه'}
+# What a subscription adds over «فقط ساخت تصویر» — only features the code has today (worker/plans.js
+# FEATURES: page, gallery, inbox, bot, booking, report_simple/full, archive, priority_support; the
+# team links are worker/referral.js, salon subscription only). The beauty consultant runs only on
+# Ayneh's own studio, so it is not listed.
+V2_FEATURES = [
+    ('ساخت تصویر روی عکس مشتری', True, True),
+    ('صفحهٔ اختصاصی با نمونه‌کارهای شما', False, True),
+    ('درخواست مشتری در پنل و ربات تلگرام یا بله', False, True),
+    ('ثبت نوبت با یادآوری و پیگیری در تلگرام یا بله', False, True),
+    ('گزارش عملکرد و آرشیو مشتریان با خروجی اکسل', False, True),
+    ('پشتیبانی ویژه از داخل پنل', False, True),
+]
+ARROW = '<span aria-hidden="true">←</span>'
+
+
+def v2_buy(label, title, amount, cls='btn', **data):
+    attrs = ''.join(' data-%s="%s"' % (k.replace('_', '-'), v) for k, v in data.items())
+    return ('<button type="button" class="%s pr-buy" data-buy="v2" data-title="%s" data-amount="%d"%s>%s</button>'
+            % (cls, title, amount, attrs, label))
+
+
+def v2_images(line):
+    p, lab = IMAGE_PRICES[line], V2_LABEL[line]
+    cards = []
+    for n, a in sorted(p['packs'].items()):
+        cards.append(
+            '<article class="plan pr-card' + (' plan--lead' if n == 10 else '') + '">'
+            + '<h3>' + fa_int(n) + ' عکس</h3>'
+            + '<div class="plan__price"><p class="plan__amount"><b>' + toman(a) + '</b> تومان</p>'
+            + '<p class="pr-each">هر عکس ' + toman(a // n) + ' تومان</p></div>'
+            + '<p class="pr-save">' + fa_int(PACK_SAVE[n]) + '٪ ارزان‌تر از تکی</p>'
+            + v2_buy('خرید', fa_int(n) + ' عکس ' + lab, a, kind='images', line=line, count=n)
+            + '</article>')
+    custom = ('<div class="pr-custom" data-custom="' + line + '">'
+              '<label for="prCount-' + line + '">تعداد دلخواه <small>هر عکس ' + toman(p['single']) + ' تومان</small></label>'
+              '<div class="pr-step"><button type="button" class="pr-step__btn" data-step="-1" aria-label="یکی کمتر">−</button>'
+              '<input id="prCount-' + line + '" type="number" inputmode="numeric" min="1" max="' + str(CUSTOM_MAX) + '" value="1" dir="ltr">'
+              '<button type="button" class="pr-step__btn" data-step="1" aria-label="یکی بیشتر">+</button></div>'
+              '<b class="pr-custom__sum" aria-live="polite">' + toman(p['single']) + ' تومان</b>'
+              + v2_buy('خرید', fa_int(1) + ' عکس ' + lab, p['single'], cls='btn btn--ghost', kind='images', line=line, count=1, single=p['single'], packs=json.dumps(p['packs']).replace('"', '&quot;'))
+              + '</div>')
+    return ('<div class="pr-path" data-path="images">'
+            '<div class="pr-path__head"><span class="pr-num" aria-hidden="true">۱</span><div>'
+            '<h2>فقط ساخت تصویر</h2>'
+            '<p>بدون اشتراک: فقط ساخت تصویر «' + lab + '» روی عکس مشتری. صفحهٔ اختصاصی، ربات، نوبت‌دهی و گزارش ندارد. اعتبارش هیچ‌وقت منقضی نمی‌شود.</p>'
+            '</div></div>'
+            '<div class="plans pr-cards">' + ''.join(cards) + '</div>' + custom + '</div>')
+
+
+def v2_sub(line):
+    sub = next(x for x in SUBS if x['line'] == line)
+    lab, packs = V2_LABEL[line], SUB_PACKS[line]
+    opts = [(0, sub['amount'], 'فقط اشتراک', 'بدون بستهٔ عکس')] + [
+        (n, sub['amount'] + a, 'اشتراک + ' + fa_int(n) + ' عکس', 'هر عکس ' + toman(a // n) + ' تومان') for n, a in sorted(packs.items())]
+    cards = []
+    for n, total, name, each in opts:
+        title = sub['name'] + (' + بستهٔ ' + fa_int(n) + ' عکس' if n else '')
+        cards.append(
+            '<article class="plan pr-card' + (' plan--lead' if n == 100 else '') + '">'
+            + ('<span class="plan__badge">' + CROWN + 'به‌صرفه‌تر برای کار زیاد</span>' if n == 200 else '')
+            + '<h3>' + name + '</h3>'
+            + '<div class="plan__price"><p class="plan__amount"><b>' + toman(total) + '</b> تومان</p>'
+            + '<p class="pr-each">' + each + '</p></div>'
+            + ('<p class="pr-save">اشتراک ' + toman(sub['amount']) + ' + بسته ' + toman(packs[n]) + '</p>' if n else '<p class="pr-save">عکس را بعداً با قیمت مشترکان بخرید</p>')
+            + v2_buy('خرید', title, total, kind='sub', sub=sub['key'], pack=n)
+            + '</article>')
+    alone = ''.join(
+        '<article class="plan pr-card pr-card--mini"><h3>بستهٔ ' + fa_int(n) + ' عکس</h3>'
+        '<div class="plan__price"><p class="plan__amount"><b>' + toman(a) + '</b> تومان</p><p class="pr-each">هر عکس ' + toman(a // n) + ' تومان</p></div>'
+        + v2_buy('خرید', 'بستهٔ ' + fa_int(n) + ' عکس ' + lab, a, kind='pack', line=line, pack=n) + '</article>'
+        for n, a in sorted(packs.items()))
+    return ('<div class="pr-path pr-path--sub" data-path="sub">'
+            '<div class="pr-path__head"><span class="pr-num" aria-hidden="true">۲</span><div>'
+            '<h2>اشتراک ماهانه</h2>'
+            '<p>«' + sub['name'] + '» ماهی <b>' + toman(sub['amount']) + ' تومان</b>: همهٔ امکانات پنل برای «' + lab + '»، و عکس‌ها در بسته‌های مشترکان ارزان‌تر. هر چه بستهٔ بزرگ‌تر، هر عکس ارزان‌تر.</p>'
+            '</div></div>'
+            '<div class="pr-subscriber" data-subscriber="' + line + '" hidden><p class="pr-subscriber__note">اشتراک شما فعال است؛ بستهٔ عکس را جدا بخرید:</p>'
+            '<div class="plans pr-cards pr-cards--3">' + alone + '</div></div>'
+            '<div class="plans pr-cards pr-cards--4">' + ''.join(cards) + '</div>'
+            '<p class="pr-fine">مشترک‌ها بسته‌های ۵، ۱۰ و ۲۰ عکسیِ «فقط ساخت تصویر» را هم می‌توانند بخرند. تمدید خودکار ندارد.</p></div>')
+
+
+def v2_salon():
+    salon_subs = [x for x in SUBS if x['line'] == 'all']
+    pack_opts = '<option value="">بدون بستهٔ عکس</option>' + ''.join(
+        '<option value="%s:%d" data-add="%d">%s عکس %s · %s تومان</option>' % (k, n, a, fa_int(n), V2_LABEL[k], toman(a))
+        for k in LINE_ORDER for n, a in sorted(SUB_PACKS[k].items()))
+    cards = []
+    for x in salon_subs:
+        sid = 'prPack-' + x['key']
+        cards.append(
+            '<article class="plan pr-card' + (' plan--lead' if x['seats'] == 8 else '') + '">'
+            + '<h3>تا ' + fa_int(x['seats']) + ' نفر</h3>'
+            + '<div class="plan__price"><p class="plan__amount"><b>' + toman(x['amount']) + '</b> تومان</p><p class="pr-each">در ماه، برای کل سالن</p></div>'
+            + '<ul><li>' + TICK + '<span>هر چهار خدمت: مدل مو، رنگ مو، ناخن و مژه</span></li>'
+            + '<li>' + TICK + '<span>' + fa_int(x['seats']) + ' کاربر با خود مدیر؛ لینک اختصاصی برای هر همکار</span></li></ul>'
+            + '<label class="pr-pick" for="' + sid + '"><span>بستهٔ عکس همراه <small>اختیاری</small></span><select id="' + sid + '">' + pack_opts + '</select></label>'
+            + v2_buy('خرید', x['name'], x['amount'], kind='sub', sub=x['key'], pack_select=sid)
+            + '</article>')
+    alone = ''.join(
+        '<div class="pr-subscriber__row"><b>' + V2_LABEL[k] + '</b>' + ''.join(
+            v2_buy(fa_int(n) + ' عکس · ' + toman(a), 'بستهٔ ' + fa_int(n) + ' عکس ' + V2_LABEL[k], a, cls='btn btn--ghost btn--sm', kind='pack', line=k, pack=n)
+            for n, a in sorted(SUB_PACKS[k].items())) + '</div>' for k in LINE_ORDER)
+    return ('<div class="pr-path pr-path--sub" data-path="sub">'
+            '<div class="pr-path__head"><span class="pr-num" aria-hidden="true">۲</span><div>'
+            '<h2>اشتراک ماهانهٔ آرایشگاه</h2>'
+            '<p>همهٔ امکانات پنل برای هر چهار خدمت و کل تیم. عکس‌ها را برای هر خدمت جدا، با قیمت مشترکان می‌خرید.</p>'
+            '</div></div>'
+            '<div class="pr-subscriber" data-subscriber="all" hidden><p class="pr-subscriber__note">اشتراک شما فعال است؛ بستهٔ عکس هر خدمت را جدا بخرید:</p>' + alone + '</div>'
+            '<div class="plans pr-cards">' + ''.join(cards) + '</div>'
+            '<p class="pr-fine">«فقط ساخت تصویر» هم برای هر خدمت جداست: از تب همان خدمت بخرید. تمدید خودکار ندارد.</p></div>')
+
+
+def v2_compare():
+    rows = ''.join('<tr><th scope="row">%s</th><td>%s</td><td class="is-lead">%s</td></tr>'
+                   % (f, '<span class="pr-yes">' + TICK + '<span class="sr-only">دارد</span></span>' if a else '<span class="pr-no">—<span class="sr-only">ندارد</span></span>',
+                      '<span class="pr-yes">' + TICK + '<span class="sr-only">دارد</span></span>' if b else '—') for f, a, b in V2_FEATURES)
+    rows += ('<tr><th scope="row">قیمت هر عکس</th><td data-cmp="images">—</td><td class="is-lead" data-cmp="sub">—</td></tr>'
+             '<tr data-cmp-salon hidden><th scope="row">همکاران</th><td>—</td><td class="is-lead">لینک اختصاصی برای هر همکار</td></tr>')
+    return ('<div class="pr-compare"><h2 class="pr-h">با اشتراک چه چیزی اضافه می‌گیرم؟</h2>'
+            '<div class="pcompare"><table><caption class="sr-only">مقایسهٔ فقط ساخت تصویر و اشتراک ماهانه</caption>'
+            '<thead><tr><th scope="col"></th><th scope="col">فقط ساخت تصویر</th><th scope="col" class="is-lead">اشتراک ماهانه</th></tr></thead>'
+            '<tbody>' + rows + '</tbody></table></div></div>')
+
+
+CALC = ('<div class="pr-calc" id="prCalc"><h2 class="pr-h">ماهی چند عکس می‌سازی؟</h2>'
+        '<div class="pr-calc__in"><input id="prCalcN" type="range" min="5" max="300" step="5" value="40" aria-label="تعداد عکس در ماه">'
+        '<output id="prCalcOut" for="prCalcN">۴۰ عکس</output></div>'
+        '<div class="pr-calc__res"><p data-calc="images"><span>فقط ساخت تصویر</span><b>—</b></p><p data-calc="sub"><span>اشتراک ماهانه با عکس‌ها</span><b>—</b></p></div>'
+        '<p class="pr-calc__verdict" id="prCalcVerdict" aria-live="polite"></p>'
+        '<p class="pr-fine">ارزان‌ترین ترکیب بسته‌ها برای همین تعداد حساب شده؛ مبلغ نهایی را سرور از جدول قیمت حساب می‌کند.</p></div>')
+
+
+def pricing_main():
+    tabs = ''.join('<button type="button" role="tab" id="prtab-%s" data-ptab="%s" aria-controls="prpanel-%s" aria-selected="%s" tabindex="%s">%s</button>'
+                   % (k, k, k, 'true' if k == 'hair' else 'false', '0' if k == 'hair' else '-1', V2_LABEL[k]) for k in V2_TABS)
+    panels = ''.join('<div class="pr-panel" id="prpanel-%s" role="tabpanel" aria-labelledby="prtab-%s" data-panel="%s"%s>%s</div>'
+                     % (k, k, k, '' if k == 'hair' else ' hidden', (v2_images(k) + v2_sub(k)) if k != 'salon' else v2_salon()) for k in V2_TABS)
+    data = {'images': IMAGE_PRICES, 'subs': {x['line']: x['amount'] for x in SUBS if x['line'] != 'all'}, 'subPacks': SUB_PACKS}
+    how = ('<div class="plan-how"><h3>بعد از پرداخت چی می‌شه؟</h3><ol>'
+           '<li><span>۱</span><div><b>کارت‌به‌کارت می‌کنید</b><p>مبلغ و شمارهٔ کارت همین‌جا نشون داده می‌شه و ۱۰ دقیقه برای واریز وقت دارید.</p></div></li>'
+           '<li><span>۲</span><div><b>پرداخت خودکار تأیید می‌شه</b><p>نیازی به ارسال فیش یا منتظر موندن برای تأیید نیست.</p></div></li>'
+           '<li><span>۳</span><div><b>اعتبار یا اشتراک فوراً فعال می‌شه</b><p>اگه اولین خریدتونه، لینک صفحه و اطلاعات ورود به پنل همین‌جا نمایش داده می‌شه.</p></div></li>'
+           '</ol></div>')
+    return ('<section id="pricing" class="section pricing pr" aria-labelledby="h1">\n<div class="band">'
+            '<div class="head"><span class="eyebrow">خرید اشتراک و اعتبار</span>'
+            '<h1 id="h1" class="h2">هر عکس رو جدا بخرید، یا با اشتراک <em>ارزون‌تر</em>.</h1>'
+            '<p class="sub">خدمتتون رو انتخاب کنید؛ پرداخت کارت‌به‌کارته، خودکار تأیید می‌شه و تمدید خودکار نداره.</p></div>'
+            '<p class="pr-signed" id="prSigned" hidden></p>'
+            '<div class="ptabs pr-tabs"><p class="ptabs__q" id="prQ">خدمت شما کدومه؟</p><div class="ptabs__row" role="tablist" aria-labelledby="prQ">' + tabs + '</div></div>'
+            + panels + v2_compare() + CALC + how
+            + '<script>window.__PR=' + json.dumps(data, separators=(',', ':')) + ';</script>'
+            + '</div>\n</section>\n')
+
+
+def teaser(key):
+    """The price section of every business page now points to /pricing (with its own service)."""
+    if key == 'salon':
+        lo = min(x['amount'] for x in SUBS if x['line'] == 'all')
+        a = '<li><b>اشتراک آرایشگاه</b><span>هر چهار خدمت برای ۳، ۸ یا ۲۰ نفر؛ از ماهی ' + toman(lo) + ' تومان</span></li>'
+        b = '<li><b>بستهٔ عکس هر خدمت</b><span>با قیمت مشترکان؛ هر عکس از ' + toman(min(a_ // n for v in SUB_PACKS.values() for n, a_ in v.items())) + ' تومان</span></li>'
+        href, lab = '/pricing?s=salon', 'آرایشگاه'
+    else:
+        lines = [key] if key in IMAGE_PRICES else LINE_ORDER
+        single = min(IMAGE_PRICES[k]['single'] for k in lines)
+        sub = min(x['amount'] for x in SUBS if x['line'] in lines)
+        a = '<li><b>فقط ساخت تصویر</b><span>بدون اشتراک؛ هر عکس ' + ('' if key in IMAGE_PRICES else 'از ') + toman(single) + ' تومان، بسته‌ها تا ۱۵٪ ارزان‌تر</span></li>'
+        b = '<li><b>اشتراک ماهانه</b><span>همهٔ امکانات پنل؛ ' + ('' if key in IMAGE_PRICES else 'از ') + 'ماهی ' + toman(sub) + ' تومان، عکس‌ها ارزان‌تر</span></li>'
+        href, lab = '/pricing?s=' + (key if key in IMAGE_PRICES else 'hair'), V2_LABEL.get(key, '')
+    return ('<section id="services" class="section section--soft pricing" aria-labelledby="h-plans">\n    <div class="band">'
+            '<div class="head"><span class="eyebrow">تعرفه‌ها</span><h2 id="h-plans" class="h2">دو راه، <em>هر کدوم به‌صرفه‌تره</em></h2>'
+            '<p class="sub">پرداخت کارت‌به‌کارته و تمدید خودکار نداره.</p></div>'
+            '<ul class="pr-teaser">' + a + b + '</ul>'
+            '<p class="pr-teaser__cta"><a class="btn btn--lg" href="' + href + '">خرید اشتراک و اعتبار' + (' ' + lab if lab and key != 'home' else '') + ' ' + ARROW + '</a></p>'
+            '</div>\n  </section>\n')
+
 PAGES = make_pages(h)
+
+# /pricing: the shell with the pricing section and the same checkout sheet; no sticky demo bar
+# (one primary action per moment) and only the scripts this page runs.
+PRICING_PAGE = shell(h, pricing_main() + R('src/pay.html'), [('/#choose', 'خدمات'), ('#pricing', 'تعرفه‌ها'), ('/#faq', 'سؤالات')],
+                     title='خرید اشتراک و اعتبار', desc='فقط ساخت تصویر یا اشتراک ماهانه، برای مدل مو، رنگ مو، ناخن، مژه یا کل آرایشگاه؛ قیمت هر عکس و هر اشتراک، و خرید در سه قدم.')
+PRICING_PAGE = re.sub(r'<div id="stickyCta"[\s\S]*?</div>\n', '', PRICING_PAGE, count=1).replace('<body>', '<body data-page="pricing">', 1)
+assert PRICING_PAGE.count('<h1') == 1 and 'id="pay"' in PRICING_PAGE and 'stickyCta' not in PRICING_PAGE
+for _k in LINE_ORDER:  # every price on the page is the sheet's
+    assert all(toman(a) in PRICING_PAGE for a in [IMAGE_PRICES[_k]['single'], *IMAGE_PRICES[_k]['packs'].values(), *SUB_PACKS[_k].values()]), _k
+assert not re.search('[يك]', re.sub(r'<(script|style)>[\s\S]*?</\1>', '', PRICING_PAGE)), 'Persian letters only'
 
 
 # ---------------- shared finishing: styles, logos, build stamp, scripts ----------------
-def finish(h):
+def finish(h, only=None):
     FONT = '@font-face{font-family:"Estedad";src:url("assets/estedad.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}'
     h = re.sub(r'<style>.*?</style>', lambda m: '<style>' + NL + FONT + NL + css + NL + '</style>', h, count=1, flags=re.S)
     assert h.count('<!--AYNEH_MARK-->') == 2
@@ -713,10 +910,10 @@ def finish(h):
     # Hair-colour maths and the photo handoff are used by the studio. hero.js, scenes.js,
     # and cinema.js drove the retired film sections. cta.js owns the mobile sticky action,
     # keeping it clear of the film, the salon-page builder, duplicate CTAs, and open dialogs.
-    for name in SCRIPTS:
+    for name in (only or SCRIPTS):
         assert os.path.exists('src/' + name), name
     # play.js / try-switch.js / portrait.js / hair-color.js drive the sample-face mirror, which only the hairstyle page carries.
-    scripts = ''.join('<script>' + NL + R('src/' + n) + NL + '</script>' + NL for n in SCRIPTS
+    scripts = ''.join('<script>' + NL + R('src/' + n) + NL + '</script>' + NL for n in (only or SCRIPTS)
                       if 'id="play"' in h or n not in ('play.js', 'try-switch.js', 'portrait.js', 'hair-color.js'))
     h = h.replace('</body>', scripts + '</body>')
 
@@ -790,11 +987,14 @@ def ship_minify(html):
     return re.sub(r'\n{2,}', '\n', html)
 
 WORKER = {k: ship_minify(to_worker(finish(v)[0] if k != 'home' else h)) for k, v in PAGES.items()}
+PRICING_WORKER = ship_minify(to_worker(finish(PRICING_PAGE, ['funnel.js', 'pay.js', 'pricing.js'])[0]))
 # These pages are the salons' site (business.<domain>); the customers' site is the main domain.
 # The owner wants each side on its own: no link from here to the customers' side (Nov 2026).
 
 W('../../worker/landing.js', '// Public pages of business.<domain>: "/" (salon home), the service pages /hair, /color, /nails, /lashes, /salon-panel and /sample (owner console lives at /admin).' + NL
   + '// GENERATED by design/landing/build.py from one design source; images in public/landing/.' + NL
   + 'export const landingHTML=`' + WORKER['home'].replace(chr(92), chr(92) * 2) + '`;' + NL
-  + 'export const servicePages={' + ','.join(k + ':`' + v.replace(chr(92), chr(92) * 2) + '`' for k, v in WORKER.items() if k != 'home') + '};' + NL)
+  + 'export const servicePages={' + ','.join(k + ':`' + v.replace(chr(92), chr(92) * 2) + '`' for k, v in WORKER.items() if k != 'home') + '};' + NL
+  + '// /pricing «خرید اشتراک و اعتبار» (pricing v2) and the /pay checkout address.' + NL
+  + 'export const pricingHTML=`' + PRICING_WORKER.replace(chr(92), chr(92) * 2) + '`;' + NL)
 print(len(out), {k: len(v) for k, v in WORKER.items()})

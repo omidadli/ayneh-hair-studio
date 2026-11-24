@@ -1,0 +1,90 @@
+/* /pricing «خرید اشتراک و اعتبار» (pricing v2) and the teaser in every business page's price
+   section. Everything here is scoped to .pr / .pr-* (and the checkout sheet on the pricing page
+   only, body[data-page="pricing"]), so no other page changes. Tokens are the design system's. */
+.pr .head{margin-bottom:clamp(18px,2.6vw,28px)}
+.pr h1.h2{font-size:clamp(24px,3.2vw,38px)}
+.pr-tabs{position:sticky;top:76px;z-index:5;padding-block:6px;margin-bottom:clamp(16px,2.4vw,26px)}
+.pr-tabs .ptabs__row{box-shadow:var(--shadow-sm)}
+.pr-signed{max-width:760px;margin:0 auto 14px;padding:11px 16px;border-radius:var(--r-md);background:var(--emerald-wash);color:var(--emerald-deep);font-size:14px;font-weight:700;line-height:1.9;text-align:center}
+.pr-signed b{font-weight:900}
+.pr-panel[hidden]{display:none!important}
+.pr-path{margin-top:clamp(14px,2vw,22px);padding:clamp(16px,2.4vw,28px);border-radius:var(--r-xl);background:var(--paper);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.pr-path--sub{background:linear-gradient(180deg,#F4FBF8,var(--paper) 140px);border-color:#CFE9DF}
+.pr-path__head{display:flex;gap:12px;align-items:flex-start;margin-bottom:16px}
+.pr-path__head h2{font-size:clamp(19px,2.2vw,24px);font-weight:900;color:var(--ink);line-height:1.5}
+.pr-path__head p{margin-top:4px;font-size:14px;line-height:1.95;color:var(--ink-soft);max-width:70ch}
+.pr-path__head p b{color:var(--ink);font-weight:900}
+.pr-num{flex:0 0 34px;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:var(--emerald-wash);color:var(--emerald-deep);font-weight:900;font-size:15px}
+.pr-cards{grid-template-columns:repeat(3,minmax(0,1fr))}
+.pr-cards--4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.pr-card{gap:8px}
+.pr-card h3{font-size:18px}
+.pr-card .plan__price{padding:11px 12px 12px}
+.pr-card ul{flex:0}
+.pr-each{margin:2px 0 0;font-size:13px;font-weight:700;color:var(--emerald-deep)}
+.pr-save{margin:0;font-size:12.5px;font-weight:700;color:var(--muted);flex:1}
+.pr-card .btn{margin-top:4px}
+.pr-card--mini .btn{min-height:42px}
+.pr-custom{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:14px;padding:12px 14px;border-radius:var(--r-md);border:1px dashed var(--line-2);background:var(--cream-2)}
+.pr-custom label{display:grid;font-size:14px;font-weight:800;color:var(--ink-2)}
+.pr-custom label small{font-size:12.5px;font-weight:600;color:var(--muted)}
+.pr-step{display:inline-flex;align-items:center;border:1px solid var(--line-2);border-radius:var(--r-pill);background:var(--paper);overflow:hidden}
+.pr-step__btn{width:44px;height:44px;font-size:20px;font-weight:800;color:var(--emerald-deep);cursor:pointer}
+.pr-step input{width:64px;height:44px;border:0;text-align:center;font:inherit;font-size:16px;font-weight:800;background:transparent;-moz-appearance:textfield}
+.pr-step input::-webkit-inner-spin-button,.pr-step input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.pr-custom__sum{font-size:16px;font-weight:900;color:var(--ink);margin-inline-start:auto}
+.pr-custom .btn{min-height:44px}
+.pr-fine{margin:12px 0 0;font-size:12.5px;line-height:1.9;color:var(--muted)}
+.pr-pick{display:grid;gap:4px;font-size:13px;font-weight:800;color:var(--ink-2)}
+.pr-pick small{font-weight:600;color:var(--muted)}
+.pr-pick select{font:inherit;font-size:13.5px;min-height:42px;padding:0 10px;border-radius:var(--r-sm);border:1px solid var(--line-2);background:var(--paper);color:var(--ink)}
+.pr-subscriber{margin-bottom:16px;padding:14px;border-radius:var(--r-lg);background:var(--emerald-wash)}
+.pr-subscriber[hidden]{display:none!important}
+.pr-subscriber__note{margin:0 0 10px;font-size:14px;font-weight:800;color:var(--emerald-deep)}
+.pr-subscriber__row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:6px 0}
+.pr-subscriber__row b{min-width:64px;font-size:14px}
+.pr-h{font-size:clamp(19px,2.2vw,24px);font-weight:900;color:var(--ink);text-align:center;margin-bottom:12px}
+.pr-compare{margin-top:clamp(28px,4vw,44px)}
+.pr-compare .pcompare{max-width:820px;margin-inline:auto}
+.pr-compare tbody th{white-space:normal}
+.pr-yes svg{width:20px;height:20px;color:var(--emerald)}
+.pr-no{color:var(--muted)}
+.pr-calc{max-width:820px;margin:clamp(28px,4vw,44px) auto 0;padding:clamp(16px,2.4vw,26px);border-radius:var(--r-xl);background:var(--paper);border:1px solid var(--line)}
+.pr-calc[hidden]{display:none!important}
+.pr-calc__in{display:flex;align-items:center;gap:14px}
+.pr-calc__in input{flex:1;accent-color:var(--emerald)}
+.pr-calc__in output{min-width:84px;font-size:18px;font-weight:900;color:var(--emerald-deep);text-align:center}
+.pr-calc__res{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.pr-calc__res p{margin:0;display:grid;gap:2px;padding:12px 14px;border-radius:var(--r-md);background:var(--cream-2);border:1.5px solid transparent}
+.pr-calc__res p span{font-size:13px;font-weight:700;color:var(--ink-soft)}
+.pr-calc__res p b{font-size:17px;font-weight:900;color:var(--ink)}
+.pr-calc__res p small{font-size:12px;font-weight:600;color:var(--muted);line-height:1.8}
+.pr-calc__res p.is-best{border-color:var(--emerald);background:#F1F8F4}
+.pr-calc__verdict{margin:12px 0 0;font-size:14.5px;font-weight:800;color:var(--emerald-deep);text-align:center;line-height:1.9}
+/* the teaser in the business pages' price section */
+.pr-teaser{max-width:820px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0;list-style:none}
+.pr-teaser li{display:grid;gap:4px;padding:16px 18px;border-radius:var(--r-lg);background:var(--paper);border:1px solid var(--line);box-shadow:var(--shadow-sm)}
+.pr-teaser b{font-size:17px;font-weight:900;color:var(--ink)}
+.pr-teaser span{font-size:14px;line-height:1.9;color:var(--ink-soft)}
+.pr-teaser__cta{text-align:center;margin-top:18px}
+/* the checkout on /pricing is a sheet over the page: the card the visitor tapped stays behind it */
+body[data-page="pricing"] #pay{position:fixed;inset:0;z-index:90;padding:0;display:grid;align-items:end;justify-items:center;background:rgba(10,32,42,.42);overflow:auto;overscroll-behavior:contain}
+body[data-page="pricing"] #pay[hidden]{display:none!important}
+body[data-page="pricing"] #pay .band{padding:0;max-width:640px;margin-top:auto}
+body[data-page="pricing"] #pay .pay-card{border-radius:var(--r-xl) var(--r-xl) 0 0;max-height:92vh;overflow:auto;position:relative;padding-top:44px}
+@media(min-width:700px){body[data-page="pricing"] #pay{align-items:center}body[data-page="pricing"] #pay .band{margin:auto}body[data-page="pricing"] #pay .pay-card{border-radius:var(--r-xl)}}
+.pr-close{position:absolute;top:10px;inset-inline-end:12px;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-size:22px;line-height:1;color:var(--ink-2);background:var(--cream-2);cursor:pointer}
+.pay-form [hidden],.pay-form__grid [hidden]{display:none!important}
+.pay-who{margin:0 0 12px;padding:11px 14px;border-radius:var(--r-md);background:var(--emerald-wash);color:var(--emerald-deep);font-size:14px;font-weight:700;line-height:1.9}
+html.pr-lock{overflow:hidden}
+@media(max-width:900px){.pr-cards--4{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){
+  .pr-tabs{top:64px}
+  .pr-cards,.pr-cards--4{grid-template-columns:1fr}
+  .pr-cards--4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .pr-cards--4 .plan__amount b{font-size:19px}
+  .pr-card{padding:14px}
+  .pr-teaser{grid-template-columns:1fr}
+  .pr-calc__res{grid-template-columns:1fr}
+  .pr-custom__sum{margin-inline-start:0}
+}

@@ -873,7 +873,7 @@ export async function panelDashboard(db, env, {order, salon}) {
   const root = rootDomainOf(env, origin);
   return {
     salon: {name: salon.name, slug: salon.slug, url: origin + '/s/' + salon.slug, subdomain_url: 'https://' + salon.slug + '.' + root + '/', admin_url: 'https://' + salon.slug + '.' + root + '/admin'},
-    plan: credit ? (PLANS[credit.plan]?.name || credit.plan) : (PLANS[order.plan]?.name || order.plan),
+    plan: credit ? (credit.plan === 'images' ? 'فقط ساخت تصویر' : PLANS[credit.plan]?.name || credit.plan) : (PLANS[order.plan]?.name || order.plan),
     paid_at: order.confirmed_at, ref: order.ref,
     credits: credit, topup: {images: TOPUP.images, amount: TOPUP.amount},
     /* What this plan opens; a locked card names the plan that opens it and links to the plans. */

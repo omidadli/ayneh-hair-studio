@@ -10,7 +10,7 @@ import {webhook,baleWebhook} from './telegram.js';
 import {favicon,baseCSS} from './design.js';
 import {sharePage} from './share.js';
 import {consultShare,consultShareImage} from './consult.js';
-import {landingHTML,servicePages} from './landing.js';
+import {landingHTML,servicePages,pricingHTML} from './landing.js';
 import {packsTag} from './regularpage.js';
 import {isBiz,bizOrigin,mainOrigin} from './hosts.js';
 import {CODE_RE} from './rewards.js';
@@ -87,7 +87,7 @@ export default {
   // /pay is the checkout's own address (shared links and the QR on a receipt); the landing
   // page carries the same sheet inline, so both land on the same server-side order.
   if(/^\/panel\/?$/.test(u.pathname))return new Response(panelHTML.replace('</head>','<meta name="ayneh-biz" content="'+attr(bizOrigin(u,env))+'"></head>'),{headers:{...htmlHeaders,'X-Robots-Tag':'noindex'}});
-  if(/^\/pay\/?$/.test(u.pathname)&&isBiz(u))return new Response(servicePages.hair.replaceAll('__ORIGIN__',bizOrigin(u,env)).replaceAll('__MAIN__',mainOrigin(u,env)).replaceAll('__CANON__','/hair'),{headers:{...htmlHeaders,'Cache-Control':'no-store','X-Robots-Tag':'noindex'}});
+  if(/^\/pay\/?$/.test(u.pathname)&&isBiz(u))return new Response(pricingHTML.replaceAll('__ORIGIN__',bizOrigin(u,env)).replaceAll('__MAIN__',mainOrigin(u,env)).replaceAll('__CANON__','/pricing'),{headers:{...htmlHeaders,'Cache-Control':'no-store','X-Robots-Tag':'noindex'}});
   if(u.pathname==='/salon-preview')return new Response(customerHTML,{headers:{...htmlHeaders,'X-Frame-Options':'SAMEORIGIN','X-Robots-Tag':'noindex','Content-Security-Policy':htmlHeaders['Content-Security-Policy'].replace("frame-ancestors 'none'","frame-ancestors 'self'")}});
   /* The landing page is the one thing the owner keeps reloading while we work on it, and a
      five-minute max-age with an hour of stale-while-revalidate meant a phone could show a
@@ -99,7 +99,10 @@ export default {
   const page=(html,canon,extra={})=>new Response(html.replaceAll('__ORIGIN__',B).replaceAll('__MAIN__',M).replaceAll('__CANON__',canon),{headers:{...htmlHeaders,'Cache-Control':'no-cache',...refCookie(u,request),...extra}});
   /* Search engines: each side lists its own public pages; panels, the console, the API and salon pages stay out. */
   if(u.pathname==='/robots.txt')return new Response('User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /panel\nDisallow: /pay\nDisallow: /new\nDisallow: /s/\nDisallow: /share/\nDisallow: /app\n\nSitemap: '+(biz?B:M)+'/sitemap.xml\n',{headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'public,max-age=3600'}});
-  if(u.pathname==='/sitemap.xml'){const o=biz?B:M,list=biz?['/','/hair','/color','/nails','/lashes','/salon-panel','/sample']:['/'];return new Response('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+list.map(p=>'<url><loc>'+o+p+'</loc></url>').join('\n')+'\n</urlset>\n',{headers:{'Content-Type':'application/xml; charset=utf-8','Cache-Control':'public,max-age=3600'}});}
+  if(u.pathname==='/sitemap.xml'){const o=biz?B:M,list=biz?['/','/hair','/color','/nails','/lashes','/salon-panel','/sample','/pricing']:['/'];return new Response('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+list.map(p=>'<url><loc>'+o+p+'</loc></url>').join('\n')+'\n</urlset>\n',{headers:{'Content-Type':'application/xml; charset=utf-8','Cache-Control':'public,max-age=3600'}});}
+  /* «خرید اشتراک و اعتبار» (pricing v2): on both hosts, so a salon panel signed in on either one
+     buys with its own cookie and no form; the canonical address is the salons' site. */
+  if(/^\/pricing\/?$/.test(u.pathname))return page(pricingHTML,'/pricing',{'Cache-Control':'no-store'});
   const svc=u.pathname.match(/^\/(hair|color|nails|lashes|salon-panel|sample)\/?$/);
   if(biz){
    /* business.: the salon home, the service pages and the plan checkout. */

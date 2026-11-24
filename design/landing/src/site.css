@@ -1478,3 +1478,20 @@ body{background:transparent}
 .site-footer a{display:inline-flex;align-items:center}
 @media(max-width:900px){.play-swatches{flex-wrap:wrap;overflow:visible;max-width:none;justify-content:center}}
 [hidden]{display:none!important}
+/* Card-to-card step (owner's order, Nov 2026): what to do → card number → exact amount with one
+   two-part copy button → time left. */
+.pay-instr{margin:0;padding:12px 14px;border-radius:var(--r-md);background:var(--emerald-wash, #E6F2EC);color:var(--emerald-deep, #1D4A3E);font-size:14.5px;line-height:1.95}
+.pay-instr b{font-weight:800}
+.pay-figure--amount{gap:6px}
+.pay-figure .pay-figure__label{font-size:12.5px;color:var(--muted)}
+.pay-figure b.pay-amount span{font-size:inherit;color:inherit}
+.pay-rial{font-size:12.5px;color:var(--ink-soft)}
+.pay-rial span{font-size:inherit!important;color:inherit!important}
+.pay-exact{font-size:12px;line-height:1.8;color:var(--muted)}
+.pay-copyseg{display:inline-flex;align-self:start;justify-self:start;border:1px solid var(--line-2);border-radius:var(--r-pill);overflow:hidden;background:var(--paper, #fff)}
+.pay-copyseg button{font:inherit;font-size:13.5px;font-weight:700;color:var(--ink);background:transparent;border:0;padding:9px 16px;min-height:44px;cursor:pointer}
+.pay-copyseg button + button{border-inline-start:1px solid var(--line-2)}
+.pay-copyseg button:active{background:var(--cream-3)}
+.pay-copyseg button:focus-visible{outline:2px solid var(--emerald);outline-offset:-2px}
+.pay-figure--timer{grid-template-columns:1fr auto;align-items:center;column-gap:12px}
+.pay-figure--timer .pay-timer{grid-column:1/-1;margin-top:6px}

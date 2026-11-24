@@ -222,7 +222,7 @@
     const close = document.createElement('button');
     close.type = 'button'; close.className = 'pr-close'; close.setAttribute('aria-label', 'بستن'); close.textContent = '×';
     sheet.querySelector('.pay-card')?.prepend(close);
-    const shut = () => { sheet.hidden = true; document.documentElement.classList.remove('pr-lock'); };
+    const shut = () => { sheet.hidden = true; document.documentElement.classList.remove('pr-lock'); dispatchEvent(new CustomEvent('ayneh:pay-close')); };
     close.addEventListener('click', shut);
     sheet.addEventListener('click', e => { if (e.target === sheet) shut(); });
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && !sheet.hidden) shut(); });

@@ -215,9 +215,13 @@
     document.body.classList.toggle('is-paying', on);
     dispatchEvent(new CustomEvent('ayneh:pay-state'));
   };
+  /* Closed by the buyer (× / outside / Esc on /pricing): the 3-second poll must not open it again.
+     Only the confirmed payment («پرداخت شما با موفقیت تأیید شد») opens it on its own. */
+  addEventListener('ayneh:pay-close', () => { state.closed = true; });
+  const reveal = which => { if (!state.closed || which === 'done') { state.closed = false; section.hidden = false; } };
   function show(which) {
     for (const [name, node] of Object.entries(view)) if (node) node.hidden = name !== which;
-    section.hidden = false;
+    reveal(which);
     paying(which !== 'form');
     const step = which === 'form' ? 1 : which === 'done' ? 3 : 2;
     section.querySelectorAll('#paySteps li').forEach(li => {
@@ -229,7 +233,7 @@
 
   function draw(order) {
     state.done = false;
-    section.hidden = false;
+    reveal('live');
     const sum = order.summary || {};
     $('payPlan').textContent = (order.kind !== 'topup' && sum.months ? headOf(sum.title, sum.months) : '') || order.plan_name || '';
     $('paySummary').textContent = summaryOf(order);
@@ -302,7 +306,7 @@
   }
 
   function drawState(order) {
-    section.hidden = false;
+    reveal(order.status === 'paid' ? 'done' : 'live');
     if (order.status === 'paid') {
       state.done = true;
       clearInterval(state.tick);
@@ -417,7 +421,7 @@
       e.preventDefault();
       if (key === 'v2') {
         state.plan = key; state.buy = btn; state.service = btn.dataset.line || '';
-        state.order = null; clearInterval(state.poll); clearInterval(state.tick);
+        state.order = null; state.closed = false; clearInterval(state.poll); clearInterval(state.tick);
         liteForm(btn);
         $('payPlan').textContent = btn.dataset.title || '';
         $('paySub').textContent = 'کارت‌به‌کارت واریز کنید؛ پرداخت شما خودکار تأیید می‌شود.';
@@ -437,6 +441,7 @@
       state.buy = btn;
       state.service = btn.dataset.service || document.body.dataset.service || '';
       window.__AYN_BUILDER?.();
+      state.closed = false;
       section.hidden = false;
       $('payPlan').textContent = headOf(btn.dataset.title, Number(btn.dataset.months)) || (btn.closest('.plan')?.querySelector('h3')?.textContent || '').trim();
       drawUsers();
@@ -488,7 +493,7 @@
     try {
       await navigator.clipboard.writeText(state.order.card);
       $('payCopy').textContent = 'کپی شد';
-      setTimeout(() => ($('payCopy').textContent = 'کپی'), 1800);
+      setTimeout(() => ($('payCopy').textContent = 'کپی شمارهٔ کارت'), 1800);
     } catch {
       err($('payErr'), 'کپی نشد؛ شماره را دستی بردارید.');
     }

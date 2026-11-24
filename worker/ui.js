@@ -495,7 +495,7 @@ function shadesCard(){
      el('button',{class:'btn btn--danger btn--sm',type:'button',text:'حذف',onclick:act(function(){if(!confirm('شید «'+s.color+'» حذف شود؟'))return Promise.resolve();return api('/api/owner/shades',{delete:true,id:s.id}).then(load)})})
     ])
    ])
-  })):h('p','هنوز شید برندیی ثبت نشده.','empty-note'));
+  })):h('p','هنوز شید برندی ثبت نشده.','empty-note'));
  }
  var colorSel=el('select',{id:'sh-color'}),brandIn=el('input',{id:'sh-brand',maxlength:'40'}),codeIn=el('input',{id:'sh-code',maxlength:'20'}),noteIn=el('input',{id:'sh-note',maxlength:'200'}),linkIn=el('input',{id:'sh-link',placeholder:'https://…',maxlength:'200'});
  var save=el('button',{class:'btn btn--primary btn--sm',type:'button',text:'ذخیره شید',onclick:act(function(){
@@ -515,12 +515,10 @@ function formulaCard(){
   out.replaceChildren(fs.length?el('div',{class:'stack'},fs.map(function(f){
    return el('div',{class:'card card--inner'},[
     el('div',{class:'row',style:'justify-content:space-between;align-items:center'},[
-     el('div',{},[h('b',f.customer_phone+' → '+f.target_color),el('small',{class:'muted',children:[f.brand&&f.brand+' · '+f.code,' · اکسیدان '+f.oxidant_percent+'٪ ('+f.oxidant_ratio+')',' · منبع: '+(f.source==='manual'?'دستی':'پیشنهاد')].filter(Boolean)})]),
+     el('div',{},[h('b',f.customer_phone+' → '+f.target_color),el('small',{class:'muted',text:[f.brand&&f.brand+' · '+f.code,' · اکسیدان '+f.oxidant_percent+'٪ ('+f.oxidant_ratio+')',' · منبع: '+(f.source==='manual'?'دستی':'پیشنهاد')].filter(Boolean).join('')})]),
      el('button',{class:'btn btn--danger btn--sm',type:'button',text:'حذف',onclick:act(function(){if(!confirm('فرمول این مشتری حذف شود؟'))return Promise.resolve();return api('/api/s/'+slug+'/color/formulas',{delete:true,id:f.id}).then(load)})}),
     ]),
-    el('div',{class:'row'},[
-     (f.amounts||[]).map(function(a){return el('span',{class:'amounts__chip',text:a.name+' — '+(a.amount||'—')})}),
-    el('span',{class:'muted tiny',text:'مکث: ریشه '+(f.pause_root==null?'—':f.pause_root)+' / ساقه '+(f.pause_shaft==null?'—':f.pause_shaft)+' / نوک '+(f.pause_top==null?'—':f.pause_top)+' دقیقه'})]),
+    el('div',{class:'row'},(f.amounts||[]).map(function(a){return el('span',{class:'amounts__chip',text:a.name+' — '+(a.amount||'—')})}).concat([el('span',{class:'muted tiny',text:'مکث: ریشه '+(f.pause_root==null?'—':f.pause_root)+' / ساقه '+(f.pause_shaft==null?'—':f.pause_shaft)+' / نوک '+(f.pause_top==null?'—':f.pause_top)+' دقیقه'})])),
     f.note?el('p',{class:'formula__note',text:f.note}):null
    ])
   })):h('p','هنوز فرمول ثبت نشده.','empty-note'));
@@ -548,7 +546,7 @@ function formulaCard(){
     $('#fm-pr').value=d.formula.pause_root==null?'':d.formula.pause_root;$('#fm-ps').value=d.formula.pause_shaft==null?'':d.formula.pause_shaft;$('#fm-pt').value=d.formula.pause_top==null?'':d.formula.pause_top;
     $('#fm-note').value=d.formula.note||'';
     $('#__draftSuggested').value='1';
-    draftOut.replaceChildren(el('p',{class:'notice notice--warn',text:'این پیش‌نویس است؛ تأیید با متخصص. منبع: '+(d.source==='cache'?'cached':d.source==='model'?'مدل':'قوانین')}));
+    draftOut.replaceChildren(el('p',{class:'notice notice--warn',text:'این پیش‌نویس است؛ تأیید با متخصص. منبع: '+(d.source==='cache'?'کیش':d.source==='model'?'مدل':'قوانین')}));
    }
   })
  })});
@@ -558,23 +556,23 @@ function formulaCard(){
  })});
  var card=el('section',{class:'card'},[h('h2','فرمول‌های رنگ (کاربرد متخصص)'),h('p','یک فرمول بر اساس شمارهٔ مشتری: رنگ هدف، برند و شید، مقدار هر رنگ، نوع و نسبت اکسیدان، زمان مکث برای هر ناحیه و یادداشت. پیشنهاد فرمول، پیش‌نویس است و همیشه قیدِ تأیید متخصص دارد.','lead'),
   el('div',{class:'row'},[el('label',{class:'field'},[el('span',{class:'lbl',text:'سطح پایه (۱–۱۰)'}),baseIn]),el('label',{class:'field',style:'flex:2'},[el('span',{class:'lbl',text:'رنگ هدف'}),targetIn]),el('label',{class:'field',style:'flex:2'},[el('span',{class:'lbl',text:'رنگ فعلی'}),currentIn]),suggest]),
-  el('p',{class:'tiny muted',text:'پیشنهاد فرمول با قوانین پایه‌ای ساخته می‌شود و اگر کلید KIE تنظیم باشد، مدل آن را تکمیل می‌کند؛ هر جدیدِ پیش‌نویس است.'}),
+  el('p',{class:'tiny muted',text:'پیشنهاد فرمول با قوانین پایه‌ای ساخته می‌شود و اگر کلید KIE تنظیم باشد، مدل آن را تکمیل می‌کند؛ هر پیشنهادی پیش‌نویس است.'}),
   draftOut,
   draftFlag,
   el('div',{class:'row'},[el('label',{class:'field'},[el('span',{class:'lbl',text:'شماره مشتری'}),phoneIn]),el('label',{class:'field'},[el('span',{class:'lbl',text:'برند'}),brandIn]),el('label',{class:'field'},[el('span',{class:'lbl',text:'کد شید'}),codeIn]),save]),
   el('div',{class:'row'},[el('label',{class:'field'},[el('span',{class:'lbl',text:'مقدار رنگها (رنگ — مقدار)'}),amountsIn]),el('label',{class:'field'},[el('span',{class:'lbl',text:'اکسیدان'}),oxIn]),el('label',{class:'field'},[el('span',{class:'lbl',text:'نسبت'}),ratioIn])]),
   el('div',{class:'row'},[el('label',{class:'field'},[el('span',{class:'lbl',text:'مکث ریشه (دقیقه)'}),prIn]),el('label',{class:'field'},[el('span',{class:'lbl',text:'مکث ساقه'}),psIn]),el('label',{class:'field'},[el('span',{class:'lbl',text:'مکث نوک'}),ptIn]),el('label',{class:'field',style:'flex:2'},[el('span',{class:'lbl',text:'یادداشت'}),noteIn])]),
   out]);
- card.addEventListener('input',function(ev){if(ev.target&&ev.target.id&&ev.target.id.indexOf('fm-')===0)draftFlag.value=''});
+ card.addEventListener('input',function(ev){var id=ev.target&&ev.target.id;if(id&&['fm-brand','fm-code','fm-ox','fm-ratio','fm-pr','fm-ps','fm-pt','fm-note'].indexOf(id)>=0)draftFlag.value=''});
  load();
  return card;
 }
 function problemLabel(code){
- return {uneven:'رنگ یک‌نواخت نیست',fade:'رنگ زود می‌پرد',root:'ریشه زود ظهور می‌دهد',streak:'رگه می‌شود',inconsistent:'رنگ ناهمگون است',bleached:'دکلره شده'}[code]||code;
+ return {uneven:'رنگ یک‌نواخت نیست',fade:'رنگ زود می‌پرد',root:'ریشه زود پیدا می‌شود',streak:'رگه می‌شود',inconsistent:'رنگ ناهمگون است',bleached:'دکلره شده'}[code]||code;
 }
 function correctionCard(){
  var curIn=el('input',{id:'cc-cur',maxlength:'60',placeholder:'مثلاً: قهوه‌ای تیره'}),
-  probSel=el('select',{id:'cc-prob'},[['','— انتخاب مشکل —'],['uneven','رنگ یک‌نواخت نیست'],['fade','رنگ زود می‌پرد'],['root','ریشه زود ظهور می‌دهد'],['streak','رگه می‌شود'],['inconsistent','رنگ ناهمگون است'],['bleached','دکلره شده']].map(function(o){return el('option',{value:o[0],text:o[1]})})),
+  probSel=el('select',{id:'cc-prob'},[['','— انتخاب مشکل —'],['uneven','رنگ یک‌نواخت نیست'],['fade','رنگ زود می‌پرد'],['root','ریشه زود پیدا می‌شود'],['streak','رگه می‌شود'],['inconsistent','رنگ ناهمگون است'],['bleached','دکلره شده']].map(function(o){return el('option',{value:o[0],text:o[1]})})),
   goalIn=el('input',{id:'cc-goal',maxlength:'60',placeholder:'رنگ هدف'}),
   out=el('div',{class:'stack'});
  var go=el('button',{class:'btn btn--primary btn--sm',type:'button',text:'ساخت برنامهٔ اصلاح',onclick:act(function(){
@@ -588,7 +586,7 @@ function correctionCard(){
     ]));
   })
  })});
- return el('section',{class:'card'},[h('h2','برنامه‌ی اصلاح رنگ‌های ناصحیح'),h('p',' وقتی رنگ قبلی ناصحیح است (رگه، ته‌رنگ، کِر، تخلی یا ریشه زودظهور)، طرح خط‌مرزی مراحل پیشنهاد می‌دهد: حذف رنگ، پیگمنت‌گذاری، تونر و ریشه‌سازی. این برنامه، پیشنهاد است و در نهایت مشورت با متخصص است.','lead'),
+ return el('section',{class:'card'},[h('h2','برنامه‌ی اصلاح رنگ‌های ناصحیح'),h('p',' وقتی رنگ قبلی ناصحیح است (رگه، ته‌رنگ، کِر، تخلی یا ریشه زودظهور)، یک برنامه‌ی مرحله‌ای پیشنهاد می‌دهد: حذف رنگ، پیگمنت‌گذاری، تونر و ریشه‌سازی. این برنامه، پیشنهاد است و در نهایت مشورت با متخصص است.','lead'),
   el('div',{class:'row',style:'flex-wrap:wrap'},[el('label',{class:'field',style:'flex:1 1 140px'},[el('span',{class:'lbl',text:'رنگ فعلی'}),curIn]),el('label',{class:'field',style:'flex:1 1 120px'},[el('span',{class:'lbl',text:'مشکل'}),probSel]),el('label',{class:'field',style:'flex:1 1 140px'},[el('span',{class:'lbl',text:'رنگ هدف'}),goalIn]),go]),
   out]);
 }

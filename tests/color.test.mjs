@@ -318,3 +318,92 @@ test('the browser colour step runs: the client bundle renders placement and the 
   delete globalThis.__aynehTest;
  }
 });
+
+test('the formula card renders through the real el()/h() helpers with no [object] leakage',async()=>{
+ // Item 2: the muted line used el('small',{children:[...]}) (el() has no children option →
+ // empty) and the amounts array was nested as a child of a child (→ [object HTMLSpanElement]).
+ // Execute the real ui.js client bundle in a minimal DOM and render the card with a sample row.
+ const src=readFileSync(new URL('../worker/ui.js',import.meta.url),'utf8');
+ const start=src.indexOf('const clientJS=String.raw`');
+ const backtick=src.indexOf('`',start+25);
+ let js=src.slice(backtick+1,src.indexOf('`;',backtick));
+ js=js.replace(/__MARK__/g,()=>'{}').replace(/__CSS__/g,()=>'').replace(/__STYLES__/g,()=>'{}');
+ js+='\n;globalThis.__uiTest={formulaCard,el,h};';
+
+ function mkEl(tag){
+  const e={tagName:String(tag||'').toUpperCase(),children:[],attrs:{},style:{},dataset:{},_t:'',_h:'',_c:'',
+   classList:{add(){},remove(){},contains(){return false},toggle(){}},
+   setAttribute(k,v){this.attrs[k]=v},getAttribute(k){return this.attrs[k]},
+   addEventListener(){},removeEventListener(){},append(...cs){this.children.push(...cs.filter(c=>c!==null&&c!==undefined&&c!==false))},
+   replaceChildren(...cs){this.children=cs.filter(c=>c!==null&&c!==undefined&&c!==false)},
+   remove(){},click(){},focus(){},scrollIntoView(){},querySelector(){return null},querySelectorAll(){return []},
+   get textContent(){return this._t},set textContent(v){this._t=String(v)},
+   get innerHTML(){return this._h},set innerHTML(v){this._h=String(v)},
+   get className(){return this._c},set className(v){this._c=String(v)},
+   hidden:false,disabled:false,checked:false,required:false,value:''};
+  return e;
+ }
+ const textOf=node=>{let out='';const walk=n=>{if(!n)return;if(n._t)out+=n._t;if(n._h)out+=n._h;(n.children||[]).forEach(walk)};walk(node);return out};
+ const app=mkEl('div');
+ const document={createElement:mkEl,createTextNode:t=>({_t:String(t),children:[]}),
+  querySelector(sel){return sel==='#app'?app:(String(sel).charAt(0)==='#'?mkEl():null)},querySelectorAll(){return []},addEventListener(){},removeEventListener(){},
+  documentElement:mkEl('html'),body:mkEl('body'),title:'',head:mkEl('head')};
+ const prev={fetch:globalThis.fetch,document:globalThis.document,location:globalThis.location,localStorage:globalThis.localStorage,window:globalThis.window,history:globalThis.history,navigator:globalThis.navigator,requestAnimationFrame:globalThis.requestAnimationFrame};
+ globalThis.document=document;
+ globalThis.location={search:'',pathname:'/admin/test-salon',origin:'https://test.example'};
+ globalThis.localStorage={getItem(){return null},setItem(){},removeItem(){}};
+ globalThis.window={addEventListener(){},removeEventListener(){},innerWidth:800,innerHeight:600};
+ globalThis.history={replaceState(){}};
+ Object.defineProperty(globalThis,'navigator',{value:{userAgent:'node'},configurable:true,writable:true});
+ globalThis.requestAnimationFrame=fn=>setTimeout(fn,0);
+ const formula={id:'f1',customer_phone:'۰۹۱۲',target_color:'بلوند',current_color:'قهوه‌ای',brand:'کیکول',code:'771',
+  amounts:[{name:'بلوند',amount:'60'},{name:'پلاس',amount:'40'}],oxidant_percent:'6',oxidant_ratio:'1:1.5',
+  pause_root:20,pause_shaft:30,pause_top:10,note:'یادداشت نمونه',source:'suggestion'};
+ globalThis.fetch=url=>{const u=String(url);if(u.includes('/color/formulas'))return Promise.resolve({ok:true,json:()=>Promise.resolve({formulas:[formula]})});return Promise.reject(new Error('no network'))};
+ try{
+  new Function(js)();
+  const U=globalThis.__uiTest;
+  assert.ok(U,'the ui bundle exposed its internals');
+  const card=U.formulaCard();
+  await new Promise(r=>setTimeout(r,20)); // let the async load() settle
+  const text=textOf(card);
+  assert.ok(!text.includes('[object'),'no [object ...] leakage in the rendered card');
+  assert.ok(text.includes('کیکول')&&text.includes('771'),'the brand and code render');
+  assert.ok(text.includes('اکسیدان')&&text.includes('6٪')&&text.includes('1:1.5'),'the oxidant line renders');
+  assert.ok(text.includes('منبع')&&text.includes('پیشنهاد'),'the source label renders');
+  assert.ok(text.includes('بلوند — 60')&&text.includes('پلاس — 40'),'the amounts chips render');
+  assert.ok(text.includes('مکث')&&text.includes('ریشه 20'),'the pause line renders');
+  assert.ok(text.includes('یادداشت نمونه'),'the note renders');
+ }finally{
+  globalThis.fetch=prev.fetch;globalThis.document=prev.document;globalThis.location=prev.location;
+  globalThis.localStorage=prev.localStorage;globalThis.window=prev.window;globalThis.history=prev.history;
+  Object.defineProperty(globalThis,'navigator',{value:prev.navigator,configurable:true,writable:true});
+  globalThis.requestAnimationFrame=prev.requestAnimationFrame;
+  delete globalThis.__uiTest;
+ }
+});
+
+test('skip_vision: the condition sheet asks for answers-only porosity after a photo failure',async()=>{
+ // Item 4: after the photo analysis has failed once, the browser sends skip_vision — the server
+ // computes porosity from the answers alone: no AI call, no counters, and the sheet shows step 3.
+ const e=fixture();const s=await salon(e);const g=await guest(e,s);const photo=await upload(e,s,g);
+ const answers={coloured:'often',wash:'fade'};
+ const mv=mockVision(JSON.stringify({base_level:6,gray_percent:20,porosity:'medium',confidence:{}}));
+ try{e.KIE_API_KEY='kie-test';
+  // A normal call with a key succeeds and reserves a success slot.
+  const ok=await call(e,'/api/s/'+s.slug+'/color/analyze',{line:'color',photo_id:photo,answers},g);
+  assert.equal(ok.data.ok,true);
+  // skip_vision: no AI call, no new counters, porosity from the answers only.
+  const before=mv.calls.length;
+  const tryBefore=(await e.DB.prepare("SELECT COUNT(*) c FROM limits WHERE key LIKE 'colorcond%:try'").all()).results[0].c;
+  const skip=await call(e,'/api/s/'+s.slug+'/color/analyze',{line:'color',photo_id:photo,answers,skip_vision:true},g);
+  assert.equal(skip.status,200,JSON.stringify(skip));
+  assert.equal(skip.data.ok,false);
+  assert.equal(skip.data.reason,'skip');
+  assert.equal(skip.data.porosity,porosityFrom(null,answers),'porosity comes from the answers alone');
+  assert.equal(mv.calls.length,before,'skip_vision does not call the vision provider');
+  // skip_vision returns before any counter is reserved: the try count is unchanged.
+  const tryAfter=(await e.DB.prepare("SELECT COUNT(*) c FROM limits WHERE key LIKE 'colorcond%:try'").all()).results[0].c;
+  assert.equal(tryAfter,tryBefore,'skip_vision reserves no try counter');
+ }finally{mv.restore()}
+});

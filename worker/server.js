@@ -587,7 +587,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   const old=await one(db,'SELECT * FROM generations WHERE session_id=? AND idem=?',s.id,b.idem);if(old)return J({id:old.id,state:old.state});
   const original=await ownMedia(db,s,b.original_id);must(original.kind==='original','عکس چهره لازم است');
   const color=text(String(b.color||'').slice(0,120),120),opts=cleanOptions(line,b.opts),ratio=RATIOS.includes(b.ratio)?b.ratio:'3:4';
-  // Phase 2: where the colour sits (كل مو / ریشه / …). Validated against the pattern list;
+  // Phase 2: where the colour sits (کل مو / ریشه / …). Validated against the pattern list;
   // it only reaches the prompt on the colour line, and only for a catalog or typed colour —
   // a reference photo carries its own placement.
   const placement=PLACEMENT_KEYS.includes(b.placement)?b.placement:null;

@@ -21,11 +21,11 @@ const parse=s=>{try{return JSON.parse(s||'{}')}catch{return {}}};
 /* The two condition questions (skippable, single-choice) that feed the porosity estimate
    together with the photo. One source of truth for the sheet and the tests. */
 export const CONDITION_QUESTIONS=[
- {key:'coloured',label:'قبلاً موهات رنگ شده؟',options:[['no','نه'],['once','یک بار'],['often','چندان بار']]},
+ {key:'coloured',label:'قبلاً موهات رنگ شده؟',options:[['no','نه'],['once','یک بار'],['often','چند بار']]},
  {key:'wash',label:'بعد از شست‌وشو موهات چطور می‌ماند؟',options:[['normal','نرمال می‌ماند'],['dry','زود خشک می‌شود'],['fade','رنگ زود می‌پرد']]}
 ];
 export const CONDITION_PROBLEMS=[
- ['uneven','رنگ یک‌نواخت نیست'],['fade','رنگ زود می‌پرد'],['root','ریشه زود ظهور می‌دهد'],
+ ['uneven','رنگ یک‌نواخت نیست'],['fade','رنگ زود می‌پرد'],['root','ریشه زود پیدا می‌شود'],
  ['streak','رگه می‌شود'],['inconsistent','رنگ ناهمگون است'],['bleached','دکلره شده']
 ];
 const PROMPT_V='v1';
@@ -77,11 +77,11 @@ function cleanConditionAnswers(raw){
 
 /* ---------- the correction plan: deterministic rules, always a suggestion with a warning ---------- */
 const STEP={
- strip:{title:'پاک‌کردن (دکلره)',text:'موها را از رنگ و ته‌رنگ قبلی پاک می‌کنید تا یک پایه‌ی یک‌دست بمانند؛ این مرحله برای تغییر به رنگِ روشن‌تر یاإصلاح رگه‌ها است.'},
+ strip:{title:'پاک‌کردن (دکلره)',text:'موها را از رنگ و ته‌رنگ قبلی پاک می‌کنید تا یک پایه‌ی یک‌دست بمانند؛ این مرحله برای تغییر به رنگِ روشن‌تر یا اصلاح رگه‌ها است.'},
  deposit:{title:'پیگمنت‌گذاری',text:'رنگ هدف را با اکسیدان مناسب روی پایه‌ی آماده گذاشت؛ رنگ هدف مستقیماً روی مو نشسته و ریشه یک‌دست می‌شود.'},
  tone:{title:'تونر',text:'برای هم‌رنگی و برطرف کردن ته‌رنگ نامطلوب، تونرِ مناسب به مو می‌گذارید؛ این مرحله رنگ را یک‌دست و براق می‌کند.'},
- root:{title:'ریشه‌سازی',text:'فقط ناحیهٔ ریشه را با رنگ تجدید می‌کنید؛ ساقه و سر از رنگ فعلی سرکت می‌ماند، تا ریشه زود ظهور نگیرد.'},
- gloss:{title:'براق‌کردن',text:'در مرحلهٔ آخر، براق‌کننده یا Olen بر مو می‌گذارید تا رنگ یک‌دست، براق و پایدار بماند.'}
+ root:{title:'ریشه‌سازی',text:'فقط ناحیهٔ ریشه را با رنگ تجدید می‌کنید؛ ساقه و سر از رنگ فعلی بدون تغییر می‌ماند، تا ریشه زود پیدا نشود.'},
+ gloss:{title:'براق‌کردن',text:'در مرحلهٔ آخر، براق‌کننده یا براق‌کنِ مناسب بر مو می‌گذارید تا رنگ یک‌دست، براق و پایدار بماند.'}
 };
 const tagOf=name=>{const c=COLOR_STYLES.find(x=>x[0]===String(name||'').trim());return c?c[2]:null};
 /* «رنگ فعلی/مشکل → هدف»: every plan is a suggestion, and every plan ends with the same
@@ -194,6 +194,10 @@ export async function colorApi(req,env,{u,route,salon,s,clientIp}){
   must(object,'عکس در دسترس نیست',410);
   const bytes=new Uint8Array(await object.arrayBuffer());
   const answers=cleanConditionAnswers(b.answers);
+  /* skip_vision: the photo analysis already failed once for this customer, so the browser asks
+     for the answers-only porosity without paying for the vision call again. No AI call, no
+     counters — just the deterministic rule over her answers (null when she answered nothing). */
+  if(b.skip_vision)return J({ok:false,fallback:'questionnaire',reason:'skip',answers,porosity:Object.keys(answers).length?porosityFrom(null,answers):null});
   const r=await visionJSON(env,db,{cacheKey:'colorcond:'+PROMPT_V+':'+await hashBytes(bytes),system:SYSTEM,user:USER,image:{mime:m.mime,bytes},
    tryLimit:{key:who+':try',max:phone?60:3,message:'چند بار تلاش کردی؛ کمی بعد دوباره امتحان کن'},
    okLimit:{key:who+':ok',max:phone?30:1,message:'تخمین وضعیت موهای امروز تمام شد؛ فردا دوباره امتحان کن یا وارد حساب شو.'},

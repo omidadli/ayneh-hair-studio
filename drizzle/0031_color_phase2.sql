@@ -21,7 +21,6 @@ CREATE TABLE IF NOT EXISTS color_formulas(
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS color_formulas_salon ON color_formulas(salon_id, created_at);
-CREATE INDEX IF NOT EXISTS color_formulas_customer ON color_formulas(salon_id, customer_phone);
 -- One card per customer phone per salon: the check-then-insert in color.js cannot
 -- duplicate a row even under concurrent saves.
 CREATE UNIQUE INDEX IF NOT EXISTS color_formulas_salon_phone ON color_formulas(salon_id, customer_phone);

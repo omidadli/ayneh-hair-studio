@@ -14,7 +14,7 @@ import {must, uid, limited} from './domain.js';
 import {smsReady} from './sms.js';
 import {publicOrder, closeExpired, orderById, panelSalon, hashKey, ORDER_MINUTES, pickCard} from './orders.js';
 import {bizOrigin} from './hosts.js';
-import {CUSTOMER_IMAGE_PRICE, CUSTOMER_FREE_IMAGES, REFERRAL_IMAGES, IMAGE_COINS, COIN_TOMAN, TOPUP_MIN, TOPUP_MAX, TOPUP_STEP, TOPUP_PRESETS, GIFT_EVERY, coinsFor} from './customerprices.js';
+import {CUSTOMER_IMAGE_PRICE, CUSTOMER_FREE_IMAGES, REFERRAL_IMAGES, IMAGE_COINS, COIN_TOMAN, TOPUP_MIN, TOPUP_MAX, TOPUP_STEP, TOPUP_PRESETS, GIFT_EVERY, coinsFor, CONSULT_COINS} from './customerprices.js';
 import {accountFor, anySession, customerBalance, directSalon, directUsed} from './customers.js';
 import {codeFor, referralStats} from './rewards.js';
 import {timingReport} from './timing.js';
@@ -24,7 +24,7 @@ const J = (v, s = 200) => new Response(JSON.stringify(v), {status: s, headers: {
 const run = (db, sql, ...a) => db.prepare(sql).bind(...a).run();
 const fa = n => Number(n).toLocaleString('fa-IR');
 const topups = () => TOPUP_PRESETS.map(toman => ({toman, ...coinsFor(toman)}));
-const economy = () => ({coin_toman: COIN_TOMAN, image_coins: IMAGE_COINS, image_price: CUSTOMER_IMAGE_PRICE, min: TOPUP_MIN, max: TOPUP_MAX, step: TOPUP_STEP, gift_every: GIFT_EVERY, topups: topups()});
+const economy = () => ({coin_toman: COIN_TOMAN, image_coins: IMAGE_COINS, consult_coins: CONSULT_COINS, image_price: CUSTOMER_IMAGE_PRICE, min: TOPUP_MIN, max: TOPUP_MAX, step: TOPUP_STEP, gift_every: GIFT_EVERY, topups: topups()});
 
 /* The sheet sees figures only: no mobile, no key, nothing about other orders. */
 async function packView(db, env, row, origin) {

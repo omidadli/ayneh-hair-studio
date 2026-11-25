@@ -883,7 +883,7 @@ assert.match(js,/col=line==='hair'\?\(state\.pub\.demo\?o\.color:''\)/);assert.m
  assert.match(stb,/reduce=window\.matchMedia\('\(prefers-reduced-motion: reduce\)'\)\.matches,beh=reduce\?'auto':'smooth'/,'no smooth scroll when she asked for none');
  assert.match(js,/setTimeout\(scrollToBuild,60\)/,'uploading her own model photo does the same');
  // She changed her photo with a look already chosen: the auto-advance lands on «بساز» too.
- assert.match(js,/go\(2,true\);scrollToBuild\(\)\}\},1600\)\}/,'a re-upload with a look already chosen lands on «بساز»');
+ assert.match(js,/go\(2,true\);scrollToBuild\(\);if\(wantConsult\)/,'a re-upload with a look already chosen lands on «بساز»');
  // Nothing builds by itself: build() only ever runs from her tap on «بساز» (or the dock).
  assert.ok(!/scrollToBuild[\s\S]{0,200}build\(\)/.test(js),'coming into view never starts the build');
  // The four services are four LINE tabs of ONE page, so «بساز» behaves identically on every

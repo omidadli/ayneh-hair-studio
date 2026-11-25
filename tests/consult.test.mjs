@@ -276,28 +276,41 @@ test('an HTTP error was never billed: success and network slots come back, the a
  assert.equal(await cnt('consult-net:unknown'),0,'the network slot came back — nothing was billed');
 });
 
-test('the consultant card and its paid vision exist only on hair and colour — never nails or lashes',async()=>{
- // Client: the card is absent on both lines and analyze never calls the API for them.
- assert.match(customerHTML,/L!=='nails'&&L!=='lashes'\)box\.append\(consultCard\(\)\)/);
- assert.match(customerHTML,/consult\.line==='nails'\|\|consult\.line==='lashes'/);
- // Server: those lines answer the questionnaire fallback and touch neither provider nor counters.
+test('every line is analysed: a nails photo gets its fields, a Persian report and real catalogue picks',async()=>{
  const e=fixture(),s=await salon(e),g=await guest(e,s);
  const photo=await upload(e,s,g);
- const before=e.DB.sql.prepare('SELECT count(*) n FROM limits').get().n;
+ e.KIE_API_KEY='mock';
+ const kv=mockVision(JSON.stringify({skin_undertone:'warm',nail_shape:'oval',finger_type:'slim_long',confidence:{skin_undertone:0.8,nail_shape:0.9,finger_type:0.85},photo_ok:true,summary:'دست‌هات کشیده است.',points:['انگشت‌ها کشیده‌اند'],avoid:['رنگ خیلی تیره'],picks:[{index:1,why:'به انگشت کشیده می‌آید'},{index:1,why:'تکراری'},{index:999,why:'نامعتبر'},{index:0,why:'ساده و تمیز'}]}));
+ try{
+  const r=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line:'nails'},g);
+  assert.equal(r.status,200,JSON.stringify(r));assert.equal(r.data.ok,true);
+  assert.deepEqual(r.data.fields,{skin_undertone:'warm',nail_shape:'oval',finger_type:'slim_long'});
+  assert.deepEqual(r.data.report.picks.map(p=>p.index),[1,0],'only real catalogue indices, no repeats');
+  assert.equal(r.data.report.picks[0].name,NAIL_STYLES[1][0]);
+  assert.equal(r.data.report.summary,'دست‌هات کشیده است.');
+  assert.match(kv.calls[0].messages[0].content[0].text,/Catalogue/);
+ }finally{kv.restore()}
+ assert.doesNotMatch(customerHTML,/L!=='nails'&&L!=='lashes'\)box\.append\(consultCard\(\)\)/,'the card is on every line');
+});
+
+test('studio: the first analysis is free, the next costs a coin from her wallet, a repeat of the same photo is free',async()=>{
+ const e=fixture();await app.fetch(new Request(origin+'/'),e);
+ const s={slug:'try'},g=await guest(e,s),v='ef'.repeat(10);
+ const a=await upload(e,s,g),b=await upload(e,s,g,'original',(()=>{const x=png();x[100]=7;return x})()),c=await upload(e,s,g,'original',(()=>{const x=png();x[100]=9;return x})());
  e.KIE_API_KEY='mock';
  const kv=mockVision(MODEL_JSON);
  try{
-  for(const line of ['nails','lashes']){
-   const r=await call(e,'/api/s/salon-a/consult/analyze',{photo_id:photo,line},g);
-   assert.equal(r.status,200,JSON.stringify(r));
-   assert.equal(r.data.ok,false);assert.equal(r.data.fallback,'questionnaire');
-  }
-  assert.equal(kv.calls.length,0,'no vision run, no charge');
+  const first=await call(e,'/api/s/try/consult/analyze',{photo_id:a,line:'hair',v},g);assert.equal(first.data.ok,true,JSON.stringify(first));
+  const again=await call(e,'/api/s/try/consult/analyze',{photo_id:a,line:'hair',v},g);assert.equal(again.data.ok,true,'same photo: from the cache, free');
+  const second=await call(e,'/api/s/try/consult/analyze',{photo_id:b,line:'hair',v},g);assert.equal(second.status,402,JSON.stringify(second));assert.equal(second.data.code,'consult_coins');
+  const acc=crypto.randomUUID();
+  e.DB.sql.prepare('INSERT INTO customer_accounts(id,phone,visitor,created_at) VALUES(?,NULL,?,?)').run(acc,v,Date.now());
+  e.DB.sql.prepare("INSERT INTO customer_ledger(id,account_id,delta,reason,order_id,created_at) VALUES(?,?,25,'topup','o1',?)").run(crypto.randomUUID(),acc,Date.now());
+  const paid=await call(e,'/api/s/try/consult/analyze',{photo_id:c,line:'hair',v},g);assert.equal(paid.data.ok,true,JSON.stringify(paid));
+  assert.equal(e.DB.sql.prepare("SELECT SUM(delta) n FROM customer_ledger WHERE account_id=?").get(acc).n,24,'one coin');
+  assert.equal(kv.calls.length,2,'the cache hit never reached the provider');
  }finally{kv.restore()}
- assert.equal(e.DB.sql.prepare('SELECT count(*) n FROM limits').get().n,before,'no counter was spent');
- assert.equal(e.DB.sql.prepare('SELECT count(*) n FROM ai_cache').get().n,0);
 });
-
 test('each pick shows its own distinct matched reason; an unmatched pick gets its tag’s line',()=>{
  // Unmatched (empty answers): every card's reason names its own tag — never one generic line.
  const catalogs={hair:styles,color:COLOR_STYLES,nails:NAIL_STYLES,lashes:LASH_STYLES};
@@ -543,7 +556,7 @@ test('the fallback form lets her skip any field and «بعدی» is never blocke
  // A «نمی‌دونم» chip per field…
  assert.match(customerHTML,/نمی‌دونم/);
  // …and Next carries no missing-field disable (only the busy guard).
- assert.match(customerHTML,/text:'بعدی: پرسش‌نامه',disabled:!!consult\.busy/);
+ assert.match(customerHTML,/:'بعدی: پرسش‌نامه',disabled:!!consult\.busy/);
  assert.doesNotMatch(customerHTML,/بعدی: پرسش‌نامه',disabled:!!miss/);
 });
 

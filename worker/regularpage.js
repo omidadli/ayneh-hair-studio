@@ -137,7 +137,7 @@ export const packsJS = String.raw`
     var w=worth(d,t),on=isCustom?sel==='custom':sel===t;
     var r=el('button',{class:'ap-opt'+(on?' is-on':''),type:'button',role:'radio','aria-checked':String(on),onclick:function(){sel=isCustom?'custom':t;draw()}},[
      el('span',{class:'ap-opt__dot','aria-hidden':'true'}),
-     el('span',{class:'ap-opt__main'},[el('b',{text:fa(w.images)+' عکس'}),el('small',{text:isCustom&&sel!=='custom'?'تعداد عکس را خودت انتخاب کن':(w.gift?fa(w.images-w.gift)+' عکس + '+fa(w.gift)+' عکس جایزه':'')+(w.gift?'، ':'')+fa(w.coins)+' سکه'})]),
+     el('span',{class:'ap-opt__main'},[el('b',{text:fa(w.images)+' عکس'}),el('small',{text:isCustom&&sel!=='custom'?'تعداد عکس را خودت انتخاب کن':(w.gift?fa(w.images-w.gift)+' عکس + '+fa(w.gift)+' عکس جایزه':'')+(w.gift?'، ':'')+fa(w.coins)+' سکه'+(d.consult_coins?' · یا '+fa(Math.floor(w.coins/d.consult_coins))+' تحلیل چهره':'')})]),
      !isCustom&&t===best?el('i',{class:'ap-opt__tag',text:'پرطرفدار'}):null,
      isCustom&&sel!=='custom'?null:el('span',{class:'ap-opt__price',text:fa(t/1000)+' هزار تومان'})]);
     return r;
@@ -159,7 +159,7 @@ export const packsJS = String.raw`
    box.replaceChildren(el('div',{class:'ap'},[
     el('div',{class:'ap-bal'},[coinSVG(),el('span',{text:'موجودی کیف'}),el('b',{text:fa(own)+' سکه'})]),
     rows,payBtn,
-    el('p',{class:'ap-note',text:'هر عکس '+fa(d.image_coins)+' سکه · سکه منقضی نمی‌شود · اگر ساخت عکسی خراب شود، سکه‌اش برمی‌گردد.'}),err,
+    el('p',{class:'ap-note',text:'هر عکس '+fa(d.image_coins)+' سکه'+(d.consult_coins?' · هر تحلیل چهره '+fa(d.consult_coins)+' سکه (اولین تحلیل رایگان)':'')+' · سکه منقضی نمی‌شود · اگر ساخت عکسی خراب شود، سکه‌اش برمی‌گردد.'}),err,
     opts.referral&&d.referral?el('div',{class:'ap-ref'},[el('p',{text:'آرایشگر یا آرایشگاه‌دار می‌شناسید؟ لینک خودتان را به او بدهید؛ اگر پلن آینه بگیرد، '+fa(d.referral.images*d.image_coins)+' سکه هدیه می‌گیرید.'}),el('code',{text:d.referral.link}),copyBtn('کپی لینک',d.referral.link)]):null]));
   }
   function pay(o){

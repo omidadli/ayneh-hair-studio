@@ -9,7 +9,8 @@ import {must,Problem,uid,token,hash,limited} from './domain.js';
 import {LINE_KEYS,LINE_LABEL,COLOR_STYLES,NAIL_STYLES,LASH_STYLES} from './lines.js';
 import {styles} from './legacy.js';
 import {visionJSON,uploadProvider} from './ai.js';
-import {isDirect} from './customers.js';
+import {isDirect,accountFor,customerBalance} from './customers.js';
+import {CONSULT_COINS,CONSULT_FREE} from './customerprices.js';
 import {bucketFor} from './storage.js';
 import {baseCSS} from './design.js';
 
@@ -33,13 +34,16 @@ export const ANALYSIS_FIELDS=[
  {key:'hair_length',label:'طول مو',options:[['short','کوتاه'],['medium','متوسط'],['long','بلند']]},
  {key:'hair_density',label:'تراکم مو',options:[['low','کم‌پشت'],['medium','متوسط'],['high','پرپشت']]},
  {key:'skin_undertone',label:'ته‌رنگ پوست',options:[['warm','گرم'],['cool','سرد'],['neutral','خنثی']]},
- {key:'hair_color',label:'رنگ فعلی مو',options:[['black','مشکی'],['dark_brown','قهوه‌ای تیره'],['brown','قهوه‌ای'],['blonde','بلوند'],['gray','خاکستری'],['red','قرمز'],['other','سایر']]}
+ {key:'hair_color',label:'رنگ فعلی مو',options:[['black','مشکی'],['dark_brown','قهوه‌ای تیره'],['brown','قهوه‌ای'],['blonde','بلوند'],['gray','خاکستری'],['red','قرمز'],['other','سایر']]},
+ {key:'eye_shape',label:'فرم چشم',options:[['almond','بادامی'],['round','گرد'],['hooded','پلک افتاده'],['monolid','تک‌پلک'],['downturned','گوشهٔ رو به پایین'],['upturned','گوشهٔ رو به بالا']]},
+ {key:'nail_shape',label:'فرم فعلی ناخن',options:[['square','مربعی'],['round','گرد'],['oval','بیضی'],['almond','بادامی'],['short_natural','کوتاه طبیعی']]},
+ {key:'finger_type',label:'فرم انگشت‌ها',options:[['slim_long','کشیده و باریک'],['average','متوسط'],['short_wide','کوتاه و پهن']]}
 ];
 /* Which fields matter for which service — a hand photo for nails should not ask about face
    shape, and the questionnaire stays short where the analysis adds nothing. */
-export const RELEVANT={hair:['face_shape','hair_texture','hair_length','hair_density','skin_undertone','hair_color'],color:['skin_undertone','hair_color','hair_texture','hair_length'],nails:['skin_undertone'],lashes:['face_shape','skin_undertone']};
+export const RELEVANT={hair:['face_shape','hair_texture','hair_length','hair_density','skin_undertone','hair_color'],color:['skin_undertone','hair_color','hair_texture','hair_length'],nails:['skin_undertone','nail_shape','finger_type'],lashes:['eye_shape','face_shape','skin_undertone']};
 const ENUMS=Object.fromEntries(ANALYSIS_FIELDS.map(f=>[f.key,new Set(f.options.map(o=>o[0]))]));
-const PROMPT_V='v1';
+const PROMPT_V='v2';
 /* One network (IP) may push at most this many vision attempts a day for a guest — the same
    idea as DEMO_IP_DAILY: a farm of free browser ids behind one address stops here. Signed-in
    customers are bounded by their phone key instead, so they carry no network counter. */
@@ -47,8 +51,30 @@ const NET_DAILY=10;
 /* Cache key component: SHA-256 of the photo BYTES, so the same picture re-uploaded under a
    new media id is still free (domain hash() takes strings, not bytes). */
 const hashBytes=async b=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',b)),x=>x.toString(16).padStart(2,'0')).join('');
-const SYSTEM='You are a beauty-analysis engine of Ayneh, a Persian salon try-on app. Analyse the photo and reply with ONE JSON object only — no markdown, no commentary. Schema: {"face_shape":"oval|round|heart|square|oblong|diamond","hair_texture":"straight|wavy|curly","hair_length":"short|medium|long","hair_density":"low|medium|high","skin_undertone":"warm|cool|neutral","hair_color":"black|dark_brown|brown|blonde|gray|red|other","confidence":{each of those six keys: a number 0.0-1.0}}. Rules: styling advice only, never a medical or diagnostic judgement; do not guess age or health; if a feature is not visible in the photo (for example only a hand is shown), still return the JSON but give every invisible field a confidence of 0.05; confidence below 0.6 means you are unsure and the customer will be asked.';
-const USER='Analyse this photo for a beauty consultation.';
+/* v2 (Nov 2026): a senior stylist's reading of the photo — the measured fields, a short
+   professional report in Persian and the best picks FROM THIS SERVICE'S OWN CATALOG (by index),
+   each with its reason. Indices are validated against the catalog; nothing else is trusted. */
+const LINE_EN={hair:'haircut / hairstyle',color:'hair colour',nails:'nail design (manicure)',lashes:'eyelash extensions / lash style'};
+const catalogOf=line=>line==='hair'?styles:line==='color'?COLOR_STYLES:line==='nails'?NAIL_STYLES:LASH_STYLES;
+function systemFor(line){
+ const rel=RELEVANT[line]||RELEVANT.hair;
+ const schema=rel.map(k=>'"'+k+'":"'+[...ENUMS[k]].join('|')+'"').join(',');
+ const list=catalogOf(line).map((x,i)=>i+': '+x[0]+' ['+x[2]+']').join('\n');
+ return 'You are the head consultant of Ayneh, a high-end Persian beauty salon app: a senior stylist with 20 years of experience in face analysis, '+LINE_EN[line]+', colour theory and Iranian clientele. Study the photo carefully and precisely: '+
+  (line==='nails'?'the hand, finger length and width, nail bed shape and length, skin undertone (veins, knuckles).':line==='lashes'?'eye shape, lid space, eye spacing, brow arch, face shape and skin undertone.':'face shape (forehead width vs cheekbones vs jaw, face length vs width), jawline, forehead height, neck, hair texture, length, density, current colour, skin undertone (warm/cool/neutral from skin and veins), eye and brow colour.')+
+  ' Then choose the 5 best options for THIS person from the salon catalogue below (use only these indices). Rank by real fit with her features, not popularity; give variety (not five near-identical options).\n\nCatalogue ('+LINE_EN[line]+'):\n'+list+
+  '\n\nReply with ONE JSON object only, no markdown: {'+schema+',"confidence":{each of those keys: 0.0-1.0},"photo_ok":true|false,"summary":"2-3 sentences in warm, professional Persian (Farsi) addressing her as تو: what stands out in her features and what direction suits her","points":["3-4 short Persian observations, each a concrete feature and what it means for her choice"],"avoid":["1-2 short Persian lines: what to avoid and why"],"picks":[{"index":catalogue index,"why":"one specific Persian sentence tying this option to HER features"}]}. '+
+  'Rules: styling advice only, never medical judgement; do not guess age, weight or health; be honest and specific, no flattery clichés; if the photo does not show what this service needs (e.g. no hand for nails, face too small or blurred), set photo_ok false, set unseen fields to confidence 0.05 and still give your best picks; confidence below 0.6 means unsure.';
+}
+const USER='Analyse this photo for the consultation and answer with the JSON.';
+/* The report the sheet shows: Persian text trimmed, picks only real catalogue indices, no repeats. */
+function cleanReport(raw,line){
+ const list=catalogOf(line),txt=(v,n)=>typeof v==='string'?v.replace(/\s+/g,' ').trim().slice(0,n):'';
+ const arr=(v,k,n)=>Array.isArray(v)?v.map(x=>txt(x,n)).filter(Boolean).slice(0,k):[];
+ const seen=new Set(),picks=[];
+ for(const p of Array.isArray(raw&&raw.picks)?raw.picks:[]){const i=Number(p&&p.index);if(!Number.isInteger(i)||!list[i]||seen.has(i))continue;seen.add(i);picks.push({index:i,name:list[i][0],why:txt(p.why,220)})}
+ return {summary:txt(raw&&raw.summary,500),points:arr(raw&&raw.points,4,200),avoid:arr(raw&&raw.avoid,2,200),picks:picks.slice(0,5),photo_ok:raw&&raw.photo_ok!==false};
+}
 
 /* Validate the model's JSON: keep only known enum values for the fields this line cares
    about, clamp confidence, and list the unsure ones so the sheet asks the customer. */
@@ -241,7 +267,6 @@ export async function consultApi(req,env,{u,route,salon,s,clientIp}){
   /* Nails and lashes never run (nor charge) the vision: the card is hidden on both lines —
      a close-up of a hand or lashes is not a hairstyle analysis; the questionnaire is the
      answer, and no counter is touched. */
-  if(line==='nails'||line==='lashes')return J({ok:false,fallback:'questionnaire',reason:'line'});
   /* Caps follow the customer, not the salon: a signed-in one by phone, a guest by browser id
      plus the hashed network — so a farm cannot reset the counter by opening another page,
      another browser session or another salon. Cache hits are free and skip every counter. */
@@ -250,14 +275,30 @@ export async function consultApi(req,env,{u,route,salon,s,clientIp}){
   const object=await bucketFor(env).get(m.object_key);
   must(object,'عکس در دسترس نیست',410);
   const bytes=new Uint8Array(await object.arrayBuffer());
-  const r=await visionJSON(env,db,{cacheKey:'consult:'+PROMPT_V+':'+await hashBytes(bytes),system:SYSTEM,user:USER,image:{mime:m.mime,bytes,url:await uploadProvider(env,m).catch(()=>'')},
+  /* Studio: the first analysis per person is free, then CONSULT_COINS coins from her wallet,
+     charged only after a real (uncached) answer. Salon pages keep the daily caps below. */
+  const ck='consult:'+PROMPT_V+':'+line+':'+await hashBytes(bytes);
+  let payer=null;const owners=[phone?'p:'+phone:'',v?'v:'+v:''].filter(Boolean);
+  if(isDirect(salon)&&!await db.prepare('SELECT 1 FROM ai_cache WHERE key=?').bind(ck).first()){
+   const used=owners.length?Number((await db.prepare('SELECT COUNT(*) n FROM consult_uses WHERE owner IN ('+owners.map(()=>'?').join(',')+')').bind(...owners).first())?.n||0):0;
+   if(used>=CONSULT_FREE){
+    const acc=await accountFor(db,env,s,v);
+    if(!acc||(await customerBalance(db,acc.id)).coins<CONSULT_COINS){const e=new Problem(402,phone?'تحلیل رایگانت را استفاده کردی؛ هر تحلیل تازه '+CONSULT_COINS.toLocaleString('fa-IR')+' سکه است. کیف سکه‌ات را شارژ کن.':'تحلیل رایگانت را استفاده کردی؛ برای تحلیل تازه وارد حسابت شو و کیف سکه را شارژ کن.');e.code='consult_coins';throw e}
+    payer=acc.id;
+   }
+  }
+  const r=await visionJSON(env,db,{cacheKey:ck,system:systemFor(line),user:USER,image:{mime:m.mime,bytes,url:await uploadProvider(env,m).catch(()=>'')},
    tryLimit:{key:who+':try',max:phone?60:3,message:'چند بار تلاش کردی؛ کمی بعد دوباره امتحان کن'},
-   okLimit:{key:who+':ok',max:phone?30:1,message:'تحلیل عکس امروز تمام شد؛ فردا دوباره امتحان کن یا وارد حساب شو.'},
+   okLimit:payer?null:{key:who+':ok',max:phone?30:1,message:'تحلیل عکس امروز تمام شد؛ فردا دوباره امتحان کن یا وارد حساب شو.'},
    netLimit:phone?null:{key:'consult-net:'+(clientIp||'unknown'),max:NET_DAILY,message:'از این شبکه امروز چندین تحلیل زده شد؛ فردا دوباره امتحان کن.'}});
   if(!r.ok)return J({ok:false,fallback:'questionnaire',reason:r.reason,detail:r.detail||''});
+  if(isDirect(salon)&&!r.cached&&owners.length){const id=uid();
+   await db.prepare('INSERT INTO consult_uses(id,salon_id,owner,line,paid_by,coins,created_at) VALUES(?,?,?,?,?,?,?)').bind(id,salon.id,owners[0],line,payer,payer?CONSULT_COINS:0,Date.now()).run();
+   if(payer)await db.prepare("INSERT INTO customer_ledger(id,account_id,delta,reason,order_id,created_at) VALUES(?,?,?,'consult',?,?)").bind(uid(),payer,-CONSULT_COINS,id,Date.now()).run();
+  }
   const a=cleanAnalysis(r.value,line);
   if(!Object.keys(a.fields).length)return J({ok:false,fallback:'questionnaire',reason:'invalid'});
-  return J({ok:true,fields:a.fields,confidence:a.confidence,low:a.low,cached:!!r.cached,credits:r.credits||0,model:r.model||''});
+  return J({ok:true,fields:a.fields,confidence:a.confidence,low:a.low,report:cleanReport(r.value,line),cached:!!r.cached,credits:r.credits||0,model:r.model||''});
  }
  if(route==='consult/suggest'&&req.method==='POST'){
   const b=await req.json().catch(()=>({}));
@@ -276,7 +317,7 @@ export async function consultApi(req,env,{u,route,salon,s,clientIp}){
   let source='self';
   const object=await bucketFor(env).get(m.object_key);
   if(object){const bytes=new Uint8Array(await object.arrayBuffer());
-   if(await db.prepare('SELECT 1 FROM ai_cache WHERE key=?').bind('consult:'+PROMPT_V+':'+await hashBytes(bytes)).first())source='vision'}
+   if(await db.prepare('SELECT 1 FROM ai_cache WHERE key=?').bind('consult:'+PROMPT_V+':'+b.line+':'+await hashBytes(bytes)).first())source='vision'}
   const a=source==='self'?{fields:(b.analysis&&b.analysis.fields)||{},confidence:{},low:[]}:cleanAnalysis(b.analysis,b.line);
   if(source==='self'){const f={};for(const k of RELEVANT[b.line]){const v=a.fields[k];if(typeof v==='string'&&ENUMS[k].has(v))f[k]=v}a.fields=f}
   /* Fields she answered herself (all of them when there was no analysis, or the ones she

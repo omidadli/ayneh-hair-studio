@@ -12,7 +12,12 @@
 export const COIN_TOMAN = 2000;
 export const IMAGE_COINS = 25;
 export const CUSTOMER_IMAGE_PRICE = COIN_TOMAN * IMAGE_COINS;   // 50,000 toman per image
-export const CUSTOMER_FREE_IMAGES = 2;                          // free images in the studio, per person
+export const CUSTOMER_FREE_IMAGES = 2;
+// The photo analysis (worker/consult.js): one free per person, then this many coins each. Its
+// provider cost is a fraction of a coin (~0.1–0.5 KIE credit ≈ a few hundred toman), so one coin
+// (2,000 toman) is the smallest price that is still at least twice the cost (owner's rule).
+export const CONSULT_COINS = 1;
+export const CONSULT_FREE = 1;                          // free images in the studio, per person
 export const TOPUP_STEP = CUSTOMER_IMAGE_PRICE;                 // top-ups move in whole images
 export const TOPUP_MIN = 100000;                                // toman (2 images)
 export const TOPUP_MAX = 10000000;                              // toman, one order

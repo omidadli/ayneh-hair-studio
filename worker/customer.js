@@ -1,4 +1,5 @@
 import {draftScript} from './draft.js';
+import {CONSULT_COINS} from './customerprices.js';
 import {styles} from './legacy.js';
 import {NAIL_STYLES,LASH_STYLES,COLOR_STYLES,COLOR_SWATCHES,LINE_OPTIONS,LINE_COLORS,LINE_POPULAR,LINE_FILTERS,LINE_PHOTO,LINE_LABEL} from './lines.js';
 import {QUESTIONS,ANALYSIS_FIELDS,RELEVANT} from './consult.js';
@@ -667,8 +668,8 @@ img[loading="lazy"].is-in{opacity:1}
 .signin-sheet .signin__perks{margin-top:8px}
 
 @media (min-width:900px){
- .studio{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);grid-template-areas:"title proof" "tag proof" "wallet proof" "cta proof";column-gap:48px;align-items:start;align-content:start}
- .studio>.studio__title{grid-area:title;font-size:44px}.studio>.studio__tag{grid-area:tag}.studio>.wallet{grid-area:wallet}.studio>.studio__cta{grid-area:cta}.studio>.album,.studio>.trend{grid-column:1/-1;margin-top:18px}
+ .studio{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);grid-template-areas:"title proof" "tag proof" "wallet proof" "cta proof" "ai proof";column-gap:48px;align-items:start;align-content:start}
+ .studio>.studio__title{grid-area:title;font-size:44px}.studio>.studio__tag{grid-area:tag}.studio>.wallet{grid-area:wallet}.studio>.studio__cta{grid-area:cta}.studio>.studio__ai{grid-area:ai;margin-top:4px}.studio>.album,.studio>.trend{grid-column:1/-1;margin-top:18px}
  .studio>.proof{grid-area:proof;align-self:center}.proof__pair{max-width:none}.proof__img{max-height:340px}
 }
 /* While the start button is on screen the dock would repeat it (and cover it on small phones). */
@@ -790,6 +791,23 @@ body.is-studio .result-actions>:last-child:nth-child(odd){grid-column:1/-1}
 .cpick .why{font-size:13.5px;line-height:1.8;color:var(--ink-2)}
 .cpick .lim{font-size:13px;line-height:1.8;color:var(--warn);background:var(--warn-soft);border-radius:10px;padding:8px 10px}
 .cpick .btn{margin-top:4px;justify-self:start}
+.cpick--img{grid-template-columns:84px minmax(0,1fr);column-gap:12px;align-items:start}
+.cpick--img>img{grid-row:1/span 4;width:84px;height:104px;object-fit:cover;border-radius:12px;background:var(--surface-2)}
+.cpick__rank{font-size:11.5px;font-weight:800;color:var(--accent-ink,#0b5c46)}
+.creport{display:grid;gap:10px;padding:14px 16px;border-radius:var(--r);background:linear-gradient(160deg,#EAF4EF,#FBF5EA);border:1px solid var(--line)}
+.creport h3{margin:0;font-size:16px;display:flex;gap:8px;align-items:center}.creport h3 svg{width:20px;height:20px;color:var(--accent)}
+.creport p{margin:0;font-size:14.5px;line-height:1.95}
+.creport ul{margin:0;padding:0 18px 0 0;display:grid;gap:4px;font-size:13.5px;line-height:1.85}
+.creport .avoid li{color:var(--warn)}
+.studio__ai{display:flex;align-items:center;gap:12px;width:100%;text-align:start;padding:14px 16px;border-radius:var(--r);border:1px solid #CFE3D9;background:linear-gradient(135deg,#E6F2EC,#FBF3E3);color:var(--ink);font:inherit;cursor:pointer;min-height:64px;box-shadow:0 6px 20px rgba(11,92,70,.08)}
+.studio__ai b{display:block;font-size:15px;line-height:1.6}.studio__ai small{display:block;font-size:12.5px;line-height:1.8;color:var(--ink-2)}
+.studio__ai-ico{flex:0 0 42px;height:42px;border-radius:12px;display:grid;place-items:center;background:var(--accent);color:#fff}.studio__ai-ico svg{width:22px;height:22px}
+.studio__ai-go{margin-inline-start:auto;color:var(--accent)}.studio__ai-go svg{width:20px;height:20px}
+.studio__ai:focus-visible{outline:3px solid #054b3c;outline-offset:3px}
+.consult-card__free{display:inline-block;margin-top:4px;font-weight:800;color:var(--accent-ink,#0b5c46)}
+.csub{margin:6px 0 0;font-size:15px}
+.ccost{font-size:12.5px;color:var(--muted);text-align:center}
+.cdetails summary{cursor:pointer;font-weight:700;font-size:14px;padding:10px 0;min-height:44px;display:flex;align-items:center}
 .clist{display:grid;gap:8px}
 .clist__row{display:flex;gap:12px;align-items:center;width:100%;padding:12px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);text-align:start;cursor:pointer;font:inherit;color:var(--ink)}
 .clist__row:hover{border-color:var(--accent)}
@@ -806,7 +824,7 @@ const clientJS=String.raw`
 var STYLES=__STYLES__;
 var LINES=__LINES__;
 var MARK=__MARK__;
-var CONSULT=__CONSULT__;
+var CONSULT=__CONSULT__;var CONSULT_COINS=CONSULT.coins||1;
 window.__V2P=__V2P__;
 var EMBED=/[?&]embed=1(?:&|$)/.test(location.search);if(EMBED)document.body.classList.add('embedded-demo');
 /* Embedded on the landing page: report the height of what is actually on screen, so the
@@ -1307,6 +1325,7 @@ function renderStudioHead(){
   el('div',{class:'wallet',id:'wallet','aria-live':'polite'},[el('div',{class:'skel',style:'height:56px;border-radius:16px'})]),
   /* One tap to the photo picker (the gesture opens it on iOS too); with a photo already in, straight to the choices. */
   el('button',{class:'btn btn--primary btn--lg studio__cta',type:'button',onclick:function(){track('cta','studio');if(state.original){go(2);return}go(1);var p=$('#pick');if(p)p.click()},html:ICO.camera+'<span>'+(state.original?'ادامه با همین عکس':'شروع با عکس خودم')+'</span>'}),
+  el('button',{class:'studio__ai',type:'button',onclick:startConsult},[el('span',{class:'studio__ai-ico',html:ICO.spark}),el('span',{},[el('b',{text:'نمی‌دونی چی بهت میاد؟ هوش مصنوعی تحلیلت می‌کنه'}),el('small',{text:'فرم صورت، رنگ پوست و موهات رو مثل یک استایلیست بررسی می‌کنیم و بهترین مدل‌ها رو با عکس نشونت می‌دیم · اولین تحلیل رایگان'})]),el('span',{class:'studio__ai-go',html:ICO.arrow})]),
   el('section',{class:'trend',id:'trend','aria-label':'ترندهای این هفته'}),
   el('section',{class:'album',id:'album','aria-label':'آلبوم من',hidden:true})
  ]);
@@ -1685,7 +1704,7 @@ function stepModel(){
  if(state.demoOut){box.append(notice('info','نمونهٔ رایگانتان را ساختید. برای عکس‌های بیشتر به استودیوی آینه بروید؛ ۲ عکس اول آنجا هم هدیه است.'));box.append(el('a',{class:'btn btn--primary btn--block',href:location.protocol+'//'+location.host.replace(/^business\./,'')+'/?l='+L,target:'_top',text:'ثبت‌نام و شارژ حساب'}))}
  /* The consultant analyses hair and colour only: a nails or lashes close-up says nothing about
     a hairstyle, so the card — and the paid vision behind it — is absent on both lines. */
- if(rich()&&!STUDIO_PREVIEW&&L!=='nails'&&L!=='lashes')box.append(consultCard());
+ if(rich()&&!STUDIO_PREVIEW)box.append(consultCard());
  if(L==='color'){var bc=baseChooser();if(bc)box.append(bc)}
  var seg=el('div',{class:'seg',role:'tablist'});
  [['salon',0],['catalog',1],['upload',2]].filter(function(x){return x[0]!=='salon'||own}).forEach(function(x){
@@ -2243,7 +2262,7 @@ function handleFile(file,kind){
   if(kind==='original'){track('photo',line);L().original=d.id;L().ratio=compress.ratio||'';L().result=null;L().fromConsult=null;L().error='';L().idem=null;L().justUploaded=true;
    /* quiet: scrollToBuild, not focusFlow, decides where we land — on «بساز» when a look is
       already chosen (she only changed her photo), on the looks when it is not. */
-   L().advT=setTimeout(function(){if(line===state.line&&L().step===1&&L().justUploaded){state.justArrived=true;go(2,true);scrollToBuild()}},1600)}
+   L().advT=setTimeout(function(){if(line===state.line&&L().step===1&&L().justUploaded){state.justArrived=true;go(2,true);scrollToBuild();if(wantConsult){wantConsult=false;setTimeout(openConsult,400)}}},wantConsult?300:1600)}
   else{track('look','u');L().reference=d.id;L().refTitle='';L().style=null;L().result=null;L().fromConsult=null;L().error='';if(line==='color')L().color='';if(line===state.line)setTimeout(scrollToBuild,60)}
   if(line===state.line){renderFlow();renderSteps();renderDock()}
  }).catch(function(e){if(kind==='original'&&!L().original){L().preview=null;if(line===state.line)renderFlow()}toast(e.message,'error')}).then(function(){L().busy=false;if(line===state.line)renderDock()});
@@ -2856,10 +2875,13 @@ function openAsk(){
 
 /* ---------- consultant: card in the studio → 3-step sheet → save/share ---------- */
 var consult=null,consultPanel=null;
+var wantConsult=false;
+/* The hero's «تحلیل» button: with a photo, straight into the analysis; without, the photo picker first. */
+function startConsult(){track('cta','consult');if(state.original){go(2);setTimeout(openConsult,200);return}wantConsult=true;go(1);var p=$('#pick');if(p)p.click()}
 function consultCard(){
  return el('button',{class:'consult-card',type:'button',onclick:function(){openConsult()}},[
   el('span',{class:'consult-card__ico',html:ICO.spark}),
-  el('span',{},[el('b',{text:'نمی‌دونی چی بهت میاد؟ تحلیلش کنیم'}),el('small',{text:'عکست را تحلیل می‌کنیم، چند سؤال می‌پرسیم و ۳ تا ۶ پیشنهاد از همین بخش می‌دهیم.'})]),
+  el('span',{},[el('b',{text:'نمی‌دونی چی بهت میاد؟ تحلیلش کنیم'}),el('small',{text:{hair:'فرم صورت، بافت و حجم موهات را مثل یک استایلیست حرفه‌ای تحلیل می‌کنیم و بهترین مدل‌ها را با عکس نشانت می‌دهیم.',color:'ته‌رنگ پوست و رنگ فعلی موهات را تحلیل می‌کنیم و رنگ‌هایی که واقعاً بهت میاد را با نمونه نشانت می‌دهیم.',nails:'فرم دست و ناخن و رنگ پوستت را تحلیل می‌کنیم و طرح‌هایی که به دستت میاد را با نمونه نشانت می‌دهیم.',lashes:'فرم چشم و صورتت را تحلیل می‌کنیم و مدل مژه‌ای که چشمت را قشنگ‌تر می‌کند نشانت می‌دهیم.'}[state.line]||''}),studio()?el('small',{class:'consult-card__free',text:'اولین تحلیل رایگان'}):null]),
   el('span',{class:'consult-card__go',html:ICO.arrow})
  ]);
 }
@@ -2897,10 +2919,13 @@ function consultStep1(p){
  p.append(el('div',{class:'cphoto'},[el('img',{src:state.preview||media(consult.photo),alt:''}),el('div',{},[el('b',{text:'عکس خودت'}),el('small',{text:LINES.label[consult.line]})])]));
  if(consult.note)p.append(el('p',{class:'cfield__hint',text:consult.note}));
  if(!consult.analysis&&!consult.self){
-  p.append(el('button',{class:'btn btn--primary btn--block',type:'button',disabled:!!consult.busy,text:consult.busy?'در حال تحلیل…':'شروع تحلیل',onclick:function(){consultAnalyze()}}));
-  p.append(el('p',{class:'cfield__hint',text:'عکست را تحلیل می‌کنیم و ویژگی‌هایش را حدس می‌زنیم؛ هر فیلد کم‌اطمینان را خودت جواب می‌دهی. چیزی ذخیره نمی‌شود مگر خودت بخواهی.'}));
+  if(consult.coins){p.append(notice('warn',consult.coins));p.append(el('button',{class:'btn btn--primary btn--block',type:'button',html:'<span class="coin-pill__ico">'+COIN+'</span><span>شارژ کیف سکه</span>',onclick:function(){closeSheet();openWallet()}}));return}
+  p.append(el('button',{class:'btn btn--primary btn--block',type:'button',disabled:!!consult.busy,text:consult.busy?'در حال تحلیل دقیق عکست… (چند ثانیه)':'شروع تحلیل',onclick:function(){consultAnalyze()}}));
+  if(studio())p.append(el('p',{class:'ccost',text:'اولین تحلیل رایگان است؛ بعد از آن هر تحلیل فقط '+fa(CONSULT_COINS)+' سکه.'}));
+  p.append(el('p',{class:'cfield__hint',text:'مثل یک استایلیست حرفه‌ای عکست را بررسی می‌کنیم و بهترین گزینه‌ها را با نمونه نشانت می‌دهیم. چیزی ذخیره نمی‌شود مگر خودت بخواهی.'}));
   return;
  }
+ var tgt=consult.report&&consult.report.summary?consultReport(p):p;
  var rel=consultRel(),f=(consult.analysis&&consult.analysis.fields)||{},low=(consult.analysis&&consult.analysis.low)||[];
  rel.forEach(function(k){
   var def=consultFieldDef(k);if(!def)return;
@@ -2935,9 +2960,9 @@ function consultStep1(p){
   });
   chips.append(skip);
   box.append(chips);
-  p.append(box);
+  tgt.append(box);
  });
- p.append(el('button',{class:'btn btn--primary btn--block',type:'button',text:'بعدی: پرسش‌نامه',disabled:!!consult.busy,onclick:function(){consult.step=2;consultDraw()}}));
+ p.append(el('button',{class:consult.report&&consult.report.picks&&consult.report.picks.length?'btn btn--ghost btn--block':'btn btn--primary btn--block',type:'button',text:consult.report&&consult.report.picks&&consult.report.picks.length?'دقیق‌ترش کن: چند سؤال کوتاه':'بعدی: پرسش‌نامه',disabled:!!consult.busy,onclick:function(){consult.step=2;consultDraw()}}));
 }
 function consultStep2(p){
  p.append(el('p',{class:'cfield__hint',text:'هر کدام را نخواستی رد کن؛ هرچه بیشتر بگویی، پیشنهادها دقیق‌تر می‌شود.'}));
@@ -2972,12 +2997,7 @@ function consultStep3(p){
  if(consult.note&&!(consult.picks&&consult.picks.length))p.append(el('p',{class:'cfield__hint',text:consult.note}));
  if(consult.picks&&consult.picks.length){
   consult.picks.forEach(function(pk,i){
-   p.append(el('div',{class:'cpick'},[
-    el('b',{text:pk.name}),
-    el('span',{class:'why',text:'چرا به تو میاد: '+pk.why}),
-    el('span',{class:'lim',text:'محدودیت اجرا: '+pk.limit}),
-    el('button',{class:'btn btn--soft btn--sm',type:'button',text:'روی عکسم بساز',onclick:function(){consultBuild(i)}})
-   ]));
+   p.append(consultPickCard(pk,i));
   });
  }else{
   p.append(el('p',{class:'muted',text:'پیشنهادی پیدا نشد؛ چند گزینه را عوض کن و دوباره ببین.'}));
@@ -2993,21 +3013,51 @@ function consultStep3(p){
   p.append(el('button',{class:'btn btn--primary btn--block',type:'button',disabled:!!consult.busy,text:consult.busy?'در حال ذخیره…':'ذخیره در مشاوره‌های من',onclick:function(){consultSave()}}));
  }
 }
+/* The stylist's report: what stands out, what to avoid, then her best picks with their pictures. */
+function consultReport(p){
+ var r=consult.report;
+ p.append(el('div',{class:'creport'},[
+  el('h3',{html:ICO.spark+'<span>نتیجهٔ تحلیل تو</span>'}),
+  el('p',{text:r.summary}),
+  r.points&&r.points.length?el('ul',{},r.points.map(function(x){return el('li',{text:x})})):null,
+  r.avoid&&r.avoid.length?el('ul',{class:'avoid'},r.avoid.map(function(x){return el('li',{text:'بهتر است نه: '+x})})):null,
+  r.photo_ok===false?el('p',{class:'cfield__hint',text:'عکس برای تحلیل کامل واضح نبود؛ با یک عکس روشن‌تر از روبه‌رو دقیق‌تر می‌شود.'}):null
+ ]));
+ if(consult.picks&&consult.picks.length){
+  p.append(el('h3',{class:'csub',text:'اینها بیشتر از همه بهت میاد'}));
+  consult.picks.forEach(function(pk,i){p.append(consultPickCard(pk,i))});
+ }
+ var d=el('details',{class:'cdetails'},[el('summary',{text:'جزئیات تحلیل (اگر چیزی درست نیست، عوضش کن)'})]);p.append(d);return d;
+}
+function consultPickCard(pk,i){
+ var it=itemOf(consult.line+':'+pk.index);
+ var img=it?el('img',{src:it.img,alt:pk.name,loading:'lazy'}):null;
+ if(img)img.addEventListener('error',function(){img.remove()});
+ return el('div',{class:'cpick'+(img?' cpick--img':'')},[img,
+  el('span',{class:'cpick__rank',text:i===0?'بهترین انتخاب برای تو':'پیشنهاد '+fa(i+1)}),
+  el('b',{text:pk.name}),
+  pk.why?el('span',{class:'why',text:'چرا به تو میاد: '+pk.why}):null,
+  pk.limit?el('span',{class:'lim',text:'محدودیت اجرا: '+pk.limit}):null,
+  el('button',{class:'btn btn--primary btn--sm',type:'button',text:'همین را روی عکسم بساز',onclick:function(){consultBuild(i)}})
+ ]);
+}
 function consultAnalyze(){
  if(!consult||consult.busy)return;
  /* Nails and lashes never run (nor charge) the vision — the card is hidden on both lines and
     a close-up of a hand or lashes is not a hairstyle analysis; the questionnaire is the answer. */
- if(consult.line==='nails'||consult.line==='lashes'){consult.self=true;consult.note='برای این بخش تحلیل عکس نداریم؛ خودت جواب بده.';consultDraw();return}
  consult.busy=true;consultDraw();
  ensureSession().then(function(){return api('consult/analyze',{photo_id:consult.photo,line:consult.line,v:VISITOR})})
  .then(function(d){
   consult.busy=false;
-  if(d&&d.ok){consult.analysis={fields:d.fields||{},confidence:d.confidence||{},low:d.low||[]};consult.picked={};consult.note=d.cached?'تحلیل از قبل داشتیم؛ همان را می‌بینی.':''}
+  if(d&&d.ok){consult.analysis={fields:d.fields||{},confidence:d.confidence||{},low:d.low||[]};consult.report=d.report||null;if(consult.report&&consult.report.picks&&consult.report.picks.length)consult.picks=consult.report.picks;consult.picked={};consult.note=d.cached?'تحلیل این عکس را از قبل داشتیم؛ همان را می‌بینی.':'';track('consult_ok',consult.line)}
   else{consult.self=true;consult.note='تحلیل عکس در دسترس نیست؛ خودت جواب بده.'}
   consultDraw();
  })
  .catch(function(e){
-  consult.busy=false;consult.self=true;
+  consult.busy=false;
+  /* Out of free analyses (studio): the wallet, not the questionnaire. */
+  if(e&&/سکه/.test(e.message||'')){consult.coins=e.message;consultDraw();return}
+  consult.self=true;
   consult.note=(e&&e.message)||'تحلیل عکس در دسترس نیست؛ خودت جواب بده.';
   consultDraw();
  });
@@ -3169,4 +3219,4 @@ export const customerHTML=String.raw`<!doctype html><html lang="fa" dir="rtl"><h
 <script>__JS__</script>
 </body></html>`
  .replace('__CSS__',()=>baseCSS+customerCSS+embeddedCSS)
- .replace('__JS__',()=>draftScript+';'+clientJS.replace('__STYLES__',()=>JSON.stringify(styles)).replace('__LINES__',()=>LINES_JSON).replace('__MARK__',()=>JSON.stringify(markSVG)).replace('__V2P__',()=>V2P_JSON).replace('__CONSULT__',()=>JSON.stringify({q:QUESTIONS,f:ANALYSIS_FIELDS,r:RELEVANT})));
+ .replace('__JS__',()=>draftScript+';'+clientJS.replace('__STYLES__',()=>JSON.stringify(styles)).replace('__LINES__',()=>LINES_JSON).replace('__MARK__',()=>JSON.stringify(markSVG)).replace('__V2P__',()=>V2P_JSON).replace('__CONSULT__',()=>JSON.stringify({q:QUESTIONS,f:ANALYSIS_FIELDS,r:RELEVANT,coins:CONSULT_COINS})));

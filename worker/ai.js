@@ -13,8 +13,8 @@ const FALLBACK_MODEL='nano-banana-2';
 /* KIE's chat models (docs.kie.ai/market/gemini): tried in order until one answers; the one that
    worked is remembered for this worker instance. Images go by a provider-hosted URL (KIE's file
    upload), since the chat endpoints document URL input only. */
-const VISION_MODELS=['gemini-3-flash','gemini-2.5-flash','gemini-3.1-pro'];
-const visionUrls=m=>['https://api.kie.ai/'+m+'/v1/chat/completions','https://api.kie.ai/api/v1/'+m+'/v1/chat/completions'];
+const VISION_MODELS=['gemini-3-8-flash-openai','gemini-3-6-flash-openai','gemini-3-1-pro'];
+const visionUrls=m=>['https://api.kie.ai/'+m+'/v1/chat/completions'];
 let visionPick=null;
 
 async function provider(env,path,body){must(env.KIE_API_KEY,'تولید واقعی هنوز متصل نشده است',503);const res=await fetch('https://api.kie.ai'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+env.KIE_API_KEY,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});const d=await res.json();must(res.ok&&d.code===200,'سرویس تصویر درخواست را نپذیرفت',502);return d.data;}
@@ -64,7 +64,7 @@ export async function visionJSON(env,db,{cacheKey,system,user,image,tryLimit,okL
  const refundOk=async()=>{if(okLimit)await refund(okLimit.key)};
  const refundNet=async()=>{if(netLimit)await refund(netLimit.key)};
  let url=image.url||'data:'+(image.mime||'image/jpeg')+';base64,'+toBase64(image.bytes);
- const body=m=>JSON.stringify({model:m,stream:false,include_thoughts:false,reasoning_effort:'low',messages:[{role:'system',content:system},{role:'user',content:[{type:'text',text:user},{type:'image_url',image_url:{url}}]}]});
+ const body=m=>JSON.stringify({stream:false,include_thoughts:false,reasoning_effort:'high',messages:[{role:'user',content:[{type:'text',text:system+'\n\n'+user},{type:'image_url',image_url:{url}}]}]});
  const order=visionPick?[visionPick]:VISION_MODELS.flatMap(m=>visionUrls(m).map(u=>({m,u})));
  let d=null,detail='';
  try{
@@ -92,7 +92,7 @@ export async function visionJSON(env,db,{cacheKey,system,user,image,tryLimit,okL
   try{value=JSON.parse(content.slice(first,last+1))}catch{await refundOk();return {ok:false,reason:'invalid'}}
   // paid — never discarded from here on
   if(cacheKey){try{await db.prepare('INSERT INTO ai_cache(key,value,created_at) VALUES(?,?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,created_at=excluded.created_at').bind(cacheKey,JSON.stringify(value),Date.now()).run()}catch{}}
-  return {ok:true,value,cached:false};
+  return {ok:true,value,cached:false,credits:Number(d.credits_consumed)||0,model:visionPick&&visionPick.m};
  }catch(e){
   /* Unexpected internal failure after an answered request: only the success slot goes back. */
   if(e instanceof Problem)throw e;

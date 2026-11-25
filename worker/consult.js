@@ -257,7 +257,7 @@ export async function consultApi(req,env,{u,route,salon,s,clientIp}){
   if(!r.ok)return J({ok:false,fallback:'questionnaire',reason:r.reason,detail:r.detail||''});
   const a=cleanAnalysis(r.value,line);
   if(!Object.keys(a.fields).length)return J({ok:false,fallback:'questionnaire',reason:'invalid'});
-  return J({ok:true,fields:a.fields,confidence:a.confidence,low:a.low,cached:!!r.cached});
+  return J({ok:true,fields:a.fields,confidence:a.confidence,low:a.low,cached:!!r.cached,credits:r.credits||0,model:r.model||''});
  }
  if(route==='consult/suggest'&&req.method==='POST'){
   const b=await req.json().catch(()=>({}));

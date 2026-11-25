@@ -307,7 +307,7 @@ test('studio: the first analysis is free, the next costs a coin from her wallet,
   e.DB.sql.prepare('INSERT INTO customer_accounts(id,phone,visitor,created_at) VALUES(?,NULL,?,?)').run(acc,v,Date.now());
   e.DB.sql.prepare("INSERT INTO customer_ledger(id,account_id,delta,reason,order_id,created_at) VALUES(?,?,25,'topup','o1',?)").run(crypto.randomUUID(),acc,Date.now());
   const paid=await call(e,'/api/s/try/consult/analyze',{photo_id:c,line:'hair',v},g);assert.equal(paid.data.ok,true,JSON.stringify(paid));
-  assert.equal(e.DB.sql.prepare("SELECT SUM(delta) n FROM customer_ledger WHERE account_id=?").get(acc).n,24,'one coin');
+  assert.equal(e.DB.sql.prepare("SELECT SUM(delta) n FROM customer_ledger WHERE account_id=?").get(acc).n,15,'ten coins (20,000 toman)');
   assert.equal(kv.calls.length,2,'the cache hit never reached the provider');
  }finally{kv.restore()}
 });
@@ -637,4 +637,13 @@ test('cleanup purges stale analysis cache but keeps recent entries',async()=>{
  await tick(e,origin);
  const keys=e.DB.sql.prepare('SELECT key FROM ai_cache').all().map(r=>r.key);
  assert.deepEqual(keys,['fresh'],'a month-old analysis is dropped, a recent one stays');
+});
+
+test('studio exports: a known kind on her own result only; templates and the clean file are paid, the price is 10 coins',async()=>{
+ const e=fixture();await app.fetch(new Request(origin+'/'),e);
+ const s={slug:'try'},g=await guest(e,s);
+ assert.equal((await call(e,'/api/s/try/export',{result_id:'x',kind:'poster'},g)).status,400);
+ assert.equal((await call(e,'/api/s/try/export',{result_id:crypto.randomUUID(),kind:'story'},g)).status,404,'never someone else\'s or an unknown result');
+ assert.match(customerHTML,/قالب ریلز اینستاگرام/);assert.match(customerHTML,/قالب تیک‌تاک/);assert.match(customerHTML,/تصویر پروفایل/);assert.match(customerHTML,/حذف واترمارک آینه/);
+ const {EXPORT_COINS,CONSULT_COINS}=await import('../worker/customerprices.js');assert.equal(EXPORT_COINS,10);assert.equal(CONSULT_COINS,10);
 });

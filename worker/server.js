@@ -22,11 +22,11 @@ import {can,featuresOf,OPENED_BY,linesOf,imageOnly} from './plans.js';
 import {panelApi,bookingTick} from './panelapi.js';
 import {weeklySummaries} from './reports.js';
 import {regularApi} from './regular.js';
-import {payForImage,quotaView,isDirect,ownImage} from './customers.js';
+import {payForImage,quotaView,isDirect,ownImage,accountFor,customerBalance} from './customers.js';
 import {spendDemoImage} from './demo.js';
 import {recordTiming} from './timing.js';
 import {attachReferral,refOf} from './rewards.js';
-import {IMAGE_COINS} from './customerprices.js';
+import {IMAGE_COINS,EXPORT_COINS,EXPORT_KINDS} from './customerprices.js';
 /* Every model call (image jobs and the consultant's vision chat) lives in worker/ai.js:
    one provider door, one rate limiter, one result cache. */
 import {createImageTask,uploadProvider,IMAGE_MODELS,recordInfo} from './ai.js';
@@ -515,6 +515,21 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  }
  /* «آلبوم من»: her finished images, newest first — this browser's, and every session where she
     verified the same mobile (so signing in on another phone brings her album too). */
+ /* Studio exports (owner's price, Nov 2026): a template or the unmarked download costs
+    EXPORT_COINS once per result and format — paying twice for the same file never happens. */
+ if(route==='export'&&req.method==='POST'){
+  must(isDirect(salon),'پیدا نشد',404);
+  const b=await req.json().catch(()=>({}));const kind=String(b.kind||'');
+  must(EXPORT_KINDS.includes(kind),'قالب معتبر نیست',400);
+  const g=await one(db,"SELECT result_id FROM generations WHERE salon_id=? AND result_id=? AND state='success' AND (session_id=? OR (? IS NOT NULL AND session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?)))",salon.id,String(b.result_id||''),s.id,s.verified_phone||null,salon.id,s.verified_phone||null);
+  must(g,'این عکس پیدا نشد',404);
+  const acc=await accountFor(db,env,s,visitorOf(b));
+  const key=g.result_id+':'+kind;
+  if(acc&&await one(db,"SELECT 1 FROM customer_ledger WHERE account_id=? AND reason='export' AND order_id=?",acc.id,key))return J({ok:true,paid:false});
+  if(!acc||(await customerBalance(db,acc.id)).coins<EXPORT_COINS){const e=new Problem(402,acc?'برای این قالب '+EXPORT_COINS.toLocaleString('fa-IR')+' سکه لازم است؛ کیف سکه‌ات را شارژ کن.':'برای این قالب وارد حسابت شو و کیف سکه را شارژ کن.');e.code='export_coins';throw e}
+  await run(db,"INSERT OR IGNORE INTO customer_ledger(id,account_id,delta,reason,order_id,created_at) VALUES(?,?,?,'export',?,?)",uid(),acc.id,-EXPORT_COINS,key,Date.now());
+  return J({ok:true,paid:true,coins:EXPORT_COINS});
+ }
  if(route==='looks'){if(!s.verified_phone)return J({looks:[],signed_in:false});const rows=await all(db,"SELECT id,result_id,line,style,transfer,color,created_at FROM generations WHERE salon_id=? AND state='success' AND result_id IS NOT NULL AND kind<>'views' AND (session_id=? OR (? IS NOT NULL AND session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?))) ORDER BY created_at DESC LIMIT 60",salon.id,s.id,s.verified_phone||null,salon.id,s.verified_phone||null);return J({looks:rows.map(r=>({id:r.id,image:r.result_id,line:r.line,style:r.style,mode:r.transfer,text:r.transfer==='text'||r.transfer==='salon'?String(r.color||'').slice(0,40):'',at:r.created_at}))})}
  /* «پروفایل من»: her account page — name, city, mobile, coins history, saved and liked looks. */
  if(route==='me'&&req.method==='GET'){

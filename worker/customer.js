@@ -1,5 +1,5 @@
 import {draftScript} from './draft.js';
-import {CONSULT_COINS} from './customerprices.js';
+import {CONSULT_COINS,EXPORT_COINS} from './customerprices.js';
 import {styles} from './legacy.js';
 import {NAIL_STYLES,LASH_STYLES,COLOR_STYLES,COLOR_SWATCHES,LINE_OPTIONS,LINE_COLORS,LINE_POPULAR,LINE_FILTERS,LINE_PHOTO,LINE_LABEL} from './lines.js';
 import {QUESTIONS,ANALYSIS_FIELDS,RELEVANT} from './consult.js';
@@ -806,6 +806,15 @@ body.is-studio .result-actions>:last-child:nth-child(odd){grid-column:1/-1}
 .studio__ai:focus-visible{outline:3px solid #054b3c;outline-offset:3px}
 .consult-card__free{display:inline-block;margin-top:4px;font-weight:800;color:var(--accent-ink,#0b5c46)}
 .csub{margin:6px 0 0;font-size:15px}
+.xlist{display:grid;gap:10px}
+.xopt{display:flex;align-items:center;gap:12px;width:100%;min-height:64px;padding:12px 14px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--ink);font:inherit;text-align:start;cursor:pointer}
+.xopt:hover{border-color:var(--accent)}.xopt:disabled{opacity:.6;cursor:progress}
+.xopt__shape{flex:0 0 auto;border:2px solid var(--accent);border-radius:6px;background:var(--accent-soft,#E4F1EC)}
+.xopt__shape--photo{width:30px;height:38px}.xopt__shape--story,.xopt__shape--reels,.xopt__shape--tiktok{width:24px;height:42px}.xopt__shape--profile{width:36px;height:36px;border-radius:50%}
+.xopt__txt{display:grid;gap:2px}.xopt__txt b{font-size:15px}.xopt__txt small{font-size:12.5px;color:var(--muted)}
+.xopt__price{margin-inline-start:auto;font-size:12.5px;font-weight:800;color:#6B4A0E;background:#F4E6CC;border-radius:999px;padding:4px 10px;white-space:nowrap}
+.xclean{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--r);background:var(--surface-2);cursor:pointer}
+.xclean{width:100%;border:1px solid var(--line);font:inherit;color:var(--ink);text-align:start}.xclean__sw{flex:0 0 44px;height:26px;border-radius:999px;background:#D8D2C6;position:relative;margin-top:2px;transition:background .15s}.xclean__sw::after{content:'';position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:right .15s}.xclean.is-on .xclean__sw{background:var(--accent)}.xclean.is-on .xclean__sw::after{right:21px}.xclean.is-on{border-color:var(--accent)}.xclean b{display:block;font-size:14.5px}.xclean small{font-size:12.5px;color:var(--muted);line-height:1.8}
 .ccost{font-size:12.5px;color:var(--muted);text-align:center}
 .cdetails summary{cursor:pointer;font-weight:700;font-size:14px;padding:10px 0;min-height:44px;display:flex;align-items:center}
 .clist{display:grid;gap:8px}
@@ -2041,84 +2050,116 @@ function saveName(id){
  var stamp=(p.year||d.getFullYear())+(p.month||'')+(p.day||'')+'-'+String(p.hour||'').replace('24','00')+(p.minute||'')+(p.second||'');
  return ['ayneh',SLUG,{hair:'model-mo',color:'rang-mo',nails:'nakhon',lashes:'mozhe'}[state.line]||'mo',stamp,String(id||'').replace(/[^a-z0-9]/gi,'').slice(0,8)].join('-')+'.jpg';
 }
-// The saved or shared photo carries the salon's badge (logo and name) in the bottom-right corner,
-// so a story made from it is a small ad for the salon. Made in the browser; the original stays clean.
+// The saved photo and every template carry one signature, bottom right (RTL start): the logo and
+// the name side by side in the design system's display font (Estedad 800) on a soft cream pill —
+// Ayneh's mirror mark and «آینه» on Ayneh's pages, the salon's logo and name on a salon page.
+// Never a lone initial: a salon without a logo is signed with its name only.
 function loadImg(src){return new Promise(function(res,rej){var i=new Image();i.decoding='async';i.onload=function(){res(i)};i.onerror=rej;i.src=src})}
+function storyOwner(){var s=state.pub.salon||{},p=s.profile||{};return (state.pub.direct||state.pub.demo)?{name:'آینه',logo:'/landing/ayneh-logo-lg.webp',ayneh:true}:{name:s.name||'',logo:p.logo?media(p.logo):'',ayneh:false}}
+function brandFonts(){return document.fonts&&document.fonts.load?Promise.all([document.fonts.load('800 52px Estedad'),document.fonts.load('600 30px Estedad')]).catch(function(){}):Promise.resolve()}
+function rrect(g,x,y,w,h,r){g.beginPath();if(g.roundRect)g.roundRect(x,y,w,h,r);else{g.moveTo(x+r,y);g.arcTo(x+w,y,x+w,y+h,r);g.arcTo(x+w,y+h,x,y+h,r);g.arcTo(x,y+h,x,y,r);g.arcTo(x,y,x+w,y,r);g.closePath()}}
+/* The signature pill. (rx,by): its right edge and bottom; u: its height. Light or dark. */
+function drawSignature(g,o,logo,rx,by,u,dark){
+ var fs=Math.round(u*.44),pad=Math.round(u*.32),lh=logo?Math.round(u*.74):0,lw=logo?Math.round(lh*(o.ayneh?logo.naturalWidth/logo.naturalHeight:1)):0,gap=logo?Math.round(u*.2):0;
+ g.save();g.font='800 '+fs+'px Estedad, Vazirmatn, sans-serif';g.direction='rtl';
+ var nm=o.name||'',tw=g.measureText(nm).width;while(tw>u*7&&nm.length>4){nm=nm.slice(0,-2)+'…';tw=g.measureText(nm).width}
+ var w=Math.round(pad*2+lw+gap+tw),x=rx-w,y=by-u;
+ g.shadowColor='rgba(20,40,35,.22)';g.shadowBlur=Math.round(u*.35);g.shadowOffsetY=Math.round(u*.08);
+ g.fillStyle=dark?'rgba(16,46,40,.78)':'rgba(251,247,240,.94)';rrect(g,x,y,w,u,u/2);g.fill();g.shadowColor='transparent';
+ g.strokeStyle=dark?'rgba(255,255,255,.18)':'rgba(201,170,110,.55)';g.lineWidth=Math.max(1,u*.03);rrect(g,x,y,w,u,u/2);g.stroke();
+ // logo on the right, name to its left (Persian reads right to left)
+ if(logo){var lx=rx-pad-lw,ly=y+(u-lh)/2;if(o.ayneh)g.drawImage(logo,lx,ly,lw,lh);else{g.save();g.beginPath();g.arc(lx+lw/2,ly+lh/2,lh/2,0,Math.PI*2);g.clip();var k=Math.max(lw/logo.naturalWidth,lh/logo.naturalHeight);g.drawImage(logo,lx+lw/2-logo.naturalWidth*k/2,ly+lh/2-logo.naturalHeight*k/2,logo.naturalWidth*k,logo.naturalHeight*k);g.restore()}}
+ g.fillStyle=dark?'#fff':'#0b5c46';g.textAlign='right';g.textBaseline='middle';g.fillText(nm,rx-pad-lw-gap,y+u/2+fs*.06);
+ g.restore();
+}
 function brandedBlob(id){
- var s=state.pub.salon,p=s.profile||{};
- return Promise.all([loadImg(media(id)),p.logo?loadImg(media(p.logo)).catch(function(){return null}):Promise.resolve(null)]).then(function(r){
+ var o=storyOwner();
+ return Promise.all([loadImg(media(id)),o.logo?loadImg(o.logo).catch(function(){return null}):Promise.resolve(null),brandFonts()]).then(function(r){
   var img=r[0],logo=r[1],W=img.naturalWidth,H=img.naturalHeight,c=document.createElement('canvas');c.width=W;c.height=H;var g=c.getContext('2d');g.drawImage(img,0,0,W,H);
-  // Only the salon's round logo, bottom right, on a thin white ring.
-  var u=Math.min(W,H),pad=Math.round(u*.035),d=Math.round(u*.12),ring=Math.max(2,Math.round(d*.06)),cx=W-pad-d/2,cy=H-pad-d/2;
-  g.save();g.shadowColor='rgba(0,0,0,.3)';g.shadowBlur=Math.round(u*.015);g.fillStyle='#fff';g.beginPath();g.arc(cx,cy,d/2+ring,0,Math.PI*2);g.fill();g.restore();
-  if(logo){g.save();g.beginPath();g.arc(cx,cy,d/2,0,Math.PI*2);g.clip();var lw=logo.naturalWidth,lh=logo.naturalHeight,k=Math.max(d/lw,d/lh);g.drawImage(logo,cx-lw*k/2,cy-lh*k/2,lw*k,lh*k);g.restore()}
-  else{g.fillStyle='#0c6b6b';g.beginPath();g.arc(cx,cy,d/2,0,Math.PI*2);g.fill();g.fillStyle='#fff';g.font='800 '+Math.round(d*.46)+'px Estedad, Vazirmatn, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText((s.name||'آ').trim().charAt(0),cx,cy+d*.03)}
-  // A small «آینه» mark, bottom left, so a saved or shared result says where it came from.
-  var fs=Math.round(u*.034),tw;g.save();g.font='800 '+fs+'px Estedad, Vazirmatn, sans-serif';tw=g.measureText('آینه').width;
-  var bx=pad,bh=Math.round(fs*1.7),bw=Math.round(tw+fs*1.4),by=H-pad-bh;
-  g.fillStyle='rgba(12,107,107,.82)';g.beginPath();if(g.roundRect)g.roundRect(bx,by,bw,bh,bh/2);else g.rect(bx,by,bw,bh);g.fill();
-  g.fillStyle='#fff';g.textAlign='center';g.textBaseline='middle';g.fillText('آینه',bx+bw/2,by+bh/2+fs*.04);g.restore();
-  return new Promise(function(res){c.toBlob(function(b){res(b)},'image/jpeg',.92)});
+  var u=Math.round(Math.min(W,H)*.075),m=Math.round(Math.min(W,H)*.035);
+  drawSignature(g,o,logo,W-m,H-m,u,false);
+  return new Promise(function(res){c.toBlob(function(b){res(b)},'image/jpeg',.93)});
  });
 }
-// Instagram story (1080×1920): the result itself, untouched — never re-generated, filtered or
-// retouched, so her face stays exactly as the result shows it — framed on a soft blurred copy of
-// itself. A salon or member page signs it with the salon's logo and name; Ayneh's own pages
-// (direct, demo) with Ayneh's mark. Made in the browser; nothing is uploaded.
+/* A soft backdrop without ctx.filter (Safari ignores it): the photo drawn tiny, then stretched. */
+function softBackdrop(g,img,W,H){
+ var t=document.createElement('canvas'),tw=36,th=Math.round(36*H/W);t.width=tw;t.height=th;var tg=t.getContext('2d');
+ var iw=img.naturalWidth,ih=img.naturalHeight,k=Math.max(tw/iw,th/ih);tg.drawImage(img,(tw-iw*k)/2,(th-ih*k)/2,iw*k,ih*k);
+ g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';g.drawImage(t,0,0,W,H);
+}
+// The templates. The result itself is never re-generated, filtered or retouched: it is drawn
+// whole (or, for the profile picture, cropped square) at its own proportions on a calm frame.
+// Safe areas keep everything clear of each app's own buttons and captions.
+var TEMPLATES={
+ story:{label:'قالب استوری اینستاگرام',short:'استوری اینستاگرام',W:1080,H:1920,top:250,bottom:300,suffix:'story'},
+ reels:{label:'قالب ریلز اینستاگرام',short:'ریلز اینستاگرام',W:1080,H:1920,top:220,bottom:420,side:150,suffix:'reels'},
+ tiktok:{label:'قالب تیک‌تاک',short:'تیک‌تاک',W:1080,H:1920,top:260,bottom:480,side:170,suffix:'tiktok'},
+ profile:{label:'تصویر پروفایل',short:'تصویر پروفایل',W:1080,H:1080,square:true,suffix:'profile'}
+};
 var STORY_CAP={hair:'مدل موی جدید من',color:'رنگ موی جدید من',nails:'طرح ناخن جدید من',lashes:'مژهٔ جدید من'};
-function storyOwner(){var s=state.pub.salon||{},p=s.profile||{};return (state.pub.direct||state.pub.demo)?{name:'آینه',logo:'/landing/ayneh-logo-lg.webp',ayneh:true}:{name:s.name||'',logo:p.logo?media(p.logo):'',ayneh:false}}
-function storyBlob(id){
- var o=storyOwner(),W=1080,H=1920;
- var fonts=document.fonts&&document.fonts.load?Promise.all([document.fonts.load('800 52px Estedad'),document.fonts.load('500 30px Estedad')]).catch(function(){}):Promise.resolve();
- return Promise.all([loadImg(media(id)),o.logo?loadImg(o.logo).catch(function(){return null}):Promise.resolve(null),fonts]).then(function(r){
+function templateBlob(id,key,clean){
+ var T=TEMPLATES[key],o=storyOwner(),W=T.W,H=T.H;
+ return Promise.all([loadImg(media(id)),o.logo&&!clean?loadImg(o.logo).catch(function(){return null}):Promise.resolve(null),brandFonts()]).then(function(r){
   var img=r[0],logo=r[1],iw=img.naturalWidth,ih=img.naturalHeight,c=document.createElement('canvas');c.width=W;c.height=H;var g=c.getContext('2d');
   g.imageSmoothingEnabled=true;g.imageSmoothingQuality='high';
-  // background: the same photo, blurred and dimmed (only the backdrop; the photo itself is drawn clean below)
-  var k=Math.max(W/iw,H/ih);g.save();g.filter='blur(46px) saturate(1.05)';g.drawImage(img,(W-iw*k)/2,(H-ih*k)/2,iw*k,ih*k);g.restore();
-  var gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,'rgba(8,30,30,.72)');gr.addColorStop(.45,'rgba(8,30,30,.38)');gr.addColorStop(1,'rgba(8,30,30,.8)');g.fillStyle=gr;g.fillRect(0,0,W,H);
-  // the result, whole, at its own proportions — no crop, no filter
-  var maxW=880,maxH=1020,s2=Math.min(maxW/iw,maxH/ih),dw=Math.round(iw*s2),dh=Math.round(ih*s2),dx=Math.round((W-dw)/2),dy=Math.round(510+(maxH-dh)/2),rad=40,bd=10;
-  function rr(x,y,w,h,r){g.beginPath();if(g.roundRect)g.roundRect(x,y,w,h,r);else g.rect(x,y,w,h)}
-  g.save();g.shadowColor='rgba(0,0,0,.45)';g.shadowBlur=60;g.shadowOffsetY=24;g.fillStyle='#fff';rr(dx-bd,dy-bd,dw+bd*2,dh+bd*2,rad+bd);g.fill();g.restore();
+  if(T.square){ // profile: a centred square, a little above the middle where the face is
+   var sq=Math.min(iw,ih),sx=(iw-sq)/2,sy=Math.max(0,Math.min(ih-sq,(ih-sq)*.3));g.drawImage(img,sx,sy,sq,sq,0,0,W,H);
+   if(!clean)drawSignature(g,o,logo,W-48,H-48,74,false);
+   return new Promise(function(res){c.toBlob(function(b){res(b)},'image/jpeg',.94)});
+  }
+  softBackdrop(g,img,W,H);
+  var gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,'rgba(9,40,34,.62)');gr.addColorStop(.5,'rgba(9,40,34,.28)');gr.addColorStop(1,'rgba(9,40,34,.7)');g.fillStyle=gr;g.fillRect(0,0,W,H);
+  var side=T.side||90,top=T.top+120,bottom=T.bottom+150;
+  var maxW=W-side*2,maxH=H-top-bottom,s2=Math.min(maxW/iw,maxH/ih),dw=Math.round(iw*s2),dh=Math.round(ih*s2),dx=Math.round((W-dw)/2),dy=Math.round(top+(maxH-dh)/2),rad=36,bd=10;
+  function rr(x,y,w,h,rd){rrect(g,x,y,w,h,rd)}
+  g.save();g.shadowColor='rgba(0,0,0,.4)';g.shadowBlur=54;g.shadowOffsetY=22;g.fillStyle='#FBF7F0';rr(dx-bd,dy-bd,dw+bd*2,dh+bd*2,rad+bd);g.fill();g.restore();
   g.save();g.filter='none';rr(dx,dy,dw,dh,rad);g.clip();g.drawImage(img,dx,dy,dw,dh);g.restore();
-  // the signature: round logo on a white ring, the name under it
-  // Instagram covers about 250px at the top and bottom of a story: everything stays inside.
-  var cx=W/2,cy=320,d=140;
-  g.save();g.shadowColor='rgba(0,0,0,.35)';g.shadowBlur=24;g.fillStyle='#fff';g.beginPath();g.arc(cx,cy,d/2+7,0,Math.PI*2);g.fill();g.restore();
-  g.save();g.beginPath();g.arc(cx,cy,d/2,0,Math.PI*2);g.clip();
-  if(logo){var lw=logo.naturalWidth,lh=logo.naturalHeight;if(o.ayneh){var q=Math.min(d*.78/lw,d*.78/lh);g.fillStyle='#fff';g.fillRect(cx-d/2,cy-d/2,d,d);g.drawImage(logo,cx-lw*q/2,cy-lh*q/2,lw*q,lh*q)}else{var q2=Math.max(d/lw,d/lh);g.drawImage(logo,cx-lw*q2/2,cy-lh*q2/2,lw*q2,lh*q2)}}
-  else{g.fillStyle='#0c6b6b';g.fillRect(cx-d/2,cy-d/2,d,d);g.fillStyle='#fff';g.font='800 72px Estedad, Vazirmatn, sans-serif';g.textAlign='center';g.textBaseline='middle';g.fillText((o.name||'آ').trim().charAt(0),cx,cy+4)}
-  g.restore();
-  g.direction='rtl';g.textAlign='center';g.textBaseline='alphabetic';g.fillStyle='#fff';g.font='800 48px Estedad, Vazirmatn, sans-serif';
-  var nm=o.name;while(g.measureText(nm).width>W-160&&nm.length>4)nm=nm.slice(0,-2)+'…';g.fillText(nm,cx,cy+d/2+70);
-  // caption and the honest note
-  var by=dy+dh+bd+96;g.font='800 56px Estedad, Vazirmatn, sans-serif';g.fillText(STORY_CAP[state.line]||STORY_CAP.hair,cx,Math.min(by,1620));
-  g.font='500 28px Estedad, Vazirmatn, sans-serif';g.fillStyle='rgba(255,255,255,.72)';g.fillText('نمونهٔ نمایشی',cx,Math.min(by+52,1668));
+  g.direction='rtl';g.textAlign='center';g.textBaseline='alphabetic';g.fillStyle='#fff';
+  g.font='800 58px Estedad, Vazirmatn, sans-serif';g.fillText(STORY_CAP[state.line]||STORY_CAP.hair,W/2,T.top+60);
+  g.font='600 28px Estedad, Vazirmatn, sans-serif';g.fillStyle='rgba(255,255,255,.75)';g.fillText('نمونهٔ نمایشی',W/2,dy+dh+bd+54);
+  if(!clean)drawSignature(g,o,logo,W-side,H-T.bottom,108,true);
   return new Promise(function(res){c.toBlob(function(b){res(b)},'image/jpeg',.94)});
  });
 }
-var stories={};
-function prepareStory(id){
- if(!id)return Promise.resolve(null);if(stories[id])return stories[id].p;
- var rec=stories[id]={};
- rec.p=storyBlob(id).then(function(b){if(!b)throw new Error('x');rec.name=saveName(id).replace(/\.jpg$/,'-story.jpg');rec.url=URL.createObjectURL(b);try{rec.file=new File([b],rec.name,{type:'image/jpeg'})}catch(e){}
-  Array.prototype.forEach.call(document.querySelectorAll('a[data-story="'+id+'"]'),function(a){a.href=rec.url;a.setAttribute('download',rec.name)});return rec}).catch(function(){rec.failed=true;return rec});
- return rec.p;
+function storyBlob(id){return templateBlob(id,'story',false)}
+/* One sheet for every format. In the studio a template or the unmarked file costs EXPORT_COINS
+   (charged once per result and format by the server); on a salon page they are free and always
+   carry the salon's signature. */
+var EXPORT_COINS=CONSULT.export||10,exported={};
+function exportFile(id,key,clean,btn){
+ var paidKey=id+':'+(clean&&key==='photo'?'clean':key);
+ var pay=studio()&&(key!=='photo'||clean)&&!exported[paidKey]?ensureSession().then(function(){return api('export',{result_id:id,kind:key==='photo'?'clean':key,v:VISITOR})}).then(function(){exported[paidKey]=1;paintWallet(true)}):Promise.resolve();
+ if(btn){btn.disabled=true}
+ return pay.then(function(){return key==='photo'?(clean?fetch(media(id)).then(function(r){return r.blob()}):brandedBlob(id)):templateBlob(id,key,clean)})
+ .then(function(b){
+  var name=saveName(id).replace(/\.jpg$/,'-'+(key==='photo'?(clean?'clean':'photo'):TEMPLATES[key].suffix)+(clean&&key!=='photo'?'-clean':'')+'.jpg'),file=null;try{file=new File([b],name,{type:'image/jpeg'})}catch(e){}
+  track('save',key+(clean?'-clean':''));
+  if(file&&(IOS||/Android/.test(navigator.userAgent))&&navigator.canShare&&navigator.canShare({files:[file]})){return navigator.share({files:[file]}).catch(function(){})}
+  var url=URL.createObjectURL(b),a=document.createElement('a');a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},30000);toast('ذخیره شد')
+ })
+ .catch(function(e){
+  if(e&&/سکه/.test(e.message||'')){closeSheet();toast(e.message,'error');if(state.verified)openWallet();else askSignin(function(){paintWallet(true)},'login');return}
+  toast((e&&e.message)||'ساخت فایل ممکن نشد؛ دوباره امتحان کن','error');
+ }).then(function(){if(btn)btn.disabled=false});
+}
+function openExports(){
+ var id=state.result;if(!id)return;
+ var clean=false,panel=el('div',{class:'sheet__panel xsheet'});
+ function draw(){
+  var price=function(k){return studio()&&(k!=='photo'||clean)?(exported[id+':'+(k==='photo'?'clean':k)]?'پرداخت شده':fa(EXPORT_COINS)+' سکه'):'رایگان'};
+  var opt=function(k,label,dim){var b=el('button',{class:'xopt',type:'button'},[el('span',{class:'xopt__shape xopt__shape--'+k}),el('span',{class:'xopt__txt'},[el('b',{text:label}),el('small',{text:dim})]),el('span',{class:'xopt__price',text:price(k)})]);b.addEventListener('click',function(){exportFile(id,k,clean,b)});return b};
+  panel.replaceChildren.apply(panel,[
+   el('div',{class:'sheet__head'},[h('h2','دانلود و قالب‌ها'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),
+   el('div',{class:'xlist'},[opt('photo','عکس نتیجه','اندازهٔ اصلی'),opt('story',TEMPLATES.story.short,'\u2066۱۰۸۰×۱۹۲۰\u2069'),opt('reels',TEMPLATES.reels.short,'\u2066۱۰۸۰×۱۹۲۰\u2069'),opt('tiktok',TEMPLATES.tiktok.short,'\u2066۱۰۸۰×۱۹۲۰\u2069'),opt('profile',TEMPLATES.profile.short,'\u2066۱۰۸۰×۱۰۸۰\u2069')]),
+   studio()?el('button',{class:'xclean'+(clean?' is-on':''),type:'button',role:'switch','aria-checked':clean?'true':'false',onclick:function(){clean=!clean;draw()}},[el('span',{class:'xclean__sw','aria-hidden':'true'}),el('span',{},[el('b',{text:'حذف واترمارک آینه'}),el('small',{text:'هر قالب یا عکس بدون واترمارک '+fa(EXPORT_COINS)+' سکه است؛ دانلود دوبارهٔ همان فایل رایگان است.'})])]):null,
+   studio()?el('p',{class:'ccost',text:'عکس با واترمارک آینه رایگان است؛ هر قالب '+fa(EXPORT_COINS)+' سکه (۲۰٬۰۰۰ تومان).'}):el('p',{class:'ccost',text:'همهٔ قالب‌ها با امضای «'+storyOwner().name+'» آماده می‌شوند.'})
+  ].filter(Boolean));
+ }
+ draw();openSheet(panel);track('export_open',state.line);
 }
 function storyLink(cls){
- var id=state.result;
- var a=el('a',{class:cls,'data-story':id,href:'#',download:'',html:ICO.instagram+'<span>قالب استوری اینستاگرام</span>'});
- a.addEventListener('click',function(e){
-  var r=stories[id];
-  // on a phone the share sheet goes straight to Instagram; on a computer it downloads
-  if(r&&r.file&&(IOS||/Android/.test(navigator.userAgent))&&navigator.canShare&&navigator.canShare({files:[r.file]})){e.preventDefault();track('save','story');navigator.share({files:[r.file]}).catch(function(){});return}
-  if(r&&r.url){track('save','story');return}
-  e.preventDefault();
-  if(r&&r.failed){toast('ساخت قالب استوری ممکن نشد؛ «'+(studio()?'دانلود عکس':'ذخیره تصویر')+'» را بزنید.');return}
-  toast('یک لحظه، استوری را آماده می‌کنم…');
-  prepareStory(id).then(function(x){if(x&&x.url){a.href=x.url;a.setAttribute('download',x.name);a.click()}});
- });
- prepareStory(id);
+ var a=el('button',{class:cls,type:'button',html:ICO.instagram+'<span>قالب‌های اینستاگرام و تیک‌تاک</span>'});
+ a.addEventListener('click',openExports);
  return a;
 }
 // The logo version is made as soon as a result appears, so a tap downloads at once (phones block a
@@ -3219,4 +3260,4 @@ export const customerHTML=String.raw`<!doctype html><html lang="fa" dir="rtl"><h
 <script>__JS__</script>
 </body></html>`
  .replace('__CSS__',()=>baseCSS+customerCSS+embeddedCSS)
- .replace('__JS__',()=>draftScript+';'+clientJS.replace('__STYLES__',()=>JSON.stringify(styles)).replace('__LINES__',()=>LINES_JSON).replace('__MARK__',()=>JSON.stringify(markSVG)).replace('__V2P__',()=>V2P_JSON).replace('__CONSULT__',()=>JSON.stringify({q:QUESTIONS,f:ANALYSIS_FIELDS,r:RELEVANT,coins:CONSULT_COINS})));
+ .replace('__JS__',()=>draftScript+';'+clientJS.replace('__STYLES__',()=>JSON.stringify(styles)).replace('__LINES__',()=>LINES_JSON).replace('__MARK__',()=>JSON.stringify(markSVG)).replace('__V2P__',()=>V2P_JSON).replace('__CONSULT__',()=>JSON.stringify({q:QUESTIONS,f:ANALYSIS_FIELDS,r:RELEVANT,coins:CONSULT_COINS,export:EXPORT_COINS})));

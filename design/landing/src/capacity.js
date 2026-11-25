@@ -22,6 +22,13 @@
   /* The city link's UTM tag also keeps the city on this host (the server reads the cookie). */
   const qc = new URLSearchParams(location.search).get('utm_campaign');
   if (qc && /^[a-z]{3,6}$/.test(qc)) document.cookie = 'ayneh_city=' + qc + '; Path=/; Max-Age=7776000; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
+  /* One anonymous visit per browser per campaign per day for the owner's «تبلیغات» tab. */
+  try {
+    let vid = localStorage.getItem('ayneh-vid');
+    if (!vid) { vid = Array.from(crypto.getRandomValues(new Uint8Array(12)), x => x.toString(16).padStart(2, '0')).join(''); localStorage.setItem('ayneh-vid', vid); }
+    const camp = (document.cookie.match(/(?:^|;\s*)ayneh_city=([a-z]{3,6})/) || [])[1] || '';
+    fetch('/api/campaign/hit', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({c: camp, v: vid}), keepalive: true}).catch(() => {});
+  } catch (_) {}
   const load = () => fetch('/api/capacity', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(d => {
     if (!d || !d.total) return;
     bar.hidden = false;

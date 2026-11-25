@@ -117,6 +117,7 @@ main#app{max-width:1080px;margin:0 auto;padding:6px 20px 80px;min-height:70vh}
 .grid{display:grid;gap:16px}
 @media(min-width:900px){.grid--2{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);align-items:start}}
 .card{background:var(--surface);border:1px solid var(--line-2);border-radius:22px;padding:22px;box-shadow:0 1px 2px rgba(35,23,15,.05)}
+.ads{display:grid;gap:12px}.ads__periods{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}.ads__tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:8px}.ads__tile{display:grid;gap:2px;padding:10px 12px;border:1px solid var(--line-2);border-radius:12px;background:var(--surface-2,#faf7f2)}.ads__tile small{font-size:12px;color:var(--muted)}.ads__tile b{font-size:20px}.ads__tile span{font-size:11.5px;color:var(--muted)}.ads__funnel{display:grid;gap:6px}.ads__bar{display:grid;grid-template-columns:150px minmax(0,1fr) 60px;align-items:center;gap:8px;font-size:13px}.ads__bar i{height:12px;border-radius:999px;background:linear-gradient(90deg,#0B4A3D,#13775E);display:block}.ads__bar b{text-align:left}.ads__track{display:block;min-width:0;overflow:hidden}.ads__scroll{overflow-x:auto}.ads__table{width:100%;border-collapse:collapse;font-size:13px;min-width:760px}.ads__table th,.ads__table td{padding:8px;border-bottom:1px solid var(--line-2);text-align:right;white-space:nowrap}.ads__table th{font-size:12px;color:var(--muted)}.ads__links summary{cursor:pointer;font-weight:700;padding:8px 0}.ads__chips{display:flex;flex-wrap:wrap;gap:6px}
 .card>h2{font-family:var(--display);font-weight:800;font-size:21px;margin-bottom:6px}
 .card>.lead{color:var(--muted);font-size:13.5px;line-height:1.9;margin-bottom:16px}
 .stack{display:grid;gap:16px}
@@ -477,8 +478,44 @@ function home(){return api('/api/owner').then(function(d){
   var prev=el('span',{class:'hint slug-preview'});si.closest('.field').append(prev);
   function show(){var v=si.value;prev.textContent=v?'صفحهٔ مشتری: '+location.host+'/s/'+v:''}
   si.addEventListener('input',function(){var c=si.value.toLowerCase().replace(/[\s_]+/g,'-').replace(/[^a-z0-9-]/g,'').replace(/-+/g,'-');if(c!==si.value)si.value=c;show()});show()})();
- $('#app').replaceChildren(head,payCard(),activationCard(),dashboard(d.salons),el('h2',{class:'section-title',text:'سالن‌ها'}),el('div',{class:'grid grid--2'},[el('div',{class:'stack'},[list,create]),el('div',{class:'stack'},[alertsCard(d),botCard(d.bot),smsCard(d.sms||{}),imageCard(d.image)])]));
+ $('#app').replaceChildren(head,adsCard(),payCard(),activationCard(),dashboard(d.salons),el('h2',{class:'section-title',text:'سالن‌ها'}),el('div',{class:'grid grid--2'},[el('div',{class:'stack'},[list,create]),el('div',{class:'stack'},[alertsCard(d),botCard(d.bot),smsCard(d.sms||{}),imageCard(d.image)])]));
 })}
+/* «تبلیغات»: the campaign funnel per short link (worker/campaigns.js), at a glance. */
+function adsCard(){
+ var body=el('div',{class:'ads'}),days=30;
+ var CITY={thr:'تهران',mhd:'مشهد',isf:'اصفهان',shz:'شیراز',tbz:'تبریز',krj:'کرج',ahv:'اهواز',qom:'قم',ksh:'کرمانشاه',rsh:'رشت',krm:'کرمان',urm:'ارومیه',yzd:'یزد',hmd:'همدان',ard:'اردبیل',zhn:'زاهدان',arak:'اراک',bnd:'بندرعباس',snd:'سنندج',qzv:'قزوین',zjn:'زنجان',sar:'ساری',gor:'گرگان',bsh:'بوشهر',kish:'کیش',khr:'خرم‌آباد',smn:'سمنان',brj:'بجنورد',ilm:'ایلام',yas:'یاسوج',shk:'شهرکرد',bir:'بیرجند',amol:'آمل',kashan:'کاشان'};
+ var LN={hair:'مدل مو',color:'رنگ مو',nails:'ناخن',lashes:'مژه',salon:'آرایشگاه'};
+ var pct=function(a,b){return b?Math.round(a/b*100)+'٪':'—'};
+ var periods=el('div',{class:'ads__periods'},[[7,'۷ روز'],[30,'۳۰ روز'],[90,'۹۰ روز'],[0,'همه']].map(function(p){var b=el('button',{type:'button',class:'btn btn--sm '+(p[0]===days?'btn--primary':'btn--ghost'),text:p[1],onclick:function(){days=p[0];load()}});return b}));
+ function tile(label,v,sub){return el('div',{class:'ads__tile'},[h('small',label),h('b',v),sub?h('span',sub):null])}
+ function load(){
+  periods.querySelectorAll('button').forEach(function(b,i){b.className='btn btn--sm '+([7,30,90,0][i]===days?'btn--primary':'btn--ghost')});
+  body.replaceChildren(h('p','در حال بارگذاری…','lead'));
+  api('/api/owner/campaigns?days='+days).then(function(d){
+   var t=d.total;
+   var funnel=[['بازدیدکنندهٔ یکتا',t.visitors],['ثبت‌نام رایگان',t.signups],['رسیده به کارت‌به‌کارت',t.checkouts],['خرید موفق',t.paid]];
+   var max=Math.max(1,funnel[0][1]);
+   var rows=d.campaigns.map(function(x){return el('tr',{},[el('td',{},[h('b',x.label),x.campaign?h('small',' /'+x.campaign):null]),el('td',{text:fa(x.visitors)}),el('td',{text:fa(x.signups)+' ('+pct(x.signups,x.visitors)+')'}),el('td',{text:fa(x.checkouts)}),el('td',{text:fa(x.unpaid)}),el('td',{text:fa(x.paid)+' ('+pct(x.paid,x.visitors)+')'}),el('td',{text:fa(x.stylists)+' / '+fa(x.salons)}),el('td',{text:fa(x.images_only)}),el('td',{text:fa(x.reservations)}),el('td',{text:fa(x.revenue)})])});
+   body.replaceChildren(
+    el('div',{class:'ads__tiles'},[tile('بازدیدکنندهٔ یکتا',fa(t.visitors),fa(t.visits)+' بازدید'),tile('ثبت‌نام رایگان',fa(t.signups),pct(t.signups,t.visitors)+' از بازدید'),tile('رسیده به کارت‌به‌کارت',fa(t.checkouts)),tile('واریز نکردند',fa(t.unpaid),pct(t.unpaid,t.checkouts)+' از کارت‌به‌کارت'),tile('خرید موفق',fa(t.paid),pct(t.paid,t.checkouts)+' از کارت‌به‌کارت'),tile('فروش',fa(t.revenue)+' تومان'),tile('آرایشگر / سالن (خرید این دوره)',fa(t.stylists)+' / '+fa(t.salons)),tile('اشتراک فعال الان',fa(d.live.stylists)+' آرایشگر · '+fa(d.live.salons)+' سالن'),tile('درخواست رزرو جایگاه',fa(t.reservations))]),
+    h('h3','قیف کل','sub'),
+    el('div',{class:'ads__funnel'},funnel.map(function(f){return el('div',{class:'ads__bar'},[h('span',f[0]),el('span',{class:'ads__track'},[el('i',{style:'width:'+Math.max(2,Math.round(f[1]/max*100))+'%'})]),h('b',fa(f[1]))])})),
+    Object.keys(t.lines).length?h('p','خریدها بر اساس خدمت: '+Object.keys(t.lines).map(function(k){return (LN[k]||k)+' '+fa(t.lines[k])}).join(' · '),'lead'):null,
+    h('h3','به تفکیک لینک (شهر)','sub'),
+    el('div',{class:'ads__scroll'},[el('table',{class:'ads__table'},[el('thead',{},[el('tr',{},['لینک','بازدیدکننده','ثبت‌نام','کارت‌به‌کارت','واریز نکرده','خرید','آرایشگر / سالن','فقط عکس','رزرو جایگاه','فروش (تومان)'].map(function(x){return el('th',{text:x})}))]),el('tbody',{},rows.length?rows:[el('tr',{},[el('td',{colspan:'10',text:'هنوز بازدیدی ثبت نشده.'})])])])]),
+    h('p','بازدید: هر مرورگر در هر روز یک بار. «رسیده به کارت‌به‌کارت» یعنی شمارهٔ کارت را دیده؛ «واریز نکرده» یعنی مهلتش تمام شد یا لغو کرد.','hint')
+   );
+  }).catch(function(e){body.replaceChildren(el('p',{class:'notice notice--warn',text:e.message}))});
+ }
+ // short links
+ var links=el('details',{class:'ads__links'},[el('summary',{text:'لینک‌های کوتاه هر شهر'}),el('div',{class:'ads__chips'},Object.keys(CITY).map(function(k){var url=location.host.replace(/^business\./,'')+'/'+k;return el('button',{type:'button',class:'btn btn--ghost btn--sm',text:CITY[k]+' · '+url,onclick:function(e){navigator.clipboard&&navigator.clipboard.writeText('https://'+url);e.target.textContent='کپی شد'}})}))]);
+ // analytics ids
+ var cl=el('input',{dir:'ltr',placeholder:'Clarity project id'}),ga=el('input',{dir:'ltr',placeholder:'G-XXXXXXXXXX'}),msg=h('small','');
+ api('/api/owner/analytics').then(function(v){cl.value=v.clarity||'';ga.value=v.ga4||''}).catch(function(){});
+ var an=el('details',{class:'ads__links'},[el('summary',{text:'Microsoft Clarity و Google Analytics'}),h('p','شناسه‌ها را وارد کنید تا روی همهٔ صفحه‌های سایت آرایشگرها فعال شوند (حداکثر یک دقیقه). Clarity فیلدهای فرم (نام و موبایل) را خودش پنهان می‌کند.','hint'),el('div',{class:'row'},[el('label',{class:'field'},[h('span','Clarity','lbl'),cl]),el('label',{class:'field'},[h('span','Google Analytics 4','lbl'),ga]),el('button',{class:'btn btn--primary btn--sm',type:'button',text:'ذخیره',onclick:act(function(){return api('/api/owner/analytics',{clarity:cl.value,ga4:ga.value}).then(function(){msg.textContent='ذخیره شد ✓'})})}),msg])]);
+ load();
+ return el('section',{class:'card'},[h('h2','تبلیغات'),h('p','وضعیت کمپین‌ها: از بازدید تا خرید، به تفکیک لینک هر شهر.','lead'),periods,body,links,an]);
+}
 function smsCard(sms){
  var st=function(ok,on,off){return el('li',{class:ok?'on':'off'},[h('span',ok?'✓':'–','dot'),h('span',ok?on:off)])};
  return el('section',{class:'card'},[h('h2','پیامک (ملی پیامک)'),h('p','کد تأیید موبایل مشتری، و لینک سالن که آرایشگر از ربات برای مشتری می‌فرستد.','lead'),el('ul',{class:'status'},[

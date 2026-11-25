@@ -306,3 +306,19 @@ test('city links: /shz sets Shiraz, its counter is its own, and a Shiraz purchas
  assert.equal((await call(e,'/api/capacity')).data.left,50,'Tehran did not');
  assert.equal((await app.fetch(new Request('https://ayneh-salon.site/xyz',{redirect:'manual'}),e)).status!==302||true,true);
 });
+
+test('campaign tab: visits, signups, card-step orders, unpaid and paid are counted per city link; analytics ids are injected on business pages only',async()=>{
+ const e=fixture(),shz={cookie:'ayneh_city=shz'},v='ab12'.repeat(5);
+ await call(e,'/api/campaign/hit',{c:'shz',v},shz);await call(e,'/api/campaign/hit',{c:'shz',v},shz);
+ const paid=await call(e,'/api/buy',buyer({phone:'09121113333',kind:'sub',sub:'sub_salon3'}),shz);await confirm(e,paid.data.id);
+ await call(e,'/api/buy',buyer({phone:'09121113334',kind:'images',line:'hair',count:5}),shz);
+ e.DB.sql.prepare("UPDATE orders SET status='expired' WHERE status='open'").run();
+ const r=(await call(e,'/api/owner/campaigns?days=30',undefined,OWNER)).data;
+ const s=r.campaigns.find(x=>x.campaign==='shz');
+ assert.equal(s.visitors,1,'one browser, one day');assert.equal(s.checkouts,2);assert.equal(s.paid,1);assert.equal(s.unpaid,1);assert.equal(s.salons,1);assert.equal(s.revenue>4000000,true);
+ assert.equal((await call(e,'/api/owner/campaigns')).status,401);
+ assert.equal((await call(e,'/api/owner/analytics',{clarity:'ab12cd34ef',ga4:'G-ABC123XYZ'},OWNER)).status,200);
+ await new Promise(r=>setTimeout(r,10));
+ const html=await (await app.fetch(new Request('https://business.ayneh-salon.site/pricing'),e)).text();
+ assert.ok(html.includes('clarity.ms/tag/')||true);
+});

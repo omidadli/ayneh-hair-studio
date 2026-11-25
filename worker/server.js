@@ -1,4 +1,4 @@
-import {cityFromCookie} from './cities.js';
+import {cityFromCookie,cityOf} from './cities.js';
 import {saveActivation,activationAsset} from './activation.js';
 import {Problem,must,phone,text,safeLink,transferPrompt,uid,token,hash,digits,limited} from './domain.js';
 import {styles} from './legacy.js';
@@ -232,10 +232,25 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   const first=text(String(b.first_name||''),40),last=text(String(b.last_name||''),40),tel=phone(b.phone);
   must(first.length>=2&&last.length>=2,'نام و نام خانوادگی را بنویسید.');
   const role=b.role==='salon'?'salon':'stylist',line=['hair','color','nails','lashes','salon'].includes(b.line)?b.line:'';
-  await run(db,"INSERT INTO reservations(id,first_name,last_name,phone,role,line,status,created_at) VALUES(?,?,?,?,?,?,'new',?) ON CONFLICT(phone) DO UPDATE SET first_name=excluded.first_name,last_name=excluded.last_name,role=excluded.role,line=excluded.line,created_at=excluded.created_at",uid(),first,last,tel,role,line,Date.now());
+  await run(db,"INSERT INTO reservations(id,first_name,last_name,phone,role,line,status,created_at,campaign) VALUES(?,?,?,?,?,?,'new',?,?) ON CONFLICT(phone) DO UPDATE SET first_name=excluded.first_name,last_name=excluded.last_name,role=excluded.role,line=excluded.line,created_at=excluded.created_at",uid(),first,last,tel,role,line,Date.now(),cityFromCookie(req));
   return J({ok:true});
  }
  if(path==='/api/owner/reservations'&&req.method==='GET'){await owner(req,env);return J({reservations:await all(db,'SELECT first_name,last_name,phone,role,line,created_at FROM reservations ORDER BY created_at DESC LIMIT 300')})}
+ /* Campaign visits from the business pages (src/capacity.js): once per browser per campaign per day. */
+ if(path==='/api/campaign/hit'&&req.method==='POST'){
+  const b=await req.json().catch(()=>({}));const c=cityOf(String(b.c||''))||'',v=String(b.v||'');
+  if(!/^[a-z0-9]{16,40}$/.test(v))return J({ok:false});
+  const day=Math.floor((Date.now()+12600000)/86400000);
+  await run(db,"INSERT OR IGNORE INTO events_log(id,salon_id,visitor,kind,meta,created_at) VALUES(?,?,?,'cvisit',?,?)",'cv:'+c+':'+v+':'+day,'business',v,c,Date.now());
+  return J({ok:true});
+ }
+ if(path==='/api/owner/campaigns'&&req.method==='GET'){await owner(req,env);const {campaignReport}=await import('./campaigns.js');return J(await campaignReport(db,Number(u.searchParams.get('days'))||0))}
+ /* Clarity and Google Analytics ids (business pages only; worker/index.js injects them). */
+ if(path==='/api/owner/analytics'){await owner(req,env);
+  if(req.method==='POST'){const b=await req.json().catch(()=>({}));const v={clarity:String(b.clarity||'').trim(),ga4:String(b.ga4||'').trim().toUpperCase()};
+   must(!v.clarity||/^[a-z0-9]{6,20}$/i.test(v.clarity),'شناسهٔ Clarity معتبر نیست (مثل ab12cd34ef).');must(!v.ga4||/^G-[A-Z0-9]{6,14}$/.test(v.ga4),'شناسهٔ Google Analytics باید مثل G-XXXXXXXXXX باشد.');
+   await run(db,"INSERT INTO app_settings(key,value,updated_at) VALUES('analytics',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",JSON.stringify(v),Date.now());return J(v)}
+  return J(JSON.parse((await one(db,"SELECT value FROM app_settings WHERE key='analytics'"))?.value||'{}'))}
  const staffGet=path.match(/^\/api\/staff-credit\/([a-f0-9-]{36})$/);
  if(staffGet&&req.method==='GET'){const i=await staffInfo(db,staffGet[1]);return J({member:i.member,salon:i.salon,lines:i.lines,subscribed:i.subscribed,sub:i.sub})}
  // The same purchase from a signed-in salon panel: no form; same salon, same panel key.
@@ -363,7 +378,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   await limited(db,'trial:'+clientIp(req),8,'از این شبکه امروز چند ثبت‌نام انجام شده؛ فردا دوباره امتحان کنید');
   const b=await req.json().catch(()=>({}));
   if(String(b.website||'').trim())return J({ok:true,path:'/'});// honeypot
-  const {token,...made}=await createTrial(db,env,u.origin,b);
+  const {token,...made}=await createTrial(db,env,u.origin,{...b,campaign:cityFromCookie(req)});
   return J(made,200,token?{'Set-Cookie':'ayneh_trial='+token+'; HttpOnly'+(u.protocol==='https:'?'; Secure':'')+'; SameSite=Lax; Path=/; Max-Age='+90*86400}:{});
  }
  // Who signed up for the free images on this browser (cookie «ayneh_trial»): /pricing buys for

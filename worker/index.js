@@ -13,6 +13,7 @@ import {consultShare,consultShareImage} from './consult.js';
 import {landingHTML,servicePages,pricingHTML} from './landing.js';
 import {packsTag} from './regularpage.js';
 import {isBiz,bizOrigin,mainOrigin} from './hosts.js';
+import {CITIES} from './cities.js';
 import {CODE_RE} from './rewards.js';
 import {directSalon} from './customers.js';
 import {refCookie} from './rewards.js';
@@ -77,6 +78,9 @@ export default {
   if(u.pathname==='/api/telegram/webhook')return await webhook(request,env);
   if(u.pathname.startsWith('/api/bale/webhook/'))return await baleWebhook(request,env,decodeURIComponent(u.pathname.slice(18)));
   if(u.pathname.startsWith('/api/'))return await api(request,env);
+  /* Short city links (worker/cities.js): ayneh-salon.site/thr → the business site for Tehran. */
+  {const cm=u.pathname.match(/^\/([a-z]{3,6})\/?$/);if(cm&&CITIES[cm[1]]){const dom=u.hostname.replace(/^business\./,'');
+   return new Response(null,{status:302,headers:{Location:bizOrigin(u,env)+'/?utm_source=sms&utm_medium=sms&utm_campaign='+cm[1],'Set-Cookie':'ayneh_city='+cm[1]+'; Path=/; Max-Age=7776000; SameSite=Lax; Secure'+(/\./.test(dom)&&!/localhost/.test(dom)?'; Domain=.'+dom:''),'Cache-Control':'no-store'}})}}
   if(u.pathname==='/favicon.svg')return new Response(favicon,{headers:{'Content-Type':'image/svg+xml','Cache-Control':'public,max-age=86400'}});
   if(u.pathname.startsWith('/fonts/')){const f=fontResponse(u.pathname.slice(7));if(f)return f;}
   const sub=subdomainOf(u,env);

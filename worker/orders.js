@@ -17,6 +17,7 @@
 //  * Confirmation is atomic: one UPDATE claims the order, and only the call that claimed it
 //    provisions the salon and grants credits. Retries and double clicks are harmless.
 //  * Money is TOMAN on the page; amounts are stored in RIALS (×10).
+import {CITIES, DEFAULT_CITY, cityOf} from './cities.js';
 import {must, phone, text, uid, digits, hash} from './domain.js';
 import {PLANS, PRICE_MINUTES, TOPUP, SERVICE_TITLES, IMAGE_PRICES, SUB_PACKS, SUB_KEYS, CUSTOM_MAX, PACK_SAVE} from './prices.js';
 import {applyPlan, applyOrder, grant, balance, isV2, MONTH, staffCredits} from './credits.js';
@@ -458,21 +459,23 @@ const v2Tell = (q, who) => (q.kind === 'images' ? 'خرید ' + planName(q) : q.
    'monthly_capacity' changes the number without a deploy. */
 const CAPACITY_DEFAULT = 50;
 const monthStart = () => { const d = new Date(); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1); };
-export async function capacity(db) {
+export async function capacity(db, city = DEFAULT_CITY) {
+  city = cityOf(city) || DEFAULT_CITY;
   const set = Number((await one(db, "SELECT value FROM app_settings WHERE key='monthly_capacity'"))?.value);
   const total = Number.isInteger(set) && set > 0 ? set : CAPACITY_DEFAULT;
   const keys = Object.keys(PLANS).filter(k => PLANS[k].tier === 'full');
   const inList = '(' + keys.map(() => '?').join(',') + ')', m0 = monthStart();
   /* New subscribers this month: a salon already subscribed before this month is a renewal. */
-  const r = await one(db, "SELECT COUNT(DISTINCT salon_id) n FROM orders WHERE status='paid' AND kind='plan' AND confirmed_at>=? AND plan IN " + inList + " AND salon_id NOT IN (SELECT salon_id FROM orders WHERE status='paid' AND kind='plan' AND confirmed_at<? AND salon_id IS NOT NULL AND plan IN " + inList + ")", m0, ...keys, m0, ...keys);
+  /* Per city: an order with no city (bought without a city link) counts for the default city. */
+  const r = await one(db, "SELECT COUNT(DISTINCT salon_id) n FROM orders WHERE status='paid' AND kind='plan' AND confirmed_at>=? AND COALESCE(NULLIF(city,''),?)=? AND plan IN " + inList + " AND salon_id NOT IN (SELECT salon_id FROM orders WHERE status='paid' AND kind='plan' AND confirmed_at<? AND salon_id IS NOT NULL AND plan IN " + inList + ")", m0, DEFAULT_CITY, city, ...keys, m0, ...keys);
   const used = Number(r?.n || 0);
-  return {total, used, left: Math.max(0, total - used)};
+  return {city, city_fa: CITIES[city], total, used, left: Math.max(0, total - used)};
 }
-async function needPlace(db, q, salon) {
+async function needPlace(db, q, salon, city) {
   if (q.kind !== 'plan') return;
   const plan = salon && planOf(salon);
   if (plan && tierNow(plan) === 'full' && Number(plan.until) > Date.now()) return; // a renewal
-  must((await capacity(db)).left > 0, 'ظرفیت اشتراک این ماه پر شده است. از ابتدای ماه بعد دوباره باز می‌شود؛ تا آن موقع «فقط ساخت تصویر» در دسترس است.', 409);
+  must((await capacity(db, city)).left > 0, 'ظرفیت اشتراک این ماه در شهر شما پر شده است. از ابتدای ماه بعد دوباره باز می‌شود؛ تا آن موقع «فقط ساخت تصویر» در دسترس است.', 409);
 }
 
 export async function createPurchase(db, env, b, origin = '', trialSalon = '') {
@@ -483,14 +486,14 @@ export async function createPurchase(db, env, b, origin = '', trialSalon = '') {
   const prior = await priorSalon(db, tel);
   if (prior) allowedFor(prior, q);
   else must(q.kind !== 'pack', 'بستهٔ ۵۰، ۱۰۰ و ۲۰۰ عکسی مخصوص مشترک‌هاست. اول «اشتراک ماهانه» را بخرید (می‌شود بسته را همراهش خرید).', 409);
-  await needPlace(db, q, prior);
+  await needPlace(db, q, prior, b.city_code);
   await closeExpired(db);
   const id = uid();
   await run(db, "UPDATE orders SET status='cancelled',replaced_by=?,updated_at=? WHERE phone=? AND kind IN ('plan','images','pack') AND status='open'", id, now, tel);
   const key = newAccessKey(), panelPass = newPanelPassword();
   const row = {
     id, ref: ref(), plan: q.plan, kind: q.kind, service: q.service, users: q.users, credits: q.credits, line: q.line,
-    amount: q.amount * 10, salon_name: name, contact_name: name, phone: tel, city: '', note: !prior && trialSalon ? 'trial:' + trialSalon : '', status: 'open',
+    amount: q.amount * 10, salon_name: name, contact_name: name, phone: tel, city: cityOf(b.city_code) || '', note: !prior && trialSalon ? 'trial:' + trialSalon : '', status: 'open',
     expires_at: now + ORDER_MINUTES * 60000, access_key_hash: await hashKey(key), pass_hash: await hashPassword(panelPass),
     draft: '', coupon: '', discount: 0, created_at: now, updated_at: now,
   };
@@ -522,7 +525,7 @@ export async function createStaffPurchase(db, env, staffId, b, origin = '') {
 export async function createPanelPurchase(db, env, {order: panelOrder, salon}, b, origin = '') {
   const q = quote(b);
   allowedFor(salon, q);
-  await needPlace(db, q, salon);
+  await needPlace(db, q, salon, b.city_code);
   /* Credit for one member (bought by the manager here, or by the member from her own link):
      image credit only, and it raises that member's share by its value (worker/credits.js). */
   const member = b.staff ? await one(db, 'SELECT id,name FROM team WHERE id=? AND salon_id=? AND active=1', String(b.staff), salon.id) : null;
@@ -534,7 +537,7 @@ export async function createPanelPurchase(db, env, {order: panelOrder, salon}, b
   const row = {
     id, ref: ref(), plan: q.plan, kind: q.kind, service: q.service, users: q.users, credits: q.credits, line: q.line,
     amount: q.amount * 10, salon_name: salon.name, contact_name: panelOrder.contact_name, phone: panelOrder.phone,
-    city: '', note: member ? 'staff' : 'renewal', status: 'open', expires_at: now + ORDER_MINUTES * 60000,
+    city: cityOf(b.city_code) || '', note: member ? 'staff' : 'renewal', status: 'open', expires_at: now + ORDER_MINUTES * 60000,
     access_key_hash: panelOrder.access_key_hash, coupon: '', discount: 0, created_at: now, updated_at: now, salon_id: salon.id,
     staff_id: member ? member.id : null,
   };

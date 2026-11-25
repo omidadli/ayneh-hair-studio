@@ -1,3 +1,4 @@
+import {cityFromCookie} from './cities.js';
 import {saveActivation,activationAsset} from './activation.js';
 import {Problem,must,phone,text,safeLink,transferPrompt,uid,token,hash,digits,limited} from './domain.js';
 import {styles} from './legacy.js';
@@ -206,10 +207,10 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   /* A professional who signed up for the free images: the purchase goes to the same mobile and
      the same page; name and mobile come from the signup, never from the request. */
   /* A member's own credit link (/pricing?for=<member id>). */
-  if(b.staff)return J(await createStaffPurchase(db,env,String(b.staff),b,u.origin));
+  if(b.staff)return J(await createStaffPurchase(db,env,String(b.staff),{...b,city_code:cityFromCookie(req)},u.origin));
   const t=await trialByToken(db,trialToken(req));
   const signup=t&&!t.converted_at?t:null;
-  const made=await createPurchase(db,env,signup?{...b,name:t.salon_name||t.name,phone:t.phone}:b,u.origin,signup?.salon_id||'');
+  const made=await createPurchase(db,env,{...(signup?{...b,name:t.salon_name||t.name,phone:t.phone}:b),city_code:cityFromCookie(req)},u.origin,signup?.salon_id||'');
   await attachReferral(db,made.id,refOf(req,b)).catch(e=>console.error('referral',e?.message));
   return J(made);
  }
@@ -223,7 +224,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   return J({salons:out.slice(0,12)},200,{'Cache-Control':'public,max-age=300'});
  }
  /* The live capacity counter in the business header (src/capacity.js): real places left this month. */
- if(path==='/api/capacity'&&req.method==='GET'){const c=await capacity(db);return J({total:c.total,left:c.left},200,{'Cache-Control':'no-store'})}
+ if(path==='/api/capacity'&&req.method==='GET'){const c=await capacity(db,cityFromCookie(req));return J({city:c.city,city_fa:c.city_fa,total:c.total,left:c.left},200,{'Cache-Control':'no-store'})}
  /* A place request when the month is full (src/capacity.js form). One per mobile (a repeat updates it). */
  if(path==='/api/reserve'&&req.method==='POST'){
   await limited(db,'reserve:'+clientIp(req),10,'درخواست‌های زیادی از این شبکه رسیده؛ کمی بعد دوباره امتحان کنید');
@@ -241,7 +242,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  if(path==='/api/panel/buy'&&req.method==='POST'){
   await limited(db,'renew:'+clientIp(req),20,'درخواست‌های زیادی فرستاده‌اید؛ کمی بعد دوباره امتحان کنید');
   const ctx=await panelSalon(req,db);const b=await req.json().catch(()=>({}));
-  return J(await createPanelPurchase(db,env,ctx,b,u.origin));
+  return J(await createPanelPurchase(db,env,ctx,{...b,city_code:cityFromCookie(req)},u.origin));
  }
  const orderGet=path.match(/^\/api\/order\/([a-f0-9-]{36})$/);
  if(orderGet&&req.method==='GET')return J(await customerOrder(db,env,orderGet[1],u.origin));

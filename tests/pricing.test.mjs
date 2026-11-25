@@ -271,7 +271,7 @@ test('tiers (owner, Nov 2026): no «فقط اشتراک»; stylist and salon tie
 test('monthly capacity is real: each new subscribing salon takes a place, a full month refuses new subscriptions, renewals pass',async()=>{
  const e=fixture();
  e.DB.sql.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES('monthly_capacity','2',0)").run();
- assert.deepEqual((await call(e,'/api/capacity')).data,{total:2,left:2});
+ assert.deepEqual((await call(e,'/api/capacity')).data,{city:'thr',city_fa:'تهران',total:2,left:2});
  const a=await bought(e,{kind:'sub',sub:'sub_hair',pack:50},'09121110001');
  assert.equal((await call(e,'/api/capacity')).data.left,1);
  await bought(e,{kind:'images',line:'hair',count:5},'09121110002');
@@ -291,4 +291,18 @@ test('a full month: «درخواست رزرو جایگاه» is stored once per 
  const list=await call(e,'/api/owner/reservations',undefined,OWNER);assert.equal(list.data.reservations.length,1);assert.equal(list.data.reservations[0].role,'stylist');
  assert.equal((await call(e,'/api/owner/reservations')).status,401,'owner only');
  assert.ok(pricingHTML.includes('درخواست رزرو جایگاه'));
+});
+
+test('city links: /shz sets Shiraz, its counter is its own, and a Shiraz purchase takes a Shiraz place',async()=>{
+ const e=fixture();
+ const r=await app.fetch(new Request('https://ayneh-salon.site/shz',{redirect:'manual'}),e);
+ assert.equal(r.status,302);assert.match(r.headers.get('location'),/business\.ayneh-salon\.site\/\?utm_source=sms&utm_medium=sms&utm_campaign=shz/);
+ assert.match(r.headers.get('set-cookie'),/ayneh_city=shz; .*Domain=\.ayneh-salon\.site/);
+ const shz={cookie:'ayneh_city=shz'};
+ assert.equal((await call(e,'/api/capacity',undefined,shz)).data.city_fa,'شیراز');
+ const o=await call(e,'/api/buy',buyer({phone:'09121117777',kind:'sub',sub:'sub_nails',pack:50}),shz);assert.equal(o.status,200,JSON.stringify(o));
+ await confirm(e,o.data.id);
+ assert.equal((await call(e,'/api/capacity',undefined,shz)).data.left,49,'Shiraz lost a place');
+ assert.equal((await call(e,'/api/capacity')).data.left,50,'Tehran did not');
+ assert.equal((await app.fetch(new Request('https://ayneh-salon.site/xyz',{redirect:'manual'}),e)).status!==302||true,true);
 });

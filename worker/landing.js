@@ -1447,7 +1447,7 @@ const num = document.getElementById('capNum'), arc = document.getElementById('ca
 const fa = n => Number(n).toLocaleString('fa-IR');
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const C = 119.4;
-let shown = null, full = false;
+let shown = null, full = false, cityFa = '';
 const roll = (from, to) => {
 if (still || from === null) { num.textContent = fa(to); return; }
 let cur = from; const step = to < from ? -1 : 1;
@@ -1455,9 +1455,13 @@ const tick = () => { cur += step; num.textContent = fa(cur); num.classList.remov
 tick();
 if (to < from) { bar.classList.remove('is-drop'); void bar.offsetWidth; bar.classList.add('is-drop'); }
 };
+const qc = new URLSearchParams(location.search).get('utm_campaign');
+if (qc && /^[a-z]{3,6}$/.test(qc)) document.cookie = 'ayneh_city=' + qc + '; Path=/; Max-Age=7776000; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
 const load = () => fetch('/api/capacity', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(d => {
 if (!d || !d.total) return;
 bar.hidden = false;
+cityFa = d.city_fa || '';
+if (txt && !full) txt.textContent = 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (arc) arc.style.strokeDashoffset = String(C * (1 - d.left / d.total));
 bar.classList.toggle('is-low', d.left <= Math.ceil(d.total * 0.2));
 if (shown !== d.left) { roll(shown, d.left); shown = d.left; }
@@ -1465,7 +1469,7 @@ if ((d.left === 0) !== full) { full = d.left === 0; setFull(); }
 }).catch(() => {});
 function setFull() {
 bar.classList.toggle('is-full', full);
-if (txt) txt.textContent = full ? 'ظرفیت این ماه تکمیل شد' : 'ظرفیت باقی‌مانده';
+if (txt) txt.textContent = full ? 'ظرفیت ' + (cityFa ? cityFa + ' ' : '') + 'این ماه تکمیل شد' : 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (go) go.firstChild.textContent = full ? 'درخواست رزرو جایگاه' : 'رزرو جایگاه';
 bar.href = full ? '/pricing?reserve=1' : '/pricing';
 document.querySelectorAll('[data-kind="sub"]').forEach(b => {
@@ -3253,7 +3257,7 @@ const num = document.getElementById('capNum'), arc = document.getElementById('ca
 const fa = n => Number(n).toLocaleString('fa-IR');
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const C = 119.4;
-let shown = null, full = false;
+let shown = null, full = false, cityFa = '';
 const roll = (from, to) => {
 if (still || from === null) { num.textContent = fa(to); return; }
 let cur = from; const step = to < from ? -1 : 1;
@@ -3261,9 +3265,13 @@ const tick = () => { cur += step; num.textContent = fa(cur); num.classList.remov
 tick();
 if (to < from) { bar.classList.remove('is-drop'); void bar.offsetWidth; bar.classList.add('is-drop'); }
 };
+const qc = new URLSearchParams(location.search).get('utm_campaign');
+if (qc && /^[a-z]{3,6}$/.test(qc)) document.cookie = 'ayneh_city=' + qc + '; Path=/; Max-Age=7776000; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
 const load = () => fetch('/api/capacity', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(d => {
 if (!d || !d.total) return;
 bar.hidden = false;
+cityFa = d.city_fa || '';
+if (txt && !full) txt.textContent = 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (arc) arc.style.strokeDashoffset = String(C * (1 - d.left / d.total));
 bar.classList.toggle('is-low', d.left <= Math.ceil(d.total * 0.2));
 if (shown !== d.left) { roll(shown, d.left); shown = d.left; }
@@ -3271,7 +3279,7 @@ if ((d.left === 0) !== full) { full = d.left === 0; setFull(); }
 }).catch(() => {});
 function setFull() {
 bar.classList.toggle('is-full', full);
-if (txt) txt.textContent = full ? 'ظرفیت این ماه تکمیل شد' : 'ظرفیت باقی‌مانده';
+if (txt) txt.textContent = full ? 'ظرفیت ' + (cityFa ? cityFa + ' ' : '') + 'این ماه تکمیل شد' : 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (go) go.firstChild.textContent = full ? 'درخواست رزرو جایگاه' : 'رزرو جایگاه';
 bar.href = full ? '/pricing?reserve=1' : '/pricing';
 document.querySelectorAll('[data-kind="sub"]').forEach(b => {
@@ -4784,7 +4792,7 @@ const num = document.getElementById('capNum'), arc = document.getElementById('ca
 const fa = n => Number(n).toLocaleString('fa-IR');
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const C = 119.4;
-let shown = null, full = false;
+let shown = null, full = false, cityFa = '';
 const roll = (from, to) => {
 if (still || from === null) { num.textContent = fa(to); return; }
 let cur = from; const step = to < from ? -1 : 1;
@@ -4792,9 +4800,13 @@ const tick = () => { cur += step; num.textContent = fa(cur); num.classList.remov
 tick();
 if (to < from) { bar.classList.remove('is-drop'); void bar.offsetWidth; bar.classList.add('is-drop'); }
 };
+const qc = new URLSearchParams(location.search).get('utm_campaign');
+if (qc && /^[a-z]{3,6}$/.test(qc)) document.cookie = 'ayneh_city=' + qc + '; Path=/; Max-Age=7776000; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
 const load = () => fetch('/api/capacity', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(d => {
 if (!d || !d.total) return;
 bar.hidden = false;
+cityFa = d.city_fa || '';
+if (txt && !full) txt.textContent = 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (arc) arc.style.strokeDashoffset = String(C * (1 - d.left / d.total));
 bar.classList.toggle('is-low', d.left <= Math.ceil(d.total * 0.2));
 if (shown !== d.left) { roll(shown, d.left); shown = d.left; }
@@ -4802,7 +4814,7 @@ if ((d.left === 0) !== full) { full = d.left === 0; setFull(); }
 }).catch(() => {});
 function setFull() {
 bar.classList.toggle('is-full', full);
-if (txt) txt.textContent = full ? 'ظرفیت این ماه تکمیل شد' : 'ظرفیت باقی‌مانده';
+if (txt) txt.textContent = full ? 'ظرفیت ' + (cityFa ? cityFa + ' ' : '') + 'این ماه تکمیل شد' : 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (go) go.firstChild.textContent = full ? 'درخواست رزرو جایگاه' : 'رزرو جایگاه';
 bar.href = full ? '/pricing?reserve=1' : '/pricing';
 document.querySelectorAll('[data-kind="sub"]').forEach(b => {
@@ -6315,7 +6327,7 @@ const num = document.getElementById('capNum'), arc = document.getElementById('ca
 const fa = n => Number(n).toLocaleString('fa-IR');
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const C = 119.4;
-let shown = null, full = false;
+let shown = null, full = false, cityFa = '';
 const roll = (from, to) => {
 if (still || from === null) { num.textContent = fa(to); return; }
 let cur = from; const step = to < from ? -1 : 1;
@@ -6323,9 +6335,13 @@ const tick = () => { cur += step; num.textContent = fa(cur); num.classList.remov
 tick();
 if (to < from) { bar.classList.remove('is-drop'); void bar.offsetWidth; bar.classList.add('is-drop'); }
 };
+const qc = new URLSearchParams(location.search).get('utm_campaign');
+if (qc && /^[a-z]{3,6}$/.test(qc)) document.cookie = 'ayneh_city=' + qc + '; Path=/; Max-Age=7776000; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
 const load = () => fetch('/api/capacity', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(d => {
 if (!d || !d.total) return;
 bar.hidden = false;
+cityFa = d.city_fa || '';
+if (txt && !full) txt.textContent = 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (arc) arc.style.strokeDashoffset = String(C * (1 - d.left / d.total));
 bar.classList.toggle('is-low', d.left <= Math.ceil(d.total * 0.2));
 if (shown !== d.left) { roll(shown, d.left); shown = d.left; }
@@ -6333,7 +6349,7 @@ if ((d.left === 0) !== full) { full = d.left === 0; setFull(); }
 }).catch(() => {});
 function setFull() {
 bar.classList.toggle('is-full', full);
-if (txt) txt.textContent = full ? 'ظرفیت این ماه تکمیل شد' : 'ظرفیت باقی‌مانده';
+if (txt) txt.textContent = full ? 'ظرفیت ' + (cityFa ? cityFa + ' ' : '') + 'این ماه تکمیل شد' : 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (go) go.firstChild.textContent = full ? 'درخواست رزرو جایگاه' : 'رزرو جایگاه';
 bar.href = full ? '/pricing?reserve=1' : '/pricing';
 document.querySelectorAll('[data-kind="sub"]').forEach(b => {
@@ -7846,7 +7862,7 @@ const num = document.getElementById('capNum'), arc = document.getElementById('ca
 const fa = n => Number(n).toLocaleString('fa-IR');
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const C = 119.4;
-let shown = null, full = false;
+let shown = null, full = false, cityFa = '';
 const roll = (from, to) => {
 if (still || from === null) { num.textContent = fa(to); return; }
 let cur = from; const step = to < from ? -1 : 1;
@@ -7854,9 +7870,13 @@ const tick = () => { cur += step; num.textContent = fa(cur); num.classList.remov
 tick();
 if (to < from) { bar.classList.remove('is-drop'); void bar.offsetWidth; bar.classList.add('is-drop'); }
 };
+const qc = new URLSearchParams(location.search).get('utm_campaign');
+if (qc && /^[a-z]{3,6}$/.test(qc)) document.cookie = 'ayneh_city=' + qc + '; Path=/; Max-Age=7776000; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
 const load = () => fetch('/api/capacity', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(d => {
 if (!d || !d.total) return;
 bar.hidden = false;
+cityFa = d.city_fa || '';
+if (txt && !full) txt.textContent = 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (arc) arc.style.strokeDashoffset = String(C * (1 - d.left / d.total));
 bar.classList.toggle('is-low', d.left <= Math.ceil(d.total * 0.2));
 if (shown !== d.left) { roll(shown, d.left); shown = d.left; }
@@ -7864,7 +7884,7 @@ if ((d.left === 0) !== full) { full = d.left === 0; setFull(); }
 }).catch(() => {});
 function setFull() {
 bar.classList.toggle('is-full', full);
-if (txt) txt.textContent = full ? 'ظرفیت این ماه تکمیل شد' : 'ظرفیت باقی‌مانده';
+if (txt) txt.textContent = full ? 'ظرفیت ' + (cityFa ? cityFa + ' ' : '') + 'این ماه تکمیل شد' : 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (go) go.firstChild.textContent = full ? 'درخواست رزرو جایگاه' : 'رزرو جایگاه';
 bar.href = full ? '/pricing?reserve=1' : '/pricing';
 document.querySelectorAll('[data-kind="sub"]').forEach(b => {
@@ -9377,7 +9397,7 @@ const num = document.getElementById('capNum'), arc = document.getElementById('ca
 const fa = n => Number(n).toLocaleString('fa-IR');
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const C = 119.4;
-let shown = null, full = false;
+let shown = null, full = false, cityFa = '';
 const roll = (from, to) => {
 if (still || from === null) { num.textContent = fa(to); return; }
 let cur = from; const step = to < from ? -1 : 1;
@@ -9385,9 +9405,13 @@ const tick = () => { cur += step; num.textContent = fa(cur); num.classList.remov
 tick();
 if (to < from) { bar.classList.remove('is-drop'); void bar.offsetWidth; bar.classList.add('is-drop'); }
 };
+const qc = new URLSearchParams(location.search).get('utm_campaign');
+if (qc && /^[a-z]{3,6}$/.test(qc)) document.cookie = 'ayneh_city=' + qc + '; Path=/; Max-Age=7776000; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
 const load = () => fetch('/api/capacity', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(d => {
 if (!d || !d.total) return;
 bar.hidden = false;
+cityFa = d.city_fa || '';
+if (txt && !full) txt.textContent = 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (arc) arc.style.strokeDashoffset = String(C * (1 - d.left / d.total));
 bar.classList.toggle('is-low', d.left <= Math.ceil(d.total * 0.2));
 if (shown !== d.left) { roll(shown, d.left); shown = d.left; }
@@ -9395,7 +9419,7 @@ if ((d.left === 0) !== full) { full = d.left === 0; setFull(); }
 }).catch(() => {});
 function setFull() {
 bar.classList.toggle('is-full', full);
-if (txt) txt.textContent = full ? 'ظرفیت این ماه تکمیل شد' : 'ظرفیت باقی‌مانده';
+if (txt) txt.textContent = full ? 'ظرفیت ' + (cityFa ? cityFa + ' ' : '') + 'این ماه تکمیل شد' : 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (go) go.firstChild.textContent = full ? 'درخواست رزرو جایگاه' : 'رزرو جایگاه';
 bar.href = full ? '/pricing?reserve=1' : '/pricing';
 document.querySelectorAll('[data-kind="sub"]').forEach(b => {
@@ -10905,7 +10929,7 @@ const num = document.getElementById('capNum'), arc = document.getElementById('ca
 const fa = n => Number(n).toLocaleString('fa-IR');
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const C = 119.4;
-let shown = null, full = false;
+let shown = null, full = false, cityFa = '';
 const roll = (from, to) => {
 if (still || from === null) { num.textContent = fa(to); return; }
 let cur = from; const step = to < from ? -1 : 1;
@@ -10913,9 +10937,13 @@ const tick = () => { cur += step; num.textContent = fa(cur); num.classList.remov
 tick();
 if (to < from) { bar.classList.remove('is-drop'); void bar.offsetWidth; bar.classList.add('is-drop'); }
 };
+const qc = new URLSearchParams(location.search).get('utm_campaign');
+if (qc && /^[a-z]{3,6}$/.test(qc)) document.cookie = 'ayneh_city=' + qc + '; Path=/; Max-Age=7776000; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
 const load = () => fetch('/api/capacity', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(d => {
 if (!d || !d.total) return;
 bar.hidden = false;
+cityFa = d.city_fa || '';
+if (txt && !full) txt.textContent = 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (arc) arc.style.strokeDashoffset = String(C * (1 - d.left / d.total));
 bar.classList.toggle('is-low', d.left <= Math.ceil(d.total * 0.2));
 if (shown !== d.left) { roll(shown, d.left); shown = d.left; }
@@ -10923,7 +10951,7 @@ if ((d.left === 0) !== full) { full = d.left === 0; setFull(); }
 }).catch(() => {});
 function setFull() {
 bar.classList.toggle('is-full', full);
-if (txt) txt.textContent = full ? 'ظرفیت این ماه تکمیل شد' : 'ظرفیت باقی‌مانده';
+if (txt) txt.textContent = full ? 'ظرفیت ' + (cityFa ? cityFa + ' ' : '') + 'این ماه تکمیل شد' : 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (go) go.firstChild.textContent = full ? 'درخواست رزرو جایگاه' : 'رزرو جایگاه';
 bar.href = full ? '/pricing?reserve=1' : '/pricing';
 document.querySelectorAll('[data-kind="sub"]').forEach(b => {
@@ -11820,7 +11848,7 @@ const num = document.getElementById('capNum'), arc = document.getElementById('ca
 const fa = n => Number(n).toLocaleString('fa-IR');
 const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const C = 119.4;
-let shown = null, full = false;
+let shown = null, full = false, cityFa = '';
 const roll = (from, to) => {
 if (still || from === null) { num.textContent = fa(to); return; }
 let cur = from; const step = to < from ? -1 : 1;
@@ -11828,9 +11856,13 @@ const tick = () => { cur += step; num.textContent = fa(cur); num.classList.remov
 tick();
 if (to < from) { bar.classList.remove('is-drop'); void bar.offsetWidth; bar.classList.add('is-drop'); }
 };
+const qc = new URLSearchParams(location.search).get('utm_campaign');
+if (qc && /^[a-z]{3,6}$/.test(qc)) document.cookie = 'ayneh_city=' + qc + '; Path=/; Max-Age=7776000; SameSite=Lax' + (location.protocol === 'https:' ? '; Secure' : '');
 const load = () => fetch('/api/capacity', {cache: 'no-store'}).then(r => r.ok ? r.json() : null).then(d => {
 if (!d || !d.total) return;
 bar.hidden = false;
+cityFa = d.city_fa || '';
+if (txt && !full) txt.textContent = 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (arc) arc.style.strokeDashoffset = String(C * (1 - d.left / d.total));
 bar.classList.toggle('is-low', d.left <= Math.ceil(d.total * 0.2));
 if (shown !== d.left) { roll(shown, d.left); shown = d.left; }
@@ -11838,7 +11870,7 @@ if ((d.left === 0) !== full) { full = d.left === 0; setFull(); }
 }).catch(() => {});
 function setFull() {
 bar.classList.toggle('is-full', full);
-if (txt) txt.textContent = full ? 'ظرفیت این ماه تکمیل شد' : 'ظرفیت باقی‌مانده';
+if (txt) txt.textContent = full ? 'ظرفیت ' + (cityFa ? cityFa + ' ' : '') + 'این ماه تکمیل شد' : 'ظرفیت باقی‌مانده' + (cityFa ? 'ٔ ' + cityFa : '');
 if (go) go.firstChild.textContent = full ? 'درخواست رزرو جایگاه' : 'رزرو جایگاه';
 bar.href = full ? '/pricing?reserve=1' : '/pricing';
 document.querySelectorAll('[data-kind="sub"]').forEach(b => {

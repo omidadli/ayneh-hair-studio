@@ -73,7 +73,7 @@ export async function visionJSON(env,db,{cacheKey,system,user,image,tryLimit,okL
    const j=await res.json().catch(()=>null);
    const ok=res.ok&&j&&(!j.code||j.code===200)&&j.choices&&j.choices[0];
    if(ok){d=j;visionPick=c;break}
-   detail=(c.m+' '+res.status+' '+String(j&&(j.msg||j.message||(j.error&&j.error.message))||'')).slice(0,160);
+   detail=(detail+' | '+c.u.replace('https://api.kie.ai','')+' '+res.status+' '+String(j&&(j.msg||j.message||(j.error&&j.error.message))||'').slice(0,80)).slice(-600);
    console.error('vision',detail);
   }
  }catch(e){

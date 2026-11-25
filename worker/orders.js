@@ -451,6 +451,30 @@ const v2Tell = (q, who) => (q.kind === 'images' ? 'خرید ' + planName(q) : q.
    salon's / brand name shown on its try-on page, never asked twice. */
 /* trialSalon: the free-signup page of the same mobile (server-side only, from the «ayneh_trial»
    cookie; never from the request body): the order turns that page into the paid salon. */
+/* Monthly capacity (owner, Nov 2026): at most CAPACITY new subscribing salons a calendar month
+   (Tehran month start ≈ UTC month start). Real: a confirmed subscription of a salon that had no
+   running subscription takes one place; when none is left, new subscriptions wait for next month.
+   Renewals of a running subscription never count and are never blocked. app_settings
+   'monthly_capacity' changes the number without a deploy. */
+const CAPACITY_DEFAULT = 50;
+const monthStart = () => { const d = new Date(); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1); };
+export async function capacity(db) {
+  const set = Number((await one(db, "SELECT value FROM app_settings WHERE key='monthly_capacity'"))?.value);
+  const total = Number.isInteger(set) && set > 0 ? set : CAPACITY_DEFAULT;
+  const keys = Object.keys(PLANS).filter(k => PLANS[k].tier === 'full');
+  const inList = '(' + keys.map(() => '?').join(',') + ')', m0 = monthStart();
+  /* New subscribers this month: a salon already subscribed before this month is a renewal. */
+  const r = await one(db, "SELECT COUNT(DISTINCT salon_id) n FROM orders WHERE status='paid' AND kind='plan' AND confirmed_at>=? AND plan IN " + inList + " AND salon_id NOT IN (SELECT salon_id FROM orders WHERE status='paid' AND kind='plan' AND confirmed_at<? AND salon_id IS NOT NULL AND plan IN " + inList + ")", m0, ...keys, m0, ...keys);
+  const used = Number(r?.n || 0);
+  return {total, used, left: Math.max(0, total - used)};
+}
+async function needPlace(db, q, salon) {
+  if (q.kind !== 'plan') return;
+  const plan = salon && planOf(salon);
+  if (plan && tierNow(plan) === 'full' && Number(plan.until) > Date.now()) return; // a renewal
+  must((await capacity(db)).left > 0, 'ظرفیت اشتراک این ماه پر شده است. از ابتدای ماه بعد دوباره باز می‌شود؛ تا آن موقع «فقط ساخت تصویر» در دسترس است.', 409);
+}
+
 export async function createPurchase(db, env, b, origin = '', trialSalon = '') {
   const q = quote(b);
   const name = text(String(b.name || ''), 60);
@@ -459,6 +483,7 @@ export async function createPurchase(db, env, b, origin = '', trialSalon = '') {
   const prior = await priorSalon(db, tel);
   if (prior) allowedFor(prior, q);
   else must(q.kind !== 'pack', 'بستهٔ ۵۰، ۱۰۰ و ۲۰۰ عکسی مخصوص مشترک‌هاست. اول «اشتراک ماهانه» را بخرید (می‌شود بسته را همراهش خرید).', 409);
+  await needPlace(db, q, prior);
   await closeExpired(db);
   const id = uid();
   await run(db, "UPDATE orders SET status='cancelled',replaced_by=?,updated_at=? WHERE phone=? AND kind IN ('plan','images','pack') AND status='open'", id, now, tel);
@@ -497,6 +522,7 @@ export async function createStaffPurchase(db, env, staffId, b, origin = '') {
 export async function createPanelPurchase(db, env, {order: panelOrder, salon}, b, origin = '') {
   const q = quote(b);
   allowedFor(salon, q);
+  await needPlace(db, q, salon);
   /* Credit for one member (bought by the manager here, or by the member from her own link):
      image credit only, and it raises that member's share by its value (worker/credits.js). */
   const member = b.staff ? await one(db, 'SELECT id,name FROM team WHERE id=? AND salon_id=? AND active=1', String(b.staff), salon.id) : null;

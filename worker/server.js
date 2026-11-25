@@ -15,7 +15,7 @@ const trialToken=req=>((req.headers.get('cookie')||'').match(/(?:^|;\s*)ayneh_tr
 import {PLANS as PLANS_TABLE} from './prices.js';
 import {smsConfirm,newPairCode,redeemPairCode,orderDetails} from './paysms.js';
 import {createTestOrder} from './orders.js';
-import {createOrder,createPurchase,createPanelPurchase,createStaffPurchase,staffInfo,createTopup,createRenewal,customerOrder,setCoupon,confirmOrder,webhookConfirm,reopenOrder,rekeyOrder,closeExpired,cardSetting,saveCard,
+import {createOrder,createPurchase,createPanelPurchase,createStaffPurchase,staffInfo,capacity,createTopup,createRenewal,customerOrder,setCoupon,confirmOrder,webhookConfirm,reopenOrder,rekeyOrder,closeExpired,cardSetting,saveCard,
  webhookKey,rotateWebhookKey,cardList,removeCard,smsSenders,panelLogin,panelSalon,panelLogout,panelDashboard,tickChecklist,ORDER_MINUTES,SERVICE_LABEL} from './orders.js';
 import {spendCredit,planOf} from './credits.js';
 import {can,featuresOf,OPENED_BY,linesOf,imageOnly} from './plans.js';
@@ -222,6 +222,8 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   out.sort(()=>Math.random()-.5);
   return J({salons:out.slice(0,12)},200,{'Cache-Control':'public,max-age=300'});
  }
+ /* The live capacity counter in the business header (src/capacity.js): real places left this month. */
+ if(path==='/api/capacity'&&req.method==='GET'){const c=await capacity(db);return J({total:c.total,left:c.left},200,{'Cache-Control':'no-store'})}
  const staffGet=path.match(/^\/api\/staff-credit\/([a-f0-9-]{36})$/);
  if(staffGet&&req.method==='GET'){const i=await staffInfo(db,staffGet[1]);return J({member:i.member,salon:i.salon,lines:i.lines,subscribed:i.subscribed,sub:i.sub})}
  // The same purchase from a signed-in salon panel: no form; same salon, same panel key.

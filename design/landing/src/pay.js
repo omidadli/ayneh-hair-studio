@@ -359,7 +359,7 @@
         state.entered = true;
         panel.href = '/panel?key=' + encodeURIComponent(shown);
       }
-      drawActivated(order.activated);
+      drawActivated(order.activated); dispatchEvent(new CustomEvent('ayneh:capacity'));
       const act = $('payActivating'), ready = $('payReady');
       show('done');
       if (act && ready && !state.activated && !order.same_key) {

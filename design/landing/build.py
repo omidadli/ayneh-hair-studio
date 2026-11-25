@@ -940,7 +940,7 @@ def finish(h, only=None):
     # follow-up message to show.
     SCRIPTS = ['funnel.js', 'story.js', 'tryon.js', 'play.js', 'draft.js', 'portrait.js',
                'hair-color.js', 'try.js', 'reveal.js', 'cinema2.js',
-               'builder.js', 'refine.js', 'pay.js', 'cta.js', 'try-switch.js', 'copy.js']
+               'builder.js', 'refine.js', 'pay.js', 'cta.js', 'try-switch.js', 'copy.js', 'capacity.js']
     # Hair-colour maths and the photo handoff are used by the studio. hero.js, scenes.js,
     # and cinema.js drove the retired film sections. cta.js owns the mobile sticky action,
     # keeping it clear of the film, the salon-page builder, duplicate CTAs, and open dialogs.
@@ -1021,7 +1021,7 @@ def ship_minify(html):
     return re.sub(r'\n{2,}', '\n', html)
 
 WORKER = {k: ship_minify(to_worker(finish(v)[0] if k != 'home' else h)) for k, v in PAGES.items()}
-PRICING_WORKER = ship_minify(to_worker(finish(PRICING_PAGE, ['funnel.js', 'pay.js', 'pricing.js'])[0]))
+PRICING_WORKER = ship_minify(to_worker(finish(PRICING_PAGE, ['funnel.js', 'pay.js', 'pricing.js', 'capacity.js'])[0]))
 # These pages are the salons' site (business.<domain>); the customers' site is the main domain.
 # The owner wants each side on its own: no link from here to the customers' side (Nov 2026).
 

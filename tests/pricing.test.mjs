@@ -267,3 +267,18 @@ test('tiers (owner, Nov 2026): no «فقط اشتراک»; stylist and salon tie
  const f=await call(e,'/api/featured');assert.deepEqual(f.data.salons.map(x=>x.slug),[s.slug]);
  const e2=fixture();await bought(e2,{kind:'sub',sub:'sub_hair',pack:50});assert.equal((await call(e2,'/api/featured')).data.salons.length,0,'only the top tier');
 });
+
+test('monthly capacity is real: each new subscribing salon takes a place, a full month refuses new subscriptions, renewals pass',async()=>{
+ const e=fixture();
+ e.DB.sql.prepare("INSERT INTO app_settings(key,value,updated_at) VALUES('monthly_capacity','2',0)").run();
+ assert.deepEqual((await call(e,'/api/capacity')).data,{total:2,left:2});
+ const a=await bought(e,{kind:'sub',sub:'sub_hair',pack:50},'09121110001');
+ assert.equal((await call(e,'/api/capacity')).data.left,1);
+ await bought(e,{kind:'images',line:'hair',count:5},'09121110002');
+ assert.equal((await call(e,'/api/capacity')).data.left,1,'image credits never take a place');
+ await bought(e,{kind:'sub',sub:'sub_nails',pack:50},'09121110003');
+ assert.equal((await call(e,'/api/capacity')).data.left,0);
+ const full=await call(e,'/api/buy',buyer({phone:'09121110004',kind:'sub',sub:'sub_color',pack:50}));assert.equal(full.status,409);assert.match(full.data.error,/ظرفیت/);
+ assert.equal((await call(e,'/api/buy',buyer({phone:'09121110004',kind:'images',line:'color',count:5}))).status,200,'image credits stay open');
+ assert.equal((await call(e,'/api/panel/buy',{kind:'sub',sub:'sub_hair',pack:100},{cookie:a.cookie})).status,200,'a running subscriber renews');
+});

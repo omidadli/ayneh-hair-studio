@@ -2858,7 +2858,7 @@ test('panel checklist: «دعوت همکار» shows for «پنل آرایشگا
  assert.match(panelHTML,/if\(c\.users>1\)acts\.append/,'the panel shows the invite for more than one user');
  const server=readFileSync(new URL('../worker/server.js',import.meta.url),'utf8');
  assert.doesNotMatch(server,/UPDATE generations SET paid_by/,'paid_by is written with the generation row, never after it');
- assert.equal((server.match(/visitor,paid_by\) VALUES/g)||[]).length,2,'both the image and the 360 view write paid_by in their INSERT');
+ assert.equal((server.match(/visitor,paid_by,staff_id\) VALUES/g)||[]).length,2,'both the image and the 360 view write paid_by in their INSERT');
 });
 test('result: Instagram story keeps the result untouched and signs it with the right logo',()=>{
  const js=customerHTML;

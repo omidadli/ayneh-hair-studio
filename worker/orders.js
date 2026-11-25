@@ -19,7 +19,7 @@
 //  * Money is TOMAN on the page; amounts are stored in RIALS (×10).
 import {must, phone, text, uid, digits, hash} from './domain.js';
 import {PLANS, PRICE_MINUTES, TOPUP, SERVICE_TITLES, IMAGE_PRICES, SUB_PACKS, SUB_KEYS, CUSTOM_MAX, PACK_SAVE} from './prices.js';
-import {applyPlan, applyOrder, grant, balance, isV2, MONTH} from './credits.js';
+import {applyPlan, applyOrder, grant, balance, isV2, MONTH, staffCredits} from './credits.js';
 import {featuresOf, OPENED_BY, can, seatsOf, imageOnly, tierNow} from './plans.js';
 import {planOf} from './credits.js';
 import {confirmCustomerPack} from './customers.js';
@@ -474,20 +474,43 @@ export async function createPurchase(db, env, b, origin = '', trialSalon = '') {
   return publicOrder(db, env, row, {key, password: panelPass, origin});
 }
 
+/* A member buys credit for herself from her own link (/pricing?for=<member id>): the salon's
+   panel order gives the contact and key; the order is the salon's, the credit hers. */
+export async function staffInfo(db, id) {
+  const t = await one(db, 'SELECT t.id,t.name,t.salon_id,s.name AS salon,s.settings FROM team t JOIN salons s ON s.id=t.salon_id WHERE t.id=? AND t.active=1', String(id || ''));
+  must(t, 'این لینک خرید معتبر نیست.', 404);
+  let lines = []; try { const st = JSON.parse(t.settings || '{}'); lines = Array.isArray(st.lines) ? st.lines : []; } catch {}
+  const salon = await one(db, 'SELECT * FROM salons WHERE id=?', t.salon_id);
+  const plan = planOf(salon);
+  const subscribed = !!plan && tierNow(plan) === 'full' && Number(plan.until) > Date.now();
+  return {member: {id: t.id, name: t.name}, salon: {name: t.salon}, lines, subscribed, sub: subscribed ? (PLANS[plan.key]?.line || '') : '', row: salon};
+}
+export async function createStaffPurchase(db, env, staffId, b, origin = '') {
+  const info = await staffInfo(db, staffId);
+  const panelOrder = await one(db, "SELECT * FROM orders WHERE salon_id=? AND status='paid' ORDER BY created_at DESC LIMIT 1", info.row.id);
+  must(panelOrder, 'این سالن هنوز خریدی نداشته است.', 409);
+  return createPanelPurchase(db, env, {order: panelOrder, salon: info.row}, {...b, staff: info.member.id}, origin);
+}
+
 /* The same purchase from inside the salon panel (signed in): no form at all. The salon, contact,
    mobile and panel key come from the panel session; the panel key stays the same. */
 export async function createPanelPurchase(db, env, {order: panelOrder, salon}, b, origin = '') {
   const q = quote(b);
   allowedFor(salon, q);
+  /* Credit for one member (bought by the manager here, or by the member from her own link):
+     image credit only, and it raises that member's share by its value (worker/credits.js). */
+  const member = b.staff ? await one(db, 'SELECT id,name FROM team WHERE id=? AND salon_id=? AND active=1', String(b.staff), salon.id) : null;
+  if (b.staff) { must(member, 'این همکار در سالن پیدا نشد.', 404); must(q.kind !== 'plan', 'برای همکار فقط اعتبار تصویر خریده می‌شود.', 400); }
   const now = Date.now();
   await closeExpired(db);
   const id = uid();
-  await run(db, "UPDATE orders SET status='cancelled',replaced_by=?,updated_at=? WHERE salon_id=? AND kind IN ('plan','images','pack') AND status='open'", id, now, salon.id);
+  await run(db, "UPDATE orders SET status='cancelled',replaced_by=?,updated_at=? WHERE salon_id=? AND kind IN ('plan','images','pack') AND status='open' AND COALESCE(staff_id,'')=?", id, now, salon.id, member ? member.id : '');
   const row = {
     id, ref: ref(), plan: q.plan, kind: q.kind, service: q.service, users: q.users, credits: q.credits, line: q.line,
     amount: q.amount * 10, salon_name: salon.name, contact_name: panelOrder.contact_name, phone: panelOrder.phone,
-    city: '', note: 'renewal', status: 'open', expires_at: now + ORDER_MINUTES * 60000,
+    city: '', note: member ? 'staff' : 'renewal', status: 'open', expires_at: now + ORDER_MINUTES * 60000,
     access_key_hash: panelOrder.access_key_hash, coupon: '', discount: 0, created_at: now, updated_at: now, salon_id: salon.id,
+    staff_id: member ? member.id : null,
   };
   await insert(db, row);
   await tell(env, v2Tell(row, salon.name), row);
@@ -567,9 +590,9 @@ async function insert(db, row) {
   if (row.status === 'open') row.amount = await uniqueAmount(db, row.amount, row.id);
   if (row.card === undefined) row.card = await pickCard(db);
   await run(db,
-    'INSERT INTO orders(id,ref,plan,kind,service,users,credits,amount,salon_name,contact_name,phone,city,note,status,expires_at,access_key_hash,pass_hash,draft,coupon,discount,salon_id,card,created_at,updated_at,line) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    'INSERT INTO orders(id,ref,plan,kind,service,users,credits,amount,salon_name,contact_name,phone,city,note,status,expires_at,access_key_hash,pass_hash,draft,coupon,discount,salon_id,card,created_at,updated_at,line,staff_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
     row.id, row.ref, row.plan, row.kind, row.service, Number(row.users || 0), row.credits, row.amount, row.salon_name, row.contact_name, row.phone, row.city, row.note,
-    row.status, row.expires_at, row.access_key_hash, row.pass_hash || '', row.draft || '', row.coupon, row.discount, row.salon_id || null, row.card || '', row.created_at, row.updated_at, row.line || '');
+    row.status, row.expires_at, row.access_key_hash, row.pass_hash || '', row.draft || '', row.coupon, row.discount, row.salon_id || null, row.card || '', row.created_at, row.updated_at, row.line || '', row.staff_id || null);
 }
 
 /* The owner hears about new orders on the alert channel. The mobile is the buyer's (a salon
@@ -944,6 +967,7 @@ export async function panelDashboard(db, env, {order, salon}) {
     pricing: credit && credit.v2 ? {
       tier: tierNow(planOf(salon)), image_only: imageOnly(salon), active: credit.active, until: credit.until,
       sub: PLANS[credit.plan]?.tier === 'full' ? {key: credit.plan, name: PLANS[credit.plan].name, line: PLANS[credit.plan].line} : null,
+      pool: credit.pool, staff: await staffCredits(db, salon), prices: Object.fromEntries(Object.entries(IMAGE_PRICES).map(([k, v]) => [k, v.single])),
       lines: credit.lines, offered: (() => { try { const l = JSON.parse(salon.settings || '{}').lines; return Array.isArray(l) ? l : []; } catch { return []; } })(),
     } : null,
     plans: Object.entries(PLANS).filter(([key, v]) => !isV2(key) && (!onSalonPlan || v.seats > 0))

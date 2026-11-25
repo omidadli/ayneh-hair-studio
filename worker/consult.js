@@ -232,7 +232,8 @@ export async function consultApi(req,env,{u,route,salon,s,clientIp}){
  const db=env.DB,phone=s.verified_phone;
  /* The consultant card lives only on the direct studio salon — the vision routes are not
     reachable (and can never spend) anywhere else. */
- if(route.startsWith('consult/'))must(isDirect(salon),'این بخش فقط در استودیوی آینه فعال است',404);
+ /* Every real salon page has it too; only the visitor demo (owner 'system') never spends. */
+ if(route.startsWith('consult/'))must(isDirect(salon)||salon.owner_id!=='system','این بخش در صفحهٔ نمونه فعال نیست',404);
  if(route==='consult/analyze'&&req.method==='POST'){
   const b=await req.json().catch(()=>({}));
   const line=LINE_KEYS.includes(b.line)?b.line:'hair';

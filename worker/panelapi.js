@@ -55,10 +55,23 @@ const salonLine = salon => {
 export async function panelApi(req, env, u, path) {
   if (!path.startsWith('/api/panel/')) return null;
   const route = path.slice('/api/panel/'.length);
-  const known = /^(requests(\/[a-f0-9-]{36}\/status)?|media\/[a-f0-9-]{36}|bot-link|bookings(\/[a-f0-9-]{36})?|report|customers(\.csv)?|support|portfolio(\/[a-f0-9-]{36})?|profile)$/;
+  const known = /^(requests(\/[a-f0-9-]{36}\/status)?|media\/[a-f0-9-]{36}|bot-link|bookings(\/[a-f0-9-]{36})?|report|customers(\.csv)?|support|portfolio(\/[a-f0-9-]{36})?|profile|staff-credit)$/;
   if (!known.test(route)) return null;
   const db = env.DB, origin = env.APP_ORIGIN || u.origin;
   const {salon} = await panelSalon(req, db);
+
+  /* ---------- each member's credit share (manager only: the panel is the manager's) ----------
+     cap in toman; null or '' = no cap (the salon's credit is the only limit). */
+  if (route === 'staff-credit' && req.method === 'POST') {
+    const b = await req.json().catch(() => ({}));
+    const t = await one(db, 'SELECT id FROM team WHERE id=? AND salon_id=? AND active=1', String(b.staff || ''), salon.id);
+    must(t, 'این همکار پیدا نشد.', 404);
+    const raw = b.cap === null || b.cap === undefined || String(b.cap).trim() === '' ? null : Number(String(b.cap).replace(/[^\d]/g, ''));
+    must(raw === null || (Number.isInteger(raw) && raw >= 0 && raw <= 1e10), 'مبلغ معتبر نیست.', 400);
+    await run(db, 'UPDATE team SET credit_cap=? WHERE id=?', raw, t.id);
+    const {staffCredit} = await import('./credits.js');
+    return J(await staffCredit(db, salon, t.id));
+  }
 
   /* ---------- requests: every plan ---------- */
   if (route === 'requests' && req.method === 'GET') {

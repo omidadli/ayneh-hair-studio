@@ -128,7 +128,7 @@ test('a guest analyses through the caps and cache; without a key or over the cap
  assert.equal((await call(e,'/api/s/salon-a/consult/analyze',{photo_id:ref,line:'hair'},g)).status,404);
 });
 
-test('the consultant’s paid routes are closed everywhere except the direct studio salon',async()=>{
+test('the consultant’s paid routes are open on every real salon page (owner’s order, Nov 2026)',async()=>{
  const e=fixture();
  const r=await call(e,'/api/salons',{slug:'salon-b',name:'سالن ب'},OWNER);
  assert.equal(r.status,200,JSON.stringify(r));
@@ -138,12 +138,11 @@ test('the consultant’s paid routes are closed everywhere except the direct stu
  const kv=mockVision(MODEL_JSON);
  try{
   const an=await call(e,'/api/s/salon-b/consult/analyze',{photo_id:photo,line:'hair'},g);
-  assert.equal(an.status,404,JSON.stringify(an));
-  assert.match(an.data.error,/استودیوی آینه/);
+  assert.equal(an.status,200,JSON.stringify(an));
+  assert.equal(an.data.ok,true,JSON.stringify(an.data));
   const sg=await call(e,'/api/s/salon-b/consult/suggest',{line:'hair',analysis:{},answers:{}},g);
-  assert.equal(sg.status,404,JSON.stringify(sg));
-  assert.match(sg.data.error,/استودیوی آینه/);
-  assert.equal(kv.calls.length,0,'a closed salon can never reach the provider');
+  assert.equal(sg.status,200,JSON.stringify(sg));
+  assert.equal(kv.calls.length,1,'one analysis, one provider call');
  }finally{kv.restore()}
  // The ungated profile routes keep their own answers — 401, never the gate’s 404.
  const save=await call(e,'/api/s/salon-b/consult',{line:'hair',photo_id:photo,analysis:{source:'self',fields:{face_shape:'round'}},answers:{}},g);

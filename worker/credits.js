@@ -10,7 +10,7 @@
 //  * The check happens before the image is ordered from the provider. Two images started at
 //    the same instant can overshoot the balance by one each; the daily limit caps bursts.
 import {Problem, uid, limited} from './domain.js';
-import {PLANS} from './prices.js';
+import {PLANS, IMAGE_PRICES} from './prices.js';
 import {LINE_KEYS} from './lines.js';
 
 const DAY = 86400000;
@@ -26,10 +26,15 @@ export const planOf = salon => {
 };
 
 /* line: the service the credit is for (pricing v2, drizzle/0032); null = any line of the salon. */
-export async function grant(db, salonId, delta, reason, orderId = null, line = null) {
-  await run(db, 'INSERT INTO credit_ledger(id,salon_id,delta,reason,order_id,created_at,line) VALUES(?,?,?,?,?,?,?)',
-    uid(), salonId, Math.trunc(delta), String(reason), orderId, Date.now(), LINE_KEYS.includes(line) ? line : null);
+/* line 'pool': toman credit of a subscription, usable by every line the salon has (see balance). */
+export const POOL = 'pool';
+export const imagePrice = line => IMAGE_PRICES[lineOf(line)]?.single || IMAGE_PRICES.hair.single;
+export async function grant(db, salonId, delta, reason, orderId = null, line = null, staffId = null) {
+  await run(db, 'INSERT INTO credit_ledger(id,salon_id,delta,reason,order_id,created_at,line,staff_id) VALUES(?,?,?,?,?,?,?,?)',
+    uid(), salonId, Math.trunc(delta), String(reason), orderId, Date.now(), LINE_KEYS.includes(line) || line === POOL ? line : null, staffId || null);
 }
+/* Half of what a subscription costs, in toman (owner's order, Nov 2026). */
+export const subCredit = key => Math.floor((Number(PLANS[key]?.amount) || 0) / 2);
 
 /* Paid users at time t. settings.plan.seats is what the current period paid for; a renewal with
    another user count is written as a step {from, seats} that starts when the period it paid for
@@ -110,12 +115,16 @@ export async function balance(db, salon) {
   /* An image a customer paid for herself (generations.paid_by, worker/customers.js) is not the salon's. */
   const u = (await db.prepare("SELECT line,COUNT(*) n FROM generations WHERE salon_id=? AND state<>'fail' AND paid_by IS NULL AND created_at>=? GROUP BY line").bind(salon.id, plan.start).all()).results || [];
   const own = Object.fromEntries(LINE_KEYS.map(k => [k, 0])), used = Object.fromEntries(LINE_KEYS.map(k => [k, 0]));
-  let shared = 0;
-  for (const r of g) { if (LINE_KEYS.includes(r.line)) own[r.line] += Number(r.n); else shared += Number(r.n); }
+  let shared = 0, pool = 0;
+  for (const r of g) { if (LINE_KEYS.includes(r.line)) own[r.line] += Number(r.n); else if (r.line === POOL) pool += Number(r.n); else shared += Number(r.n); }
   for (const r of u) used[lineOf(r.line)] += Number(r.n);
-  const over = LINE_KEYS.reduce((a, k) => a + Math.max(0, used[k] - own[k]), 0);
-  const sharedLeft = Math.max(0, shared - over);
-  const lines = Object.fromEntries(LINE_KEYS.map(k => [k, {granted: own[k], used: used[k], left: Math.max(0, own[k] - used[k]) + sharedLeft}]));
+  /* Images past a line's own credit take the shared images first (dearest line first, so the
+     toman pool lasts longest), then the toman pool at that line's single-image price. */
+  const rest = Object.fromEntries(LINE_KEYS.map(k => [k, Math.max(0, used[k] - own[k])]));
+  let sharedLeft = shared;
+  for (const k of [...LINE_KEYS].sort((a, b) => imagePrice(b) - imagePrice(a))) { const t = Math.min(sharedLeft, rest[k]); rest[k] -= t; sharedLeft -= t; }
+  const poolLeft = Math.max(0, pool - LINE_KEYS.reduce((a, k) => a + rest[k] * imagePrice(k), 0));
+  const lines = Object.fromEntries(LINE_KEYS.map(k => [k, {granted: own[k], used: used[k], left: Math.max(0, own[k] - used[k]) + sharedLeft + Math.floor(poolLeft / imagePrice(k))}]));
   const granted = shared + LINE_KEYS.reduce((a, k) => a + own[k], 0), usedAll = LINE_KEYS.reduce((a, k) => a + used[k], 0);
   const now = Date.now(), v2 = isV2(plan.key);
   const until = Number(plan.until) || 0;
@@ -125,15 +134,43 @@ export async function balance(db, salon) {
     /* A v2 plan never "expires" for images; `active` says whether its subscription runs. */
     expired: v2 ? false : now >= until,
     v2, active: v2 ? PLANS[plan.key]?.tier === 'full' && until > now : now < until,
-    granted, used: usedAll, left: Math.max(0, granted - usedAll), shared: sharedLeft, lines,
+    granted, used: usedAll, left: Math.max(...LINE_KEYS.map(k => lines[k].left)), shared: sharedLeft, lines,
+    pool: {granted: pool, left: poolLeft},
   };
 }
 
 /* Called right before an image is ordered. Throws a plain Persian message for the customer;
    the owner hears about it (once a day per salon), never with the customer's mobile or photo. */
-export async function spendCredit(db, env, salon, line = 'hair') {
+/* One member's share. cap NULL = no cap (the salon's credit is the only limit). Credit bought for
+   her (credit_ledger.staff_id) adds its value: image credits at that line's single price, toman
+   as is. Used = her customers' non-failed images since the plan started, at single prices. */
+export async function staffCredit(db, salon, staffId) {
+  const plan = planOf(salon);
+  const t = await one(db, 'SELECT id,name,credit_cap FROM team WHERE id=? AND salon_id=?', staffId, salon.id);
+  if (!t) return null;
+  const add = (await db.prepare('SELECT line,COALESCE(SUM(delta),0) n FROM credit_ledger WHERE salon_id=? AND staff_id=? GROUP BY line').bind(salon.id, staffId).all()).results || [];
+  const extra = add.reduce((a, r) => a + (r.line === POOL ? Number(r.n) : Number(r.n) * imagePrice(r.line)), 0);
+  const u = (await db.prepare("SELECT line,COUNT(*) n FROM generations WHERE salon_id=? AND staff_id=? AND state<>'fail' AND paid_by IS NULL AND created_at>=? GROUP BY line").bind(salon.id, staffId, plan ? plan.start : 0).all()).results || [];
+  const used = u.reduce((a, r) => a + Number(r.n) * imagePrice(r.line), 0);
+  const cap = t.credit_cap === null || t.credit_cap === undefined ? null : Number(t.credit_cap);
+  return {id: t.id, name: t.name, cap, extra, used, left: cap === null ? null : Math.max(0, cap + extra - used)};
+}
+
+/* Every active member's share, for the manager's panel. */
+export async function staffCredits(db, salon) {
+  const rows = (await db.prepare('SELECT id FROM team WHERE salon_id=? AND active=1 ORDER BY created_at').bind(salon.id).all()).results || [];
+  const out = [];
+  for (const r of rows) out.push(await staffCredit(db, salon, r.id));
+  return out.filter(Boolean);
+}
+
+export async function spendCredit(db, env, salon, line = 'hair', staffId = null) {
   const b = await balance(db, salon);
   if (!b) return null;
+  if (staffId) {
+    const st = await staffCredit(db, salon, staffId);
+    if (st && st.left !== null && st.left < imagePrice(line)) throw new Problem(402, 'سهم ساخت تصویرِ آرایشگرت در این سالن تمام شده. انتخابت را بدون شبیه‌سازی برای سالن بفرست؛ خودشان با تو تماس می‌گیرند.');
+  }
   const reason = b.expired ? 'expired' : b.lines[lineOf(line)].left <= 0 ? 'empty' : '';
   if (!reason) return b;
   /* One alert per salon per day: the limiter throws on the second call, which only skips it. */
@@ -186,6 +223,14 @@ export async function applyOrder(db, salonId, order) {
   }
   /* A subscription without a pack still leaves a (zero) ledger row: confirmOrder's repair path
      reads the ledger to know an order was applied, so a retry never extends the month twice. */
-  await grant(db, salonId, Math.max(0, Number(order.credits) || 0), order.kind === 'plan' ? 'sub:' + order.plan : order.kind, order.id, line);
+  await grant(db, salonId, Math.max(0, Number(order.credits) || 0), order.kind === 'plan' ? 'sub:' + order.plan : order.kind, order.id, line, order.staff_id || null);
+  /* Half the subscription's price comes back as image credit: a salon subscription as toman for
+     every service (spent at each service's single-image price); a one-service subscription as
+     images of its own service at that single price (owner's order, Nov 2026). */
+  const sub = order.kind === 'plan' && PLANS[order.plan]?.tier === 'full' ? PLANS[order.plan] : null;
+  if (sub && subCredit(order.plan) > 0) {
+    if (sub.line === 'all') await grant(db, salonId, subCredit(order.plan), 'sub-credit:' + order.plan, order.id, POOL);
+    else await grant(db, salonId, Math.floor(subCredit(order.plan) / imagePrice(sub.line)), 'sub-credit:' + order.plan, order.id, sub.line);
+  }
   return planOf(await one(db, 'SELECT settings FROM salons WHERE id=?', salonId));
 }

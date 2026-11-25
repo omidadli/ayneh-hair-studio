@@ -1020,6 +1020,13 @@ function heroTag(){return {nails:'طرح ناخن بعدی‌ات را روی ع
 var COIN='<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5" fill="#E9B949" stroke="#B9822E" stroke-width="1.5"/><circle cx="12" cy="12" r="6" fill="none" stroke="#B9822E" stroke-width="1.3"/><path d="M12 8.6v6.8M9.6 10.4 12 8.6l2.4 1.8" fill="none" stroke="#8A5A14" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 var GIFT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="8.5" width="17" height="4" rx="1"/><path d="M5 12.5V20h14v-7.5M12 8.5V20M12 8.5S10.8 4 8.3 4a2.2 2.2 0 0 0 0 4.5H12zM12 8.5S13.2 4 15.7 4a2.2 2.2 0 0 1 0 4.5H12z"/></svg>';
 function studio(){return !!(state.pub&&state.pub.direct&&!EMBED)}
+/* Every salon page gives its customers the studio's catalog tools too (trend, saves, likes, own
+   reference, the consultant), on the lines that salon has. Only the visitor demo and the
+   embedded preview keep the plain catalog. Likes and saves need a verified mobile, so they show
+   only where this page can verify one. */
+function rich(){return studio()||!!(state.pub&&!state.pub.demo&&!EMBED&&!STUDIO_PREVIEW)}
+function canReact(){return rich()&&(studio()||!!state.pub.otp||!!state.verified)}
+function askSignin(next,mode,why){if(studio())openSignin(next,mode,why);else openOtp(next)}
 function openWallet(){if(studio()&&state.pub&&state.pub.otp&&!state.verified){openSignin(function(){paintWallet(true);renderAll()},state.me&&state.me.phone?'login':'signup','کیف سکه مال حساب توست؛ حساب تازه ۲ عکس اول را رایگان دارد.');return}if(window.AynehPacks){track('wallet','open');window.AynehPacks.open()}}
 var ctaWatch=null,studioAsked=false;
 function watchCta(){
@@ -1225,7 +1232,8 @@ function loadSaves(force){if(!state.verified){saves={saved:[],liked:[]};return P
 function isOn(kind,item){return (saves[kind==='like'?'liked':'saved']||[]).indexOf(item)>=0}
 function toggleSave(kind,item,btn){
  /* Likes and saves live in her account: signed out, sign in first, then it is done for her. */
- if(!state.verified){openSignin(function(){loadSaves(true).then(function(){if(!isOn(kind,item))toggleSave(kind,item,btn);else if(btn){btn.classList.add('is-on');btn.setAttribute('aria-pressed','true')}renderAll()})},state.me&&state.me.phone?'login':'signup',kind==='like'?'پسندیدن مدل‌ها مخصوص حساب توست؛ پسندیده‌هایت در پروفایلت می‌مانند.':'ذخیرهٔ مدل‌ها مخصوص حساب توست؛ ذخیره‌ها در پروفایلت می‌مانند.');return}
+ if(!state.verified){askSignin(function(){loadSaves(true).then(function(){if(!isOn(kind,item))toggleSave(kind,item,btn);else if(btn){btn.classList.add('is-on');btn.setAttribute('aria-pressed','true')}renderAll()})},state.me&&state.me.phone?'login':'signup',kind==='like'?'پسندیدن مدل‌ها مخصوص حساب توست؛ پسندیده‌هایت در پروفایلت می‌مانند.':'ذخیرهٔ مدل‌ها مخصوص حساب توست؛ ذخیره‌ها در پروفایلت می‌مانند.');return}
+
  var list=saves[kind==='like'?'liked':'saved'],on=list.indexOf(item)<0;
  if(on)list.unshift(item);else list.splice(list.indexOf(item),1);
  if(btn){btn.classList.toggle('is-on',on);btn.setAttribute('aria-pressed',String(on))}
@@ -1677,7 +1685,7 @@ function stepModel(){
  if(state.demoOut){box.append(notice('info','نمونهٔ رایگانتان را ساختید. برای عکس‌های بیشتر به استودیوی آینه بروید؛ ۲ عکس اول آنجا هم هدیه است.'));box.append(el('a',{class:'btn btn--primary btn--block',href:location.protocol+'//'+location.host.replace(/^business\./,'')+'/?l='+L,target:'_top',text:'ثبت‌نام و شارژ حساب'}))}
  /* The consultant analyses hair and colour only: a nails or lashes close-up says nothing about
     a hairstyle, so the card — and the paid vision behind it — is absent on both lines. */
- if(studio()&&!STUDIO_PREVIEW&&L!=='nails'&&L!=='lashes')box.append(consultCard());
+ if(rich()&&!STUDIO_PREVIEW&&L!=='nails'&&L!=='lashes')box.append(consultCard());
  if(L==='color'){var bc=baseChooser();if(bc)box.append(bc)}
  var seg=el('div',{class:'seg',role:'tablist'});
  [['salon',0],['catalog',1],['upload',2]].filter(function(x){return x[0]!=='salon'||own}).forEach(function(x){
@@ -1715,7 +1723,7 @@ function stepModel(){
   var qIn=el('input',{class:'look-search__in',type:'search',value:state.q||'',placeholder:SEARCH_PH,'aria-label':SEARCH_PH,enterkeyhint:'search'});
   var qTimer=null;qIn.addEventListener('input',function(){clearTimeout(qTimer);qTimer=setTimeout(function(){state.q=qIn.value.slice(0,60);var pos=qIn.selectionStart;renderFlow();var n=$('.look-search__in');if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}},250)});
   box.append(el('div',{class:'look-search'},[el('span',{class:'look-search__ico',html:ICO.search}),qIn]));
-  if(studio()&&!(state.q||'').trim())box.append(el('button',{class:'own-ref',type:'button',onclick:function(){state.tab='upload';renderFlow();setTimeout(function(){var r=$('#pickref');if(r)r.click()},60)}},[el('span',{class:'own-ref__ico',html:ICO.gallery}),el('span',{},[el('b',{text:{hair:'مدلی جایی دیدی و خوشت اومد؟',color:'رنگی جایی دیدی و خوشت اومد؟',nails:'طرحی جایی دیدی و خوشت اومد؟',lashes:'مدل مژه‌ای جایی دیدی؟'}[L]}),el('small',{text:'عکسش را بگذار (اسکرین‌شات اینستاگرام هم می‌شود)؛ همان را روی خودت می‌سازیم.'})]),el('span',{class:'own-ref__go',html:ICO.arrow})]))
+  if(rich()&&(studio()||state.pub.reference)&&!(state.q||'').trim())box.append(el('button',{class:'own-ref',type:'button',onclick:function(){state.tab='upload';renderFlow();setTimeout(function(){var r=$('#pickref');if(r)r.click()},60)}},[el('span',{class:'own-ref__ico',html:ICO.gallery}),el('span',{},[el('b',{text:{hair:'مدلی جایی دیدی و خوشت اومد؟',color:'رنگی جایی دیدی و خوشت اومد؟',nails:'طرحی جایی دیدی و خوشت اومد؟',lashes:'مدل مژه‌ای جایی دیدی؟'}[L]}),el('small',{text:'عکسش را بگذار (اسکرین‌شات اینستاگرام هم می‌شود)؛ همان را روی خودت می‌سازیم.'})]),el('span',{class:'own-ref__go',html:ICO.arrow})]))
   var Q=(state.q||'').trim(),norm=function(t){return String(t).replace(/[\u200c\s]+/g,' ').replace(/ي/g,'ی').replace(/ك/g,'ک').toLowerCase()};
   if(Q.length>=2){
    var onC=state.custom===Q;
@@ -1724,7 +1732,7 @@ function stepModel(){
    box.append(cc);
   }
   var filters=(cat?cat.filters:['همه','کوتاه','متوسط','بلند','چتری','فر','جمع']).slice();
-  if(studio()){filters.splice(1,0,'ترند');if((saves.saved||[]).some(function(k){return k.indexOf(L+':')===0}))filters.splice(2,0,'ذخیره‌شده')}
+  if(rich()){filters.splice(1,0,'ترند');if(canReact()&&(saves.saved||[]).some(function(k){return k.indexOf(L+':')===0}))filters.splice(2,0,'ذخیره‌شده')}
   var fbar=el('div',{class:'filters'});
   filters.forEach(function(f){
    var on=(state.filter||'همه')===f;
@@ -1754,7 +1762,7 @@ function stepModel(){
     el('span',{class:'style-card__body'},[el('span',{class:'style-card__name',text:s[0]}),el('span',{class:'style-card__tag',text:s[2]})])
    ]);
    card.addEventListener('click',function(){track('look',lookPrefix()+i);if(L==='color')track('color',s[0]);chooseLook(function(){state.style=i;state.custom='';state.reference=null;state.refTitle='';if(L==='color')state.color=''})});
-   if(studio()){if(hot[i])art.append(el('span',{class:'style-card__hot',html:ICO.fire+'<span>ترند</span>'}));grid.append(el('div',{class:'style-wrap'},[card,reactBtns(L+':'+i)]))}
+   if(rich()){if(hot[i])art.append(el('span',{class:'style-card__hot',html:ICO.fire+'<span>ترند</span>'}));grid.append(canReact()?el('div',{class:'style-wrap'},[card,reactBtns(L+':'+i)]):card)}
    else grid.append(card);
   });
   box.append(grid);
@@ -2579,7 +2587,7 @@ function ensureSession(){
  });
 }
 // The session also says how many images this person has left in each service.
-function loadSession(){return api('session?v='+VISITOR).then(function(d){state.session=true;applyVerified(d);if(studio()){loadLooks();if(state.verified&&!savesAt)loadSaves(true).then(function(){if(accountMode())return;drawTrend();if(state.step===2)renderFlow()})}if(d.quota){state.quota=d.quota;renderDockSoon();paintWallet(true);var f=$('#flow');if(f&&state.step===2&&!state.busy)renderFlow()}})}
+function loadSession(){return api('session?v='+VISITOR).then(function(d){state.session=true;applyVerified(d);if(studio()){loadLooks();if(state.verified&&!savesAt)loadSaves(true).then(function(){if(accountMode())return;drawTrend();if(state.step===2)renderFlow()})}else if(rich()){loadTrend().then(function(){if(state.step===2&&!state.busy)renderFlow()});if(state.verified&&!savesAt)loadSaves(true).then(function(){if(state.step===2&&!state.busy)renderFlow()})}if(d.quota){state.quota=d.quota;renderDockSoon();paintWallet(true);var f=$('#flow');if(f&&state.step===2&&!state.busy)renderFlow()}})}
 function quotaLeft(line){return state.quota&&state.quota.left?state.quota.left[line||state.line]:null}
 function spentQuota(line){if(state.quota&&state.quota.left&&state.quota.left[line]>0)state.quota.left[line]--;if(state.quota&&state.quota.free>0)state.quota.free--;paintWallet(true)}
 window.addEventListener('ayneh:credited',function(){state.paused=false;loadSession().catch(function(){})});
@@ -3015,7 +3023,7 @@ function consultSuggest(){
 function consultSave(){
  if(!consult)return;
  if(!state.verified){
-  openSignin(function(){openSheet(consultPanel);consultDraw();consultSave()},state.me&&state.me.phone?'login':'signup','ذخیرهٔ مشاوره مخصوص حساب توست؛ در پروفایلت می‌ماند و لینکش را برای آرایشگرت می‌فرستی.');
+  askSignin(function(){openSheet(consultPanel);consultDraw();consultSave()},state.me&&state.me.phone?'login':'signup','ذخیرهٔ مشاوره مخصوص حساب توست؛ در پروفایلت می‌ماند و لینکش را برای آرایشگرت می‌فرستی.');
   return;
  }
  if(consult.busy)return;

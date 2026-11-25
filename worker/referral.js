@@ -72,6 +72,14 @@ export async function attribute(db,salon,visitor,r){
  return {tag:row.tag,mine:row.staff_id?await liveStaff(db,salon.id,row.staff_id):null};
 }
 
+// The member whose customer this is, read only (the image's owner for her credit share):
+// the verified mobile's lock first, then the browser's.
+export async function staffOf(db,env,salon,visitor,number){
+ if(number){const ph=await one(db,'SELECT staff_id FROM ref_phones WHERE salon_id=? AND phone_hash=?',salon.id,await phoneKey(env,number));if(ph?.staff_id)return liveStaff(db,salon.id,ph.staff_id)}
+ const v=validVisitor(visitor)?await one(db,'SELECT staff_id FROM ref_visitors WHERE salon_id=? AND visitor=?',salon.id,visitor):null;
+ return v?.staff_id?liveStaff(db,salon.id,v.staff_id):null;
+}
+
 // Who owns a request: the mobile's lock if it has an owner, else the visitor's, and the lock is
 // created or filled in. Also reports a pending conflict (a visit through another member's link).
 export async function ownerFor(db,env,salon,visitor,number){

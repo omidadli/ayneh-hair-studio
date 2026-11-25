@@ -31,6 +31,7 @@ const css = String.raw`
 .pn-who{font-size:12.5px;color:var(--muted)}
 .pn-credit{display:grid;gap:4px}
 .pn-credits{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));margin:8px 0 12px}.pn-credits .pn-credit{padding:12px;border:1px solid #EDE0D2;border-radius:14px;background:#fff}.pn-credits .pn-credit b{font-size:24px}.pn-credits .btn{justify-self:start}
+.pn-staff{display:grid;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line,#e6ddd2)}.pn-staff h3{margin:0;font-size:16px}.pn-staff__row{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center;padding:10px 12px;border:1px solid var(--line,#e6ddd2);border-radius:14px}.pn-staff__row>b{min-width:90px}.pn-staff__row>.pn-who{flex:1 1 200px}.pn-staff__cap{display:flex;gap:6px;align-items:center;font-size:13px}.pn-staff__cap input{width:130px;min-height:44px;border:1px solid var(--line,#e6ddd2);border-radius:10px;padding:0 10px;font:inherit}
 .pn-credit b{font-size:30px;font-weight:900;color:var(--ink);line-height:1.2}
 .pn-credit.is-low b{color:#B4553C}
 .pn-packs{display:flex;flex-wrap:wrap;gap:8px}
@@ -221,10 +222,29 @@ function creditCardV2(d){
  return el('div',{class:'pn-card'},[
   h('h2',p.image_only?'اعتبار عکس':'اشتراک و اعتبار عکس'),
   p.sub&&p.active?h('p',p.sub.name+' تا '+fmt(p.until)+' فعال است.'):p.image_only?h('p','حساب «فقط ساخت تصویر»: هر عکسِ ساخته‌شده یک اعتبار از همان خدمت کم می‌کند. اعتبار هیچ‌وقت منقضی نمی‌شود.'):null,
+  p.pool&&p.pool.granted>0?el('div',{class:'pn-credit'},[h('span','اعتبار اشتراک (برای هر خدمتی)','pn-who'),h('b',fa(p.pool.left)+' تومان'),h('span','هر عکس به قیمت تکیِ همان خدمت از این مبلغ کم می‌شود: '+lines.map(function(k){return LINE_FA[k]+' '+fa((p.prices||{})[k]||0)}).join('، ')+' تومان.','pn-who')]):null,
   el('div',{class:'pn-credits'},rows),
   el('a',{class:'btn btn--primary btn--sm',href:buyHref(d),text:'خرید اشتراک و اعتبار'}),
+  staffCredit(d),
   h('small','کد آخرین خرید '+d.ref+' · تأیید در '+fmt(d.paid_at),'pn-who')
  ]);
+}
+/* Each member's share of the salon's credit (owner's order, Nov 2026): the manager sets a cap in
+   toman (empty = no cap), buys extra credit for a member, or sends her a link to buy it herself.
+   Credit bought for a member raises her share by its value. */
+function staffCredit(d){
+ var p=d.pricing;if(!p||!p.staff||!p.staff.length)return null;
+ var line=(p.sub&&p.sub.line!=='all')?p.sub.line:((p.offered&&p.offered[0])||'hair');
+ var box=el('div',{class:'pn-staff'},[h('h3','سهم هر همکار از اعتبار'),h('p','برای هر همکار سقف اعتبار بگذارید (به تومان)؛ خالی یعنی بدون سقف. عکس‌های مشتری‌های هر همکار از سهم خودش کم می‌شود. اعتبار اضافه را خودتان برایش بخرید یا لینک خرید را برایش بفرستید.','pn-who')]);
+ p.staff.forEach(function(m){
+  var inp=el('input',{type:'text',inputmode:'numeric',dir:'ltr','aria-label':'سقف اعتبار '+m.name+' به تومان',placeholder:'بدون سقف',value:m.cap===null?'':String(m.cap)});
+  var stat=h('span',(m.cap===null?'بدون سقف':'مانده '+fa(m.left)+' تومان')+' · مصرف '+fa(m.used)+' تومان'+(m.extra?' · خرید اضافه '+fa(m.extra)+' تومان':''),'pn-who');
+  var save=el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'ذخیره',onclick:function(){save.disabled=true;api('/api/panel/staff-credit',{staff:m.id,cap:inp.value.replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c)})}).then(function(r){if(r.error)throw new Error(r.error);m.cap=r.cap;m.left=r.left;stat.textContent=(r.cap===null?'بدون سقف':'مانده '+fa(r.left)+' تومان')+' · مصرف '+fa(r.used)+' تومان';save.textContent='ذخیره شد';setTimeout(function(){save.textContent='ذخیره'},1600)}).catch(function(e){alert(e.message)}).then(function(){save.disabled=false})}});
+  var link=location.origin+'/pricing?for='+m.id+'&s='+line;
+  var copy=el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'کپی لینک خرید برای همکار',onclick:function(){(navigator.clipboard?navigator.clipboard.writeText(link):Promise.reject()).then(function(){copy.textContent='کپی شد';setTimeout(function(){copy.textContent='کپی لینک خرید برای همکار'},1600)},function(){prompt('لینک خرید',link)})}});
+  box.append(el('div',{class:'pn-staff__row'},[h('b',m.name),stat,el('label',{class:'pn-staff__cap'},[h('span','سقف (تومان)'),inp]),save,el('a',{class:'btn btn--ghost btn--sm',href:'/pricing?for='+m.id+'&s='+line,text:'خرید اعتبار برای '+m.name}),copy]));
+ });
+ return box;
 }
 function creditCard(d){
  if(d.pricing)return creditCardV2(d);

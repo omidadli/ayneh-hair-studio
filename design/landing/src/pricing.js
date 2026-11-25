@@ -155,6 +155,26 @@
     });
   }
   const pick = new URLSearchParams(location.search).get('s');
+  /* ---------- credit for one member of a salon (/pricing?for=<member id>) ----------
+     The manager's panel gives each member this link; the manager can open it too. Only image
+     credit is sold here (subscriber packs while the salon's subscription runs, else single
+     packs); the server checks the same. */
+  const forId = new URLSearchParams(location.search).get('for');
+  if (forId && /^[a-f0-9-]{36}$/.test(forId)) {
+    fetch('/api/staff-credit/' + forId).then(r => r.ok ? r.json() : Promise.reject(r)).then(d => {
+      window.__AYN_STAFF = {id: d.member.id, name: d.member.name, salon: d.salon.name};
+      document.documentElement.classList.add('pr-staff');
+      if (freeBox) freeBox.hidden = true;
+      if (freeOut) {
+        freeOut.hidden = false;
+        freeOut.textContent = 'خرید اعتبار برای «' + d.member.name + '» در «' + d.salon.name + '». هر بسته‌ای بخرید به اعتبار سالن و سهم ' + d.member.name + ' اضافه می‌شود.';
+      }
+      root.querySelectorAll('[data-kind="sub"]').forEach(b => { b.disabled = true; b.title = 'اشتراک را مدیر سالن می‌خرد'; });
+      root.querySelectorAll('[data-subscriber]').forEach(box => { const k = box.dataset.subscriber; box.hidden = !(d.subscribed && (d.sub === 'all' ? k === 'all' : k === d.sub)); });
+      if (!LABEL[pick]) show(d.sub === 'all' ? 'salon' : d.sub || d.lines[0] || 'hair');
+    }).catch(() => { if (freeOut) { freeOut.hidden = false; freeOut.textContent = 'این لینک خرید معتبر نیست؛ از مدیر سالن لینک تازه بگیرید.'; } });
+  }
+
   show(LABEL[pick] ? pick : 'hair');
   fetch('/api/panel/me', {credentials: 'same-origin'}).then(r => r.ok ? r.json() : null).then(d => {
     if (!d || !d.salon) return;

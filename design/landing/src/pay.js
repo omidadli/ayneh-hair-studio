@@ -115,13 +115,16 @@
     const panel = v2 && window.__AYN_PANEL;
     /* A professional who signed up for the free images: the same mobile and page, no form. */
     const free = v2 && !panel && window.__AYN_TRIAL;
+    /* Credit for one member of a salon (/pricing?for=…): no form; the salon pays its own way. */
+    const staff = v2 && window.__AYN_STAFF;
     LITE.forEach(l => { l.hidden = v2; });
     $('payConsent').closest('label').hidden = v2;
-    [$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free); });
+    [$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free || staff); });
     if (nameLabel) nameLabel.textContent = v2 ? 'نام سالن یا نام کاری شما' : NAME_TEXT;
     if (!who) { who = document.createElement('p'); who.className = 'pay-who'; $('payForm').prepend(who); }
-    who.hidden = !(panel || free);
-    if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
+    who.hidden = !(panel || free || staff);
+    if (staff) who.textContent = 'خرید اعتبار برای «' + staff.name + '» در «' + staff.salon + '»؛ این اعتبار به سهم او اضافه می‌شود.';
+    else if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
     else if (free) who.textContent = 'خرید برای «' + free.name + '» با شمارهٔ ' + free.phone + '؛ روی همین شماره و همان صفحه فعال می‌شود.';
     $('payStart').textContent = v2 ? 'تأیید خرید · ' + money(Number(btn.dataset.amount)) : START_TEXT;
     const steps = section.querySelectorAll('#paySteps li span');
@@ -185,7 +188,8 @@
   async function openV2() {
     const panel = window.__AYN_PANEL;
     const body = v2Body(state.buy);
-    if (!panel && !window.__AYN_TRIAL) {
+    if (window.__AYN_STAFF) body.staff = window.__AYN_STAFF.id;
+    if (!panel && !window.__AYN_TRIAL && !window.__AYN_STAFF) {
       body.name = $('payName').value.trim();
       body.phone = $('payPhone').value.trim();
       if (body.name.length < 2) return err($('payErr'), 'نام سالن یا نام کاری خود را بنویسید.');

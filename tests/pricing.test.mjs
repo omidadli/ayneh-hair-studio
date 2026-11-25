@@ -123,7 +123,7 @@ test('a subscription opens every feature for a month; bought with its first pack
  assert.equal(s.order.amount,2900000+3500000);assert.match(s.order.plan_name,/اشتراک رنگ مو \+ بستهٔ ۱۰۰ عکس رنگ مو/);
  const me=(await call(e,'/api/panel/me',undefined,{cookie:s.cookie})).data;
  for(const f of ['page','gallery','inbox','bot','booking','report_simple','report_full','archive'])assert.ok(me.features.includes(f),f);
- assert.equal(me.pricing.active,true);assert.equal(me.pricing.lines.color.left,100);assert.equal(me.pricing.lines.hair.left,0);
+ assert.equal(me.pricing.active,true);assert.equal(me.pricing.lines.color.left,100+24,'the pack + half the subscription (1,450,000 ÷ 60,000)');assert.equal(me.pricing.lines.hair.left,0);
  assert.deepEqual(JSON.parse(e.DB.sql.prepare('SELECT settings FROM salons WHERE id=?').get(s.id).settings).lines,['color']);
  // a subscriber pack for the same line, at the subscriber price; another line's subscriber pack is refused
  const p=await call(e,'/api/panel/buy',{kind:'pack',line:'color',pack:50},{cookie:s.cookie});assert.equal(p.status,200);assert.equal(p.data.amount,2000000);
@@ -133,14 +133,14 @@ test('a subscription opens every feature for a month; bought with its first pack
  // a retried confirmation never extends the month twice
  const until=JSON.parse(e.DB.sql.prepare('SELECT settings FROM salons WHERE id=?').get(s.id).settings).plan.until;
  await confirm(e,s.order.id);assert.equal(JSON.parse(e.DB.sql.prepare('SELECT settings FROM salons WHERE id=?').get(s.id).settings).plan.until,until);
- const late=await meLater(e,s.order.access_key,40);assert.deepEqual(late.features,[],'ended: back to image-only');assert.equal(late.pricing.lines.color.left,100,'credits stay');assert.equal(late.credits.expired,false);
+ const late=await meLater(e,s.order.access_key,40);assert.deepEqual(late.features,[],'ended: back to image-only');assert.equal(late.pricing.lines.color.left,124,'credits stay');assert.equal(late.credits.expired,false);
 });
 
 test('salon subscription: every line, its staff size as the user cap, packs per chosen service',async()=>{
  const e=fixture();
  const s=await bought(e,{kind:'sub',sub:'sub_salon8',line:'lashes',pack:50});
  const settings=JSON.parse(s.settings);assert.equal(settings.plan.seats,8);assert.deepEqual(settings.lines,['hair','color','nails','lashes']);
- const me=(await call(e,'/api/panel/me',undefined,{cookie:s.cookie})).data;assert.equal(me.seats.cap,8);assert.equal(me.pricing.lines.lashes.left,50);assert.equal(me.pricing.lines.hair.left,0);
+ const me=(await call(e,'/api/panel/me',undefined,{cookie:s.cookie})).data;assert.equal(me.seats.cap,8);assert.equal(me.pricing.lines.lashes.left,50+98,'pack + 3,950,000 toman ÷ 40,000');assert.equal(me.pricing.lines.hair.left,79,'3,950,000 ÷ 50,000, for any service');assert.equal(me.pricing.pool.left,3950000);
  for(const line of ['hair','nails'])assert.equal((await call(e,'/api/panel/buy',{kind:'pack',line,pack:100},{cookie:s.cookie})).status,200,line);
  // going down to one service while the salon subscription runs is a support call
  assert.equal((await call(e,'/api/panel/buy',{kind:'sub',sub:'sub_hair'},{cookie:s.cookie})).status,409);
@@ -153,7 +153,7 @@ test('a returning buyer (same mobile) keeps the same salon; image credits then a
  assert.equal(a.id,b.id,'same salon');
  const settings=JSON.parse(e.DB.sql.prepare('SELECT settings FROM salons WHERE id=?').get(a.id).settings);
  assert.deepEqual(settings.lines,['hair','nails'],'the bought image line stays offered');assert.equal(settings.plan.key,'sub_nails');
- const me=(await call(e,'/api/panel/me',undefined,{cookie:b.cookie})).data;assert.equal(me.pricing.lines.hair.left,10);assert.ok(me.features.includes('booking'));
+ const me=(await call(e,'/api/panel/me',undefined,{cookie:b.cookie})).data;assert.equal(me.pricing.lines.hair.left,10);assert.equal(me.pricing.lines.nails.left,12,'half of 990,000 at 40,000 each');assert.ok(me.features.includes('booking'));
 });
 
 test('/pricing: two paths, four services + salon, honest copy and a 3-click checkout',async()=>{
@@ -223,4 +223,38 @@ test('the free-signup popup and the success summary ship in the pages',()=>{
  assert.ok(pricingHTML.includes('id="prFreeBtn"')&&pricingHTML.includes('ثبت‌نام رایگان'),'signup on /pricing');
  assert.ok(pricingHTML.includes('/api/trial/me')&&pricingHTML.includes('__AYN_TRIAL'),'buying for the signed-up mobile');
  assert.ok(pricingHTML.includes('پرداخت شما با موفقیت تأیید شد'),'the success popup');
+});
+
+test('members\' credit shares: the manager caps a member, her customers stop at the cap, credit bought for her raises it',async()=>{
+ const e=fixture(),pv=mockProvider();
+ try{
+  const s=await bought(e,{kind:'sub',sub:'sub_salon3'});
+  const mid=crypto.randomUUID();
+  e.DB.sql.prepare("INSERT INTO team(id,salon_id,name,specialty,ref_code,active,created_at) VALUES(?,?,?,?,?,1,?)").run(mid,s.id,'مریم','کوتاهی','sm2r3m4n',Date.now());
+  const visitor='ab'.repeat(10);
+  e.DB.sql.prepare("INSERT INTO ref_visitors(salon_id,visitor,tag,staff_id,parent_visitor,gen,came_with,created_at) VALUES(?,?,?,?,NULL,1,'',?)").run(s.id,visitor,'vq2w3e4r',mid,Date.now());
+  const gen=async()=>{const ss=await call(e,'/api/s/'+s.slug+'/session',{});const g={cookie:ss.cookie};
+   const up=await call(e,'/api/s/'+s.slug+'/upload?kind=original',png(),g);
+   return call(e,'/api/s/'+s.slug+'/generate',{image_consent:true,idem:crypto.randomUUID(),line:'hair',original_id:up.data.id,style:0,v:visitor},g)};
+  let me=(await call(e,'/api/panel/me',undefined,{cookie:s.cookie})).data;
+  assert.equal(me.pricing.pool.granted,2450000,'half of 4,900,000');
+  assert.deepEqual(me.pricing.staff.map(m=>[m.name,m.cap]),[['مریم',null]]);
+  const cap=await call(e,'/api/panel/staff-credit',{staff:mid,cap:'50000'},{cookie:s.cookie});
+  assert.equal(cap.status,200,JSON.stringify(cap));assert.equal(cap.data.left,50000);
+  const a=await gen();assert.equal(a.status,200,JSON.stringify(a));
+  assert.equal(e.DB.sql.prepare('SELECT staff_id FROM generations WHERE id=?').get(a.data.id).staff_id,mid,'the image is hers');
+  const b=await gen();assert.equal(b.status,402,JSON.stringify(b));assert.match(b.data.error,/سهم/);
+  // she buys 5 hair images from her own link: no form, the salon's order, her share
+  const info=await call(e,'/api/staff-credit/'+mid);assert.equal(info.status,200);assert.equal(info.data.member.name,'مریم');assert.equal(info.data.sub,'all');
+  assert.ok([400,409].includes((await call(e,'/api/buy',{staff:mid,kind:'sub',sub:'sub_hair'})).status),'no subscription for a member');
+  const o=await call(e,'/api/buy',{staff:mid,kind:'pack',line:'hair',pack:50});assert.equal(o.status,200,JSON.stringify(o));
+  assert.equal(e.DB.sql.prepare('SELECT staff_id,salon_id FROM orders WHERE id=?').get(o.data.id).salon_id,s.id);
+  await confirm(e,o.data.id);
+  me=(await call(e,'/api/panel/me',undefined,{cookie:s.cookie})).data;
+  const m=me.pricing.staff[0];assert.equal(m.extra,50*50000);assert.equal(m.left,50000+50*50000-50000);
+  assert.equal((await gen()).status,200,'her share is open again');
+  // the manager buys for her from the panel too
+  const p=await call(e,'/api/panel/buy',{staff:mid,kind:'images',line:'nails',count:5},{cookie:s.cookie});assert.equal(p.status,200,JSON.stringify(p));
+  assert.equal(e.DB.sql.prepare('SELECT staff_id FROM orders WHERE id=?').get(p.data.id).staff_id,mid);
+ }finally{pv.restore()}
 });

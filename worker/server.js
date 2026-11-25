@@ -6,7 +6,7 @@ import {bucketFor,putImage} from './storage.js';
 import {botReady,deliverLead,deliverPending,newLinkCode,setWebhook,inboxes,followLinks,PLATFORMS,platformReady,baleSecret,staffInvite,notifyConflict,expireStates,askTransfer,transferTick} from './telegram.js';
 import {LINE_KEYS,lineStyles,cleanOptions,linePrompt,optionText,LINE_LABEL} from './lines.js';
 import {ownerLink,alertUnanswered,maybeDigest,setupStatus,digest,notifyOwner,setting} from './alerts.js';
-import {attribute,ownerFor,createStaff,requestTransfer,cancelTransfer,pendingTransfer,report,team as teamOf,liveStaff,SPECIALTIES} from './referral.js';
+import {attribute,ownerFor,createStaff,requestTransfer,cancelTransfer,pendingTransfer,report,team as teamOf,liveStaff,staffOf,SPECIALTIES} from './referral.js';
 import {stats} from './stats.js';
 import {smsReady,inviteReady,sendOtp} from './sms.js';
 import {createTrial,trialOf,trialLive,trialPublic,spendTrialImage,trialByToken,maskPhone,TRIAL_IMAGES} from './trial.js';
@@ -15,7 +15,7 @@ const trialToken=req=>((req.headers.get('cookie')||'').match(/(?:^|;\s*)ayneh_tr
 import {PLANS as PLANS_TABLE} from './prices.js';
 import {smsConfirm,newPairCode,redeemPairCode,orderDetails} from './paysms.js';
 import {createTestOrder} from './orders.js';
-import {createOrder,createPurchase,createPanelPurchase,createTopup,createRenewal,customerOrder,setCoupon,confirmOrder,webhookConfirm,reopenOrder,rekeyOrder,closeExpired,cardSetting,saveCard,
+import {createOrder,createPurchase,createPanelPurchase,createStaffPurchase,staffInfo,createTopup,createRenewal,customerOrder,setCoupon,confirmOrder,webhookConfirm,reopenOrder,rekeyOrder,closeExpired,cardSetting,saveCard,
  webhookKey,rotateWebhookKey,cardList,removeCard,smsSenders,panelLogin,panelSalon,panelLogout,panelDashboard,tickChecklist,ORDER_MINUTES,SERVICE_LABEL} from './orders.js';
 import {spendCredit,planOf} from './credits.js';
 import {can,featuresOf,OPENED_BY,linesOf,imageOnly} from './plans.js';
@@ -205,12 +205,17 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   if(String(b.website||'').trim())return J({ok:true,id:'x'});// honeypot
   /* A professional who signed up for the free images: the purchase goes to the same mobile and
      the same page; name and mobile come from the signup, never from the request. */
+  /* A member's own credit link (/pricing?for=<member id>). */
+  if(b.staff)return J(await createStaffPurchase(db,env,String(b.staff),b,u.origin));
   const t=await trialByToken(db,trialToken(req));
   const signup=t&&!t.converted_at?t:null;
   const made=await createPurchase(db,env,signup?{...b,name:t.salon_name||t.name,phone:t.phone}:b,u.origin,signup?.salon_id||'');
   await attachReferral(db,made.id,refOf(req,b)).catch(e=>console.error('referral',e?.message));
   return J(made);
  }
+ // The member behind a credit link: her name, the salon's name and lines (nothing private).
+ const staffGet=path.match(/^\/api\/staff-credit\/([a-f0-9-]{36})$/);
+ if(staffGet&&req.method==='GET'){const i=await staffInfo(db,staffGet[1]);return J({member:i.member,salon:i.salon,lines:i.lines,subscribed:i.subscribed,sub:i.sub})}
  // The same purchase from a signed-in salon panel: no form; same salon, same panel key.
  if(path==='/api/panel/buy'&&req.method==='POST'){
   await limited(db,'renew:'+clientIp(req),20,'درخواست‌های زیادی فرستاده‌اید؛ کمی بعد دوباره امتحان کنید');
@@ -569,7 +574,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   return J({id,delivered,waiting,follow:followLinks(env,follow)});
  }
  if(route==='views'&&req.method==='POST'){
-  const b=await req.json();must(!demo,'نمای ۳۶۰ در سالن آینه فعال نیست');must(env.KIE_API_KEY&&cfg.generation_enabled,'تولید فعال نیست',503);must(/^[a-f0-9-]{36}$/.test(b.idem));const existing=await one(db,'SELECT id,state FROM generations WHERE session_id=? AND idem=?',s.id,b.idem);if(existing)return J(existing);const base=await one(db,"SELECT * FROM generations WHERE id=? AND session_id=? AND salon_id=? AND state='success'",b.parent,s.id,salon.id);must(base?.result_id,'عکس پایه معتبر نیست');must((base.line||'hair')==='hair','نمای ۳۶۰ فقط برای مو است');const m=await ownMedia(db,s,base.result_id),id=uid(),now=Date.now();const visitor=visitorOf(b),free=await unlimited(db,s);const paidBy=!trial&&!free?await payForImage(db,env,{salon,s,visitor,quota:()=>spendQuota(db,salon,s,visitor,'hair')}):null;if(!trial&&!free&&!paidBy)await spendCredit(db,env,salon,'hair');if(dailyLimit(cfg)>0&&!free&&!paidBy)await limited(db,'views:'+salon.id,Math.min(20,dailyLimit(cfg)));await spendTrialImage(db,trial);await run(db,"INSERT INTO generations(id,salon_id,session_id,idem,kind,state,original_id,created_at,updated_at,visitor,paid_by) VALUES(?,?,?,?,'views','creating',?,?,?,?,?)",id,salon.id,s.id,b.idem,base.original_id,now,now,visitor,paidBy||null);
+  const b=await req.json();must(!demo,'نمای ۳۶۰ در سالن آینه فعال نیست');must(env.KIE_API_KEY&&cfg.generation_enabled,'تولید فعال نیست',503);must(/^[a-f0-9-]{36}$/.test(b.idem));const existing=await one(db,'SELECT id,state FROM generations WHERE session_id=? AND idem=?',s.id,b.idem);if(existing)return J(existing);const base=await one(db,"SELECT * FROM generations WHERE id=? AND session_id=? AND salon_id=? AND state='success'",b.parent,s.id,salon.id);must(base?.result_id,'عکس پایه معتبر نیست');must((base.line||'hair')==='hair','نمای ۳۶۰ فقط برای مو است');const m=await ownMedia(db,s,base.result_id),id=uid(),now=Date.now();const visitor=visitorOf(b),free=await unlimited(db,s);const staffId=!demo?await staffOf(db,env,salon,visitor,s.verified_phone).catch(()=>null):null;const paidBy=!trial&&!free?await payForImage(db,env,{salon,s,visitor,quota:()=>spendQuota(db,salon,s,visitor,'hair')}):null;if(!trial&&!free&&!paidBy)await spendCredit(db,env,salon,'hair',staffId);if(dailyLimit(cfg)>0&&!free&&!paidBy)await limited(db,'views:'+salon.id,Math.min(20,dailyLimit(cfg)));await spendTrialImage(db,trial);await run(db,"INSERT INTO generations(id,salon_id,session_id,idem,kind,state,original_id,created_at,updated_at,visitor,paid_by,staff_id) VALUES(?,?,?,?,'views','creating',?,?,?,?,?,?)",id,salon.id,s.id,b.idem,base.original_id,now,now,visitor,paidBy||null,staffId||null);
   try{const img=await uploadProvider(env,m);const task=await createImageTask(env,cfg,{prompt:VIEWS_PROMPT,image_input:[img],aspect_ratio:'16:9',resolution:'2K',output_format:'jpg'});await run(db,"UPDATE generations SET state='waiting',task_id=? WHERE id=?",task.taskId,id);return J({id,state:'waiting'});}catch{await run(db,"UPDATE generations SET state='unknown' WHERE id=?",id);throw new Problem(502,'ارسال نامشخص؛ بدون بازتولید خودکار');}
  }
  if(route==='generate'&&req.method==='POST'){
@@ -612,7 +617,8 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   let paidBy=!trial&&!demo&&!free&&!buyer?await payForImage(db,env,{salon,s,visitor,quota:()=>spendQuota(db,salon,s,visitor,line)}):null;
   // A salon on a paid plan spends one image credit per image; none left, or the plan ended, stops it here.
   // An image the customer paid for is never taken from the salon's credit.
-  if(!trial&&!demo&&!free&&!paidBy)await spendCredit(db,env,salon,line);
+  const staffId=!trial&&!demo?await staffOf(db,env,salon,visitor,s.verified_phone).catch(()=>null):null;
+  if(!trial&&!demo&&!free&&!paidBy)await spendCredit(db,env,salon,line,buyer?null:staffId);
   if(demo&&!free)await spendDemoImage(db,{salon,s,visitor,ip:clientIp(req)});
   // The salon's daily cap guards its own free images; an image the customer paid for from her own pack
   // (paidBy) is hers and is never blocked by other visitors' free images (e.g. on the shared /try salon).
@@ -626,7 +632,7 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   // Hairstyle copies only the cut from a reference photo; colour only the colour.
   const mode=look?'salon':line==='hair'?(reference?'style':'catalog'):(reference?'reference':(line==='color'&&!Number.isInteger(b.style)?'text':'catalog'));
   // paid_by is written with the row itself: a crash between two statements must never leave a customer-paid image charged to the salon credit.
-  await run(db,'INSERT INTO generations(id,salon_id,session_id,idem,state,original_id,reference_id,style,transfer,color,created_at,updated_at,line,opts,base_id,visitor,paid_by) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',id,salon.id,s.id,b.idem,'creating',b.original_id,b.reference_id||null,reference?null:(Number.isInteger(b.style)?b.style:null),mode,color,now,now,line,JSON.stringify(opts),baseId,visitor,paidBy||null);
+  await run(db,'INSERT INTO generations(id,salon_id,session_id,idem,state,original_id,reference_id,style,transfer,color,created_at,updated_at,line,opts,base_id,visitor,paid_by,staff_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',id,salon.id,s.id,b.idem,'creating',b.original_id,b.reference_id||null,reference?null:(Number.isInteger(b.style)?b.style:null),mode,color,now,now,line,JSON.stringify(opts),baseId,visitor,paidBy||null,staffId||null);
   try{
    const images=[await uploadProvider(env,base)];if(reference)images.push(await uploadProvider(env,reference));
    const prompt=look?(line==='hair'?transferPrompt('catalog',look,''):line==='color'?linePrompt('color','catalog',look,{},''):linePrompt(line,line==='nails'?'salon':'catalog',look,opts,color))

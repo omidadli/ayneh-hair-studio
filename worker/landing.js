@@ -886,13 +886,15 @@ function liteForm(btn) {
 const v2 = !!btn && btn.dataset.buy === 'v2';
 const panel = v2 && window.__AYN_PANEL;
 const free = v2 && !panel && window.__AYN_TRIAL;
+const staff = v2 && window.__AYN_STAFF;
 LITE.forEach(l => { l.hidden = v2; });
 $('payConsent').closest('label').hidden = v2;
-[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free); });
+[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free || staff); });
 if (nameLabel) nameLabel.textContent = v2 ? 'نام سالن یا نام کاری شما' : NAME_TEXT;
 if (!who) { who = document.createElement('p'); who.className = 'pay-who'; $('payForm').prepend(who); }
-who.hidden = !(panel || free);
-if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
+who.hidden = !(panel || free || staff);
+if (staff) who.textContent = 'خرید اعتبار برای «' + staff.name + '» در «' + staff.salon + '»؛ این اعتبار به سهم او اضافه می‌شود.';
+else if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
 else if (free) who.textContent = 'خرید برای «' + free.name + '» با شمارهٔ ' + free.phone + '؛ روی همین شماره و همان صفحه فعال می‌شود.';
 $('payStart').textContent = v2 ? 'تأیید خرید · ' + money(Number(btn.dataset.amount)) : START_TEXT;
 const steps = section.querySelectorAll('#paySteps li span');
@@ -950,7 +952,8 @@ $('payStart').disabled = false;
 async function openV2() {
 const panel = window.__AYN_PANEL;
 const body = v2Body(state.buy);
-if (!panel && !window.__AYN_TRIAL) {
+if (window.__AYN_STAFF) body.staff = window.__AYN_STAFF.id;
+if (!panel && !window.__AYN_TRIAL && !window.__AYN_STAFF) {
 body.name = $('payName').value.trim();
 body.phone = $('payPhone').value.trim();
 if (body.name.length < 2) return err($('payErr'), 'نام سالن یا نام کاری خود را بنویسید.');
@@ -2578,13 +2581,15 @@ function liteForm(btn) {
 const v2 = !!btn && btn.dataset.buy === 'v2';
 const panel = v2 && window.__AYN_PANEL;
 const free = v2 && !panel && window.__AYN_TRIAL;
+const staff = v2 && window.__AYN_STAFF;
 LITE.forEach(l => { l.hidden = v2; });
 $('payConsent').closest('label').hidden = v2;
-[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free); });
+[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free || staff); });
 if (nameLabel) nameLabel.textContent = v2 ? 'نام سالن یا نام کاری شما' : NAME_TEXT;
 if (!who) { who = document.createElement('p'); who.className = 'pay-who'; $('payForm').prepend(who); }
-who.hidden = !(panel || free);
-if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
+who.hidden = !(panel || free || staff);
+if (staff) who.textContent = 'خرید اعتبار برای «' + staff.name + '» در «' + staff.salon + '»؛ این اعتبار به سهم او اضافه می‌شود.';
+else if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
 else if (free) who.textContent = 'خرید برای «' + free.name + '» با شمارهٔ ' + free.phone + '؛ روی همین شماره و همان صفحه فعال می‌شود.';
 $('payStart').textContent = v2 ? 'تأیید خرید · ' + money(Number(btn.dataset.amount)) : START_TEXT;
 const steps = section.querySelectorAll('#paySteps li span');
@@ -2642,7 +2647,8 @@ $('payStart').disabled = false;
 async function openV2() {
 const panel = window.__AYN_PANEL;
 const body = v2Body(state.buy);
-if (!panel && !window.__AYN_TRIAL) {
+if (window.__AYN_STAFF) body.staff = window.__AYN_STAFF.id;
+if (!panel && !window.__AYN_TRIAL && !window.__AYN_STAFF) {
 body.name = $('payName').value.trim();
 body.phone = $('payPhone').value.trim();
 if (body.name.length < 2) return err($('payErr'), 'نام سالن یا نام کاری خود را بنویسید.');
@@ -4037,13 +4043,15 @@ function liteForm(btn) {
 const v2 = !!btn && btn.dataset.buy === 'v2';
 const panel = v2 && window.__AYN_PANEL;
 const free = v2 && !panel && window.__AYN_TRIAL;
+const staff = v2 && window.__AYN_STAFF;
 LITE.forEach(l => { l.hidden = v2; });
 $('payConsent').closest('label').hidden = v2;
-[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free); });
+[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free || staff); });
 if (nameLabel) nameLabel.textContent = v2 ? 'نام سالن یا نام کاری شما' : NAME_TEXT;
 if (!who) { who = document.createElement('p'); who.className = 'pay-who'; $('payForm').prepend(who); }
-who.hidden = !(panel || free);
-if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
+who.hidden = !(panel || free || staff);
+if (staff) who.textContent = 'خرید اعتبار برای «' + staff.name + '» در «' + staff.salon + '»؛ این اعتبار به سهم او اضافه می‌شود.';
+else if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
 else if (free) who.textContent = 'خرید برای «' + free.name + '» با شمارهٔ ' + free.phone + '؛ روی همین شماره و همان صفحه فعال می‌شود.';
 $('payStart').textContent = v2 ? 'تأیید خرید · ' + money(Number(btn.dataset.amount)) : START_TEXT;
 const steps = section.querySelectorAll('#paySteps li span');
@@ -4101,7 +4109,8 @@ $('payStart').disabled = false;
 async function openV2() {
 const panel = window.__AYN_PANEL;
 const body = v2Body(state.buy);
-if (!panel && !window.__AYN_TRIAL) {
+if (window.__AYN_STAFF) body.staff = window.__AYN_STAFF.id;
+if (!panel && !window.__AYN_TRIAL && !window.__AYN_STAFF) {
 body.name = $('payName').value.trim();
 body.phone = $('payPhone').value.trim();
 if (body.name.length < 2) return err($('payErr'), 'نام سالن یا نام کاری خود را بنویسید.');
@@ -5475,13 +5484,15 @@ function liteForm(btn) {
 const v2 = !!btn && btn.dataset.buy === 'v2';
 const panel = v2 && window.__AYN_PANEL;
 const free = v2 && !panel && window.__AYN_TRIAL;
+const staff = v2 && window.__AYN_STAFF;
 LITE.forEach(l => { l.hidden = v2; });
 $('payConsent').closest('label').hidden = v2;
-[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free); });
+[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free || staff); });
 if (nameLabel) nameLabel.textContent = v2 ? 'نام سالن یا نام کاری شما' : NAME_TEXT;
 if (!who) { who = document.createElement('p'); who.className = 'pay-who'; $('payForm').prepend(who); }
-who.hidden = !(panel || free);
-if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
+who.hidden = !(panel || free || staff);
+if (staff) who.textContent = 'خرید اعتبار برای «' + staff.name + '» در «' + staff.salon + '»؛ این اعتبار به سهم او اضافه می‌شود.';
+else if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
 else if (free) who.textContent = 'خرید برای «' + free.name + '» با شمارهٔ ' + free.phone + '؛ روی همین شماره و همان صفحه فعال می‌شود.';
 $('payStart').textContent = v2 ? 'تأیید خرید · ' + money(Number(btn.dataset.amount)) : START_TEXT;
 const steps = section.querySelectorAll('#paySteps li span');
@@ -5539,7 +5550,8 @@ $('payStart').disabled = false;
 async function openV2() {
 const panel = window.__AYN_PANEL;
 const body = v2Body(state.buy);
-if (!panel && !window.__AYN_TRIAL) {
+if (window.__AYN_STAFF) body.staff = window.__AYN_STAFF.id;
+if (!panel && !window.__AYN_TRIAL && !window.__AYN_STAFF) {
 body.name = $('payName').value.trim();
 body.phone = $('payPhone').value.trim();
 if (body.name.length < 2) return err($('payErr'), 'نام سالن یا نام کاری خود را بنویسید.');
@@ -6913,13 +6925,15 @@ function liteForm(btn) {
 const v2 = !!btn && btn.dataset.buy === 'v2';
 const panel = v2 && window.__AYN_PANEL;
 const free = v2 && !panel && window.__AYN_TRIAL;
+const staff = v2 && window.__AYN_STAFF;
 LITE.forEach(l => { l.hidden = v2; });
 $('payConsent').closest('label').hidden = v2;
-[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free); });
+[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free || staff); });
 if (nameLabel) nameLabel.textContent = v2 ? 'نام سالن یا نام کاری شما' : NAME_TEXT;
 if (!who) { who = document.createElement('p'); who.className = 'pay-who'; $('payForm').prepend(who); }
-who.hidden = !(panel || free);
-if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
+who.hidden = !(panel || free || staff);
+if (staff) who.textContent = 'خرید اعتبار برای «' + staff.name + '» در «' + staff.salon + '»؛ این اعتبار به سهم او اضافه می‌شود.';
+else if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
 else if (free) who.textContent = 'خرید برای «' + free.name + '» با شمارهٔ ' + free.phone + '؛ روی همین شماره و همان صفحه فعال می‌شود.';
 $('payStart').textContent = v2 ? 'تأیید خرید · ' + money(Number(btn.dataset.amount)) : START_TEXT;
 const steps = section.querySelectorAll('#paySteps li span');
@@ -6977,7 +6991,8 @@ $('payStart').disabled = false;
 async function openV2() {
 const panel = window.__AYN_PANEL;
 const body = v2Body(state.buy);
-if (!panel && !window.__AYN_TRIAL) {
+if (window.__AYN_STAFF) body.staff = window.__AYN_STAFF.id;
+if (!panel && !window.__AYN_TRIAL && !window.__AYN_STAFF) {
 body.name = $('payName').value.trim();
 body.phone = $('payPhone').value.trim();
 if (body.name.length < 2) return err($('payErr'), 'نام سالن یا نام کاری خود را بنویسید.');
@@ -8351,13 +8366,15 @@ function liteForm(btn) {
 const v2 = !!btn && btn.dataset.buy === 'v2';
 const panel = v2 && window.__AYN_PANEL;
 const free = v2 && !panel && window.__AYN_TRIAL;
+const staff = v2 && window.__AYN_STAFF;
 LITE.forEach(l => { l.hidden = v2; });
 $('payConsent').closest('label').hidden = v2;
-[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free); });
+[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free || staff); });
 if (nameLabel) nameLabel.textContent = v2 ? 'نام سالن یا نام کاری شما' : NAME_TEXT;
 if (!who) { who = document.createElement('p'); who.className = 'pay-who'; $('payForm').prepend(who); }
-who.hidden = !(panel || free);
-if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
+who.hidden = !(panel || free || staff);
+if (staff) who.textContent = 'خرید اعتبار برای «' + staff.name + '» در «' + staff.salon + '»؛ این اعتبار به سهم او اضافه می‌شود.';
+else if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
 else if (free) who.textContent = 'خرید برای «' + free.name + '» با شمارهٔ ' + free.phone + '؛ روی همین شماره و همان صفحه فعال می‌شود.';
 $('payStart').textContent = v2 ? 'تأیید خرید · ' + money(Number(btn.dataset.amount)) : START_TEXT;
 const steps = section.querySelectorAll('#paySteps li span');
@@ -8415,7 +8432,8 @@ $('payStart').disabled = false;
 async function openV2() {
 const panel = window.__AYN_PANEL;
 const body = v2Body(state.buy);
-if (!panel && !window.__AYN_TRIAL) {
+if (window.__AYN_STAFF) body.staff = window.__AYN_STAFF.id;
+if (!panel && !window.__AYN_TRIAL && !window.__AYN_STAFF) {
 body.name = $('payName').value.trim();
 body.phone = $('payPhone').value.trim();
 if (body.name.length < 2) return err($('payErr'), 'نام سالن یا نام کاری خود را بنویسید.');
@@ -9786,13 +9804,15 @@ function liteForm(btn) {
 const v2 = !!btn && btn.dataset.buy === 'v2';
 const panel = v2 && window.__AYN_PANEL;
 const free = v2 && !panel && window.__AYN_TRIAL;
+const staff = v2 && window.__AYN_STAFF;
 LITE.forEach(l => { l.hidden = v2; });
 $('payConsent').closest('label').hidden = v2;
-[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free); });
+[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free || staff); });
 if (nameLabel) nameLabel.textContent = v2 ? 'نام سالن یا نام کاری شما' : NAME_TEXT;
 if (!who) { who = document.createElement('p'); who.className = 'pay-who'; $('payForm').prepend(who); }
-who.hidden = !(panel || free);
-if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
+who.hidden = !(panel || free || staff);
+if (staff) who.textContent = 'خرید اعتبار برای «' + staff.name + '» در «' + staff.salon + '»؛ این اعتبار به سهم او اضافه می‌شود.';
+else if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
 else if (free) who.textContent = 'خرید برای «' + free.name + '» با شمارهٔ ' + free.phone + '؛ روی همین شماره و همان صفحه فعال می‌شود.';
 $('payStart').textContent = v2 ? 'تأیید خرید · ' + money(Number(btn.dataset.amount)) : START_TEXT;
 const steps = section.querySelectorAll('#paySteps li span');
@@ -9850,7 +9870,8 @@ $('payStart').disabled = false;
 async function openV2() {
 const panel = window.__AYN_PANEL;
 const body = v2Body(state.buy);
-if (!panel && !window.__AYN_TRIAL) {
+if (window.__AYN_STAFF) body.staff = window.__AYN_STAFF.id;
+if (!panel && !window.__AYN_TRIAL && !window.__AYN_STAFF) {
 body.name = $('payName').value.trim();
 body.phone = $('payPhone').value.trim();
 if (body.name.length < 2) return err($('payErr'), 'نام سالن یا نام کاری خود را بنویسید.');
@@ -10531,13 +10552,15 @@ function liteForm(btn) {
 const v2 = !!btn && btn.dataset.buy === 'v2';
 const panel = v2 && window.__AYN_PANEL;
 const free = v2 && !panel && window.__AYN_TRIAL;
+const staff = v2 && window.__AYN_STAFF;
 LITE.forEach(l => { l.hidden = v2; });
 $('payConsent').closest('label').hidden = v2;
-[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free); });
+[$('payName'), $('payPhone')].forEach(i => { i.closest('label').hidden = !!(panel || free || staff); });
 if (nameLabel) nameLabel.textContent = v2 ? 'نام سالن یا نام کاری شما' : NAME_TEXT;
 if (!who) { who = document.createElement('p'); who.className = 'pay-who'; $('payForm').prepend(who); }
-who.hidden = !(panel || free);
-if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
+who.hidden = !(panel || free || staff);
+if (staff) who.textContent = 'خرید اعتبار برای «' + staff.name + '» در «' + staff.salon + '»؛ این اعتبار به سهم او اضافه می‌شود.';
+else if (panel) who.textContent = 'خرید برای «' + panel.name + '»؛ نیازی به وارد کردن مشخصات نیست.';
 else if (free) who.textContent = 'خرید برای «' + free.name + '» با شمارهٔ ' + free.phone + '؛ روی همین شماره و همان صفحه فعال می‌شود.';
 $('payStart').textContent = v2 ? 'تأیید خرید · ' + money(Number(btn.dataset.amount)) : START_TEXT;
 const steps = section.querySelectorAll('#paySteps li span');
@@ -10595,7 +10618,8 @@ $('payStart').disabled = false;
 async function openV2() {
 const panel = window.__AYN_PANEL;
 const body = v2Body(state.buy);
-if (!panel && !window.__AYN_TRIAL) {
+if (window.__AYN_STAFF) body.staff = window.__AYN_STAFF.id;
+if (!panel && !window.__AYN_TRIAL && !window.__AYN_STAFF) {
 body.name = $('payName').value.trim();
 body.phone = $('payPhone').value.trim();
 if (body.name.length < 2) return err($('payErr'), 'نام سالن یا نام کاری خود را بنویسید.');
@@ -11077,6 +11101,21 @@ box.hidden = !(s && p.active && (s.line === 'all' ? k === 'all' : k === s.line))
 });
 }
 const pick = new URLSearchParams(location.search).get('s');
+const forId = new URLSearchParams(location.search).get('for');
+if (forId && /^[a-f0-9-]{36}$/.test(forId)) {
+fetch('/api/staff-credit/' + forId).then(r => r.ok ? r.json() : Promise.reject(r)).then(d => {
+window.__AYN_STAFF = {id: d.member.id, name: d.member.name, salon: d.salon.name};
+document.documentElement.classList.add('pr-staff');
+if (freeBox) freeBox.hidden = true;
+if (freeOut) {
+freeOut.hidden = false;
+freeOut.textContent = 'خرید اعتبار برای «' + d.member.name + '» در «' + d.salon.name + '». هر بسته‌ای بخرید به اعتبار سالن و سهم ' + d.member.name + ' اضافه می‌شود.';
+}
+root.querySelectorAll('[data-kind="sub"]').forEach(b => { b.disabled = true; b.title = 'اشتراک را مدیر سالن می‌خرد'; });
+root.querySelectorAll('[data-subscriber]').forEach(box => { const k = box.dataset.subscriber; box.hidden = !(d.subscribed && (d.sub === 'all' ? k === 'all' : k === d.sub)); });
+if (!LABEL[pick]) show(d.sub === 'all' ? 'salon' : d.sub || d.lines[0] || 'hair');
+}).catch(() => { if (freeOut) { freeOut.hidden = false; freeOut.textContent = 'این لینک خرید معتبر نیست؛ از مدیر سالن لینک تازه بگیرید.'; } });
+}
 show(LABEL[pick] ? pick : 'hair');
 fetch('/api/panel/me', {credentials: 'same-origin'}).then(r => r.ok ? r.json() : null).then(d => {
 if (!d || !d.salon) return;

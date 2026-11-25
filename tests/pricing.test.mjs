@@ -258,3 +258,12 @@ test('members\' credit shares: the manager caps a member, her customers stop at 
   assert.equal(e.DB.sql.prepare('SELECT staff_id FROM orders WHERE id=?').get(p.data.id).staff_id,mid);
  }finally{pv.restore()}
 });
+
+test('tiers (owner, Nov 2026): no «فقط اشتراک»; stylist and salon tier names; the top tier lists the salon to Ayneh\'s customers',async()=>{
+ assert.doesNotMatch(pricingHTML,/فقط اشتراک/);
+ for(const t of ['آرایشگر مبتدی','آرایشگر حرفه‌ای','آرایشگر فوق حرفه‌ای','سالن کم‌مشتری','سالن رو به رشد','سالن پر از مشتری','جذب مشتری و تبلیغات شما'])assert.ok(pricingHTML.includes(t),t);
+ const e=fixture();
+ const s=await bought(e,{kind:'sub',sub:'sub_salon20'});
+ const f=await call(e,'/api/featured');assert.deepEqual(f.data.salons.map(x=>x.slug),[s.slug]);
+ const e2=fixture();await bought(e2,{kind:'sub',sub:'sub_hair',pack:50});assert.equal((await call(e2,'/api/featured')).data.salons.length,0,'only the top tier');
+});

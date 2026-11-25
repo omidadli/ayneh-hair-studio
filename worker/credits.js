@@ -224,6 +224,13 @@ export async function applyOrder(db, salonId, order) {
   /* A subscription without a pack still leaves a (zero) ledger row: confirmOrder's repair path
      reads the ledger to know an order was applied, so a retry never extends the month twice. */
   await grant(db, salonId, Math.max(0, Number(order.credits) || 0), order.kind === 'plan' ? 'sub:' + order.plan : order.kind, order.id, line, order.staff_id || null);
+  /* The top tier of each (salon for 20, one service with the 200-image pack) buys «جذب مشتری و
+     تبلیغات»: the salon is listed to Ayneh's regular customers while its month runs. */
+  if (order.kind === 'plan' && PLANS[order.plan]?.tier === 'full' && (PLANS[order.plan].seats >= 20 || Number(order.credits) >= 200)) {
+    const st = settingsOf(await one(db, 'SELECT settings FROM salons WHERE id=?', salonId));
+    st.promoted_until = Number(st.plan?.until) || Date.now() + MONTH;
+    await run(db, 'UPDATE salons SET settings=? WHERE id=?', JSON.stringify(st), salonId);
+  }
   /* Half the subscription's price comes back as image credit: a salon subscription as toman for
      every service (spent at each service's single-image price); a one-service subscription as
      images of its own service at that single price (owner's order, Nov 2026). */

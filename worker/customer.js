@@ -1,5 +1,5 @@
 import {draftScript} from './draft.js';
-import {CONSULT_COINS,EXPORT_COINS} from './customerprices.js';
+import {CONSULT_COINS,EXPORT_COINS,STORY_REWARD_COINS} from './customerprices.js';
 import {styles} from './legacy.js';
 import {NAIL_STYLES,LASH_STYLES,COLOR_STYLES,COLOR_SWATCHES,LINE_OPTIONS,LINE_COLORS,LINE_POPULAR,LINE_FILTERS,LINE_PHOTO,LINE_LABEL} from './lines.js';
 import {QUESTIONS,ANALYSIS_FIELDS,RELEVANT} from './consult.js';
@@ -668,8 +668,8 @@ img[loading="lazy"].is-in{opacity:1}
 .signin-sheet .signin__perks{margin-top:8px}
 
 @media (min-width:900px){
- .studio{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);grid-template-areas:"title proof" "tag proof" "wallet proof" "cta proof" "ai proof";column-gap:48px;align-items:start;align-content:start}
- .studio>.studio__title{grid-area:title;font-size:44px}.studio>.studio__tag{grid-area:tag}.studio>.wallet{grid-area:wallet}.studio>.studio__cta{grid-area:cta}.studio>.studio__ai{grid-area:ai;margin-top:4px}.studio>.album,.studio>.trend{grid-column:1/-1;margin-top:18px}
+ .studio{grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);grid-template-areas:"title proof" "tag proof" "wallet proof" "cta proof" "ai proof" "gift proof";column-gap:48px;align-items:start;align-content:start}
+ .studio>.studio__title{grid-area:title;font-size:44px}.studio>.studio__tag{grid-area:tag}.studio>.wallet{grid-area:wallet}.studio>.studio__cta{grid-area:cta}.studio>.studio__ai{grid-area:ai;margin-top:4px}.studio>.studio__gift{grid-area:gift}.studio>.featured{grid-column:1/-1}.studio>.album,.studio>.trend{grid-column:1/-1;margin-top:18px}
  .studio>.proof{grid-area:proof;align-self:center}.proof__pair{max-width:none}.proof__img{max-height:340px}
 }
 /* While the start button is on screen the dock would repeat it (and cover it on small phones). */
@@ -815,6 +815,12 @@ body.is-studio .result-actions>:last-child:nth-child(odd){grid-column:1/-1}
 .xopt__price{margin-inline-start:auto;font-size:12.5px;font-weight:800;color:#6B4A0E;background:#F4E6CC;border-radius:999px;padding:4px 10px;white-space:nowrap}
 .xclean{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:var(--r);background:var(--surface-2);cursor:pointer}
 .xclean{width:100%;border:1px solid var(--line);font:inherit;color:var(--ink);text-align:start}.xclean__sw{flex:0 0 44px;height:26px;border-radius:999px;background:#D8D2C6;position:relative;margin-top:2px;transition:background .15s}.xclean__sw::after{content:'';position:absolute;top:3px;right:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:right .15s}.xclean.is-on .xclean__sw{background:var(--accent)}.xclean.is-on .xclean__sw::after{right:21px}.xclean.is-on{border-color:var(--accent)}.xclean b{display:block;font-size:14.5px}.xclean small{font-size:12.5px;color:var(--muted);line-height:1.8}
+.studio__gift{background:linear-gradient(135deg,#FBF0D9,#F7E3EC);border-color:#EAD39D}.studio__gift .studio__ai-ico{background:#B4377A}
+.xsteps{margin:0;padding:0 20px 0 0;display:grid;gap:10px}.xsteps li{display:grid;gap:2px;font-size:13.5px;line-height:1.8}.xsteps b{font-size:14.5px}
+.featured{margin-top:18px}.featured__h{font-size:18px;margin:0 0 10px}.featured__row{display:flex;gap:12px;overflow-x:auto;padding-bottom:6px;scroll-snap-type:x mandatory}
+.featured__card{flex:0 0 190px;scroll-snap-align:start;display:grid;gap:4px;justify-items:start;padding:14px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);color:var(--ink);text-decoration:none}
+.featured__card img,.featured__ph{width:56px;height:56px;border-radius:50%;object-fit:cover;background:var(--accent-soft,#E4F1EC)}
+.featured__card b{font-size:15px}.featured__card small{font-size:12px;color:var(--muted)}.featured__go{font-size:12.5px;font-weight:700;color:var(--accent)}
 .ccost{font-size:12.5px;color:var(--muted);text-align:center}
 .cdetails summary{cursor:pointer;font-weight:700;font-size:14px;padding:10px 0;min-height:44px;display:flex;align-items:center}
 .clist{display:grid;gap:8px}
@@ -1335,11 +1341,13 @@ function renderStudioHead(){
   el('div',{class:'wallet',id:'wallet','aria-live':'polite'},[el('div',{class:'skel',style:'height:56px;border-radius:16px'})]),
   /* One tap to the photo picker (the gesture opens it on iOS too); with a photo already in, straight to the choices. */
   el('button',{class:'btn btn--primary btn--lg studio__cta',type:'button',onclick:function(){track('cta','studio');if(state.original){go(2);return}go(1);var p=$('#pick');if(p)p.click()},html:ICO.camera+'<span>'+(state.original?'ادامه با همین عکس':'شروع با عکس خودم')+'</span>'}),
+  el('button',{class:'studio__ai studio__gift',type:'button',onclick:openStoryReward},[el('span',{class:'studio__ai-ico',html:ICO.instagram}),el('span',{},[el('b',{text:'عکست رو استوری کن، '+fa(STORY_COINS)+' سکهٔ هدیه بگیر'}),el('small',{text:'عکس آینه‌ات رو با لینک سایت استوری کن و اسکرین‌شاتش رو بفرست؛ هوش مصنوعی بررسی می‌کنه و سکه‌ها خودکار به کیفت اضافه می‌شه.'})]),el('span',{class:'studio__ai-go',html:ICO.arrow})]),
   el('section',{class:'trend',id:'trend','aria-label':'ترندهای این هفته'}),
+  el('section',{class:'featured',id:'featured','aria-label':'سالن‌های پیشنهادی آینه',hidden:true}),
   el('section',{class:'album',id:'album','aria-label':'آلبوم من',hidden:true})
  ]);
  head.replaceChildren(el('div',{class:'wrap'},[bar,body]));
- drawTrend();loadTrend().then(drawTrend);loadSaves().then(drawTrend);
+ drawTrend();loadTrend().then(drawTrend);loadSaves().then(drawTrend);loadFeatured();
  paintWallet(false);watchCta();
  /* Signed in on this browser before? Ask once, so her name and gift line are right from the start. */
  if(!state.session&&!studioAsked){studioAsked=true;loadSession().catch(function(){})}
@@ -2156,6 +2164,43 @@ function openExports(){
   ].filter(Boolean));
  }
  draw();openSheet(panel);track('export_open',state.line);
+}
+/* Story reward: post the result as a story with a link to the site, send the screenshot; the
+   server's vision check grants STORY_COINS once per account. */
+var STORY_COINS=CONSULT.story||100;
+function openStoryReward(){
+ track('cta','story_reward');
+ if(!state.verified){askSignin(openStoryReward,state.me&&state.me.phone?'login':'signup','هدیهٔ استوری به کیف سکهٔ حساب تو اضافه می‌شود؛ اول وارد شو.');return}
+ var panel=el('div',{class:'sheet__panel xsheet'}),status=el('div',{'aria-live':'polite'});
+ var pick=el('input',{type:'file',accept:'image/*',hidden:true});
+ var send=el('button',{class:'btn btn--primary btn--block',type:'button',text:'فرستادن اسکرین‌شات استوری',onclick:function(){pick.click()}});
+ pick.addEventListener('change',function(){var f=pick.files&&pick.files[0];if(!f)return;send.disabled=true;send.textContent='هوش مصنوعی دارد بررسی می‌کند…';status.replaceChildren();
+  ensureSession().then(function(){return compress(f)}).then(function(b){return api('upload?kind=reference',b,true)})
+  .then(function(d){return api('story-reward',{media_id:d.id,v:VISITOR})})
+  .then(function(r){if(r.ok){status.replaceChildren(notice('ok','تأیید شد! '+fa(r.coins)+' سکه به کیف سکه‌ات اضافه شد.'));paintWallet(true);track('story_reward','ok');send.hidden=true}else{status.replaceChildren(notice(r.reason==='done'?'info':'warn',r.message||'تأیید نشد'));track('story_reward',r.reason||'no')}})
+  .catch(function(e){status.replaceChildren(notice('warn',(e&&e.message)||'فرستادن ممکن نشد'))})
+  .then(function(){send.disabled=false;send.textContent='فرستادن اسکرین‌شات دیگر';pick.value=''});
+ });
+ panel.append(
+  el('div',{class:'sheet__head'},[h('h2',fa(STORY_COINS)+' سکهٔ هدیه برای یک استوری'),el('button',{class:'sheet__x',type:'button','aria-label':'بستن',text:'×',onclick:closeSheet})]),
+  el('ol',{class:'xsteps'},[
+   el('li',{},[el('b',{text:'عکس نتیجه‌ات را استوری کن'}),el('span',{text:'قالب استوری را از «دانلود و قالب‌ها» بگیر یا خود عکس را بگذار.'})]),
+   el('li',{},[el('b',{text:'استیکر Link بگذار'}),el('span',{html:'آدرس <b dir="ltr">ayneh-salon.site</b> را در استیکر لینک بنویس و استوری را منتشر کن.'})]),
+   el('li',{},[el('b',{text:'از استوری منتشرشده اسکرین‌شات بگیر و بفرست'}),el('span',{text:'هوش مصنوعی چند ثانیه‌ای بررسی می‌کند و سکه‌ها خودکار اضافه می‌شوند. هر حساب یک بار.'})])
+  ]),
+  state.result?el('button',{class:'btn btn--ghost btn--block',type:'button',text:'گرفتن قالب استوری',onclick:function(){closeSheet();setTimeout(openExports,200)}}):null,
+  send,pick,status
+ );
+ openSheet(panel);
+}
+function loadFeatured(){
+ var box=$('#featured');if(!box)return;
+ fetch('/api/featured').then(function(r){return r.json()}).then(function(d){
+  var list=(d&&d.salons)||[];if(!list.length){box.hidden=true;return}
+  box.hidden=false;box.replaceChildren(el('h2',{class:'featured__h',text:'سالن‌های پیشنهادی آینه'}),el('div',{class:'featured__row'},list.map(function(x){
+   return el('a',{class:'featured__card',href:'/s/'+x.slug},[x.logo?el('img',{src:'/api/s/'+x.slug+'/media/'+x.logo,alt:'',loading:'lazy'}):el('span',{class:'featured__ph',text:''}),el('b',{text:x.name}),x.address?el('small',{text:x.address}):null,el('span',{class:'featured__go',text:'دیدن و امتحان مدل‌ها'})]);
+  })));
+ }).catch(function(){box.hidden=true});
 }
 function storyLink(cls){
  var a=el('button',{class:cls,type:'button',html:ICO.instagram+'<span>قالب‌های اینستاگرام و تیک‌تاک</span>'});
@@ -3260,4 +3305,4 @@ export const customerHTML=String.raw`<!doctype html><html lang="fa" dir="rtl"><h
 <script>__JS__</script>
 </body></html>`
  .replace('__CSS__',()=>baseCSS+customerCSS+embeddedCSS)
- .replace('__JS__',()=>draftScript+';'+clientJS.replace('__STYLES__',()=>JSON.stringify(styles)).replace('__LINES__',()=>LINES_JSON).replace('__MARK__',()=>JSON.stringify(markSVG)).replace('__V2P__',()=>V2P_JSON).replace('__CONSULT__',()=>JSON.stringify({q:QUESTIONS,f:ANALYSIS_FIELDS,r:RELEVANT,coins:CONSULT_COINS,export:EXPORT_COINS})));
+ .replace('__JS__',()=>draftScript+';'+clientJS.replace('__STYLES__',()=>JSON.stringify(styles)).replace('__LINES__',()=>LINES_JSON).replace('__MARK__',()=>JSON.stringify(markSVG)).replace('__V2P__',()=>V2P_JSON).replace('__CONSULT__',()=>JSON.stringify({q:QUESTIONS,f:ANALYSIS_FIELDS,r:RELEVANT,coins:CONSULT_COINS,export:EXPORT_COINS,story:STORY_REWARD_COINS})));

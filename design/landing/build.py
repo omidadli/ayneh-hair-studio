@@ -109,6 +109,11 @@ SUB_PACKS = {  # subscriber image packs, per service: the more images, the cheap
 for _k, _v in SUB_PACKS.items():
     _each = [a // n for n, a in sorted(_v.items())]
     assert _each == sorted(_each, reverse=True) and _each[0] < IMAGE_PRICES[_k]['single'], 'subscriber packs must get cheaper: ' + _k
+# Half of a one-service subscription comes back as images of its own service at the single price.
+SUB_GIFT_IMAGES = {x['line']: (x['amount'] // 2) // IMAGE_PRICES[x['line']]['single'] for x in SUBS if x['line'] != 'all'}
+# Tier names (owner, Nov 2026): one-service subscriptions by their image pack; salons by size.
+STYLIST_TIERS = {50: 'آرایشگر مبتدی', 100: 'آرایشگر حرفه‌ای', 200: 'آرایشگر فوق حرفه‌ای'}
+SALON_TIERS = {3: 'سالن کم‌مشتری', 8: 'سالن رو به رشد', 20: 'سالن پر از مشتری'}
 SUB_NAMES = {'hair': 'اشتراک مدل مو', 'color': 'اشتراک رنگ مو', 'nails': 'اشتراک ناخن', 'lashes': 'اشتراک مژه'}
 _FA = str.maketrans('0123456789', '۰۱۲۳۴۵۶۷۸۹')
 for _s in SUBS:
@@ -735,18 +740,23 @@ def v2_images(line):
 def v2_sub(line):
     sub = next(x for x in SUBS if x['line'] == line)
     lab, packs = V2_LABEL[line], SUB_PACKS[line]
-    opts = [(0, sub['amount'], 'فقط اشتراک', 'بدون بستهٔ عکس')] + [
-        (n, sub['amount'] + a, 'اشتراک + ' + fa_int(n) + ' عکس', 'هر عکس ' + toman(a // n) + ' تومان') for n, a in sorted(packs.items())]
+    # No «subscription only» (owner, Nov 2026): every subscription comes with images, and half its
+    # price comes back as image credit on top (worker/credits.js applyOrder).
+    gift = SUB_GIFT_IMAGES[line]
+    opts = [(n, sub['amount'] + a, STYLIST_TIERS[n], 'اشتراک + ' + fa_int(n) + ' عکس · هر عکس ' + toman(a // n) + ' تومان') for n, a in sorted(packs.items())]
     cards = []
     for n, total, name, each in opts:
-        title = sub['name'] + (' + بستهٔ ' + fa_int(n) + ' عکس' if n else '')
+        title = sub['name'] + ' + بستهٔ ' + fa_int(n) + ' عکس'
+        top = n == max(packs)
         cards.append(
-            '<article class="plan pr-card' + (' plan--lead' if n == 200 else '') + '">'
-            + ('<span class="plan__badge">' + CROWN + 'به‌صرفه‌تر برای کار زیاد</span>' if n == 200 else '')
+            '<article class="plan pr-card' + (' plan--lead' if top else '') + '">'
+            + ('<span class="plan__badge">' + CROWN + 'به‌صرفه‌تر برای کار زیاد</span>' if top else '')
             + '<h3>' + name + '</h3>'
             + '<div class="plan__price"><p class="plan__amount"><b>' + toman(total) + '</b> تومان</p>'
             + '<p class="pr-each">' + each + '</p></div>'
-            + ('<p class="pr-save">اشتراک ' + toman(sub['amount']) + ' + بسته ' + toman(packs[n]) + '</p>' if n else '<p class="pr-save">عکس را بعداً با قیمت مشترکان بخرید</p>')
+            + '<ul><li>' + TICK + '<span>' + fa_int(n) + ' عکس + ' + fa_int(gift) + ' عکس هدیه (نصف مبلغ اشتراک)</span></li>'
+            + '<li>' + TICK + '<span>همهٔ امکانات پنل، یک ماه</span></li>'
+            + ('<li>' + TICK + '<span><b>جذب مشتری و تبلیغات شما</b> به کاربران عادی آینه</span></li>' if top else '') + '</ul>'
             + v2_buy('خرید', title, total, kind='sub', sub=sub['key'], pack=n)
             + '</article>')
     alone = ''.join(
@@ -761,24 +771,28 @@ def v2_sub(line):
             '</div></div>'
             '<div class="pr-subscriber" data-subscriber="' + line + '" hidden><p class="pr-subscriber__note">اشتراک شما فعال است؛ بستهٔ عکس را جدا بخرید:</p>'
             '<div class="plans pr-cards pr-cards--3">' + alone + '</div></div>'
-            '<div class="plans pr-cards pr-cards--4">' + ''.join(cards) + '</div>'
+            '<div class="plans pr-cards pr-cards--3">' + ''.join(cards) + '</div>'
             '<p class="pr-fine">مشترک‌ها بسته‌های ۵، ۱۰ و ۲۰ عکسیِ «فقط ساخت تصویر» را هم می‌توانند بخرند. تمدید خودکار ندارد.</p></div>')
 
 
 def v2_salon():
     salon_subs = [x for x in SUBS if x['line'] == 'all']
-    pack_opts = '<option value="">بدون بستهٔ عکس</option>' + ''.join(
+    pack_opts = '<option value="">بدون بستهٔ اضافه</option>' + ''.join(
         '<option value="%s:%d" data-add="%d">%s عکس %s · %s تومان</option>' % (k, n, a, fa_int(n), V2_LABEL[k], toman(a))
         for k in LINE_ORDER for n, a in sorted(SUB_PACKS[k].items()))
     cards = []
     for x in salon_subs:
         sid = 'prPack-' + x['key']
+        top = x is salon_subs[-1]
         cards.append(
-            '<article class="plan pr-card">'
-            + '<h3>تا ' + fa_int(x['seats']) + ' نفر</h3>'
+            '<article class="plan pr-card' + (' plan--lead' if top else '') + '">'
+            + ('<span class="plan__badge">' + CROWN + 'بیشترین مشتری</span>' if top else '')
+            + '<h3>' + SALON_TIERS[x['seats']] + '</h3><p class="pr-each">تا ' + fa_int(x['seats']) + ' نفر</p>'
             + '<div class="plan__price"><p class="plan__amount"><b>' + toman(x['amount']) + '</b> تومان</p><p class="pr-each">در ماه، برای کل سالن</p></div>'
             + '<ul><li>' + TICK + '<span>هر چهار خدمت: مدل مو، رنگ مو، ناخن و مژه</span></li>'
-            + '<li>' + TICK + '<span>' + fa_int(x['seats']) + ' کاربر با خود مدیر؛ لینک اختصاصی برای هر همکار</span></li></ul>'
+            + '<li>' + TICK + '<span>' + fa_int(x['seats']) + ' کاربر با خود مدیر؛ لینک اختصاصی برای هر همکار</span></li>'
+            + '<li>' + TICK + '<span>' + toman(x['amount'] // 2) + ' تومان اعتبار تصویر هدیه (نصف مبلغ) برای هر خدمتی</span></li>'
+            + ('<li>' + TICK + '<span><b>جذب مشتری و تبلیغات شما</b> به کاربران عادی آینه</span></li>' if top else '') + '</ul>'
             + '<label class="pr-pick" for="' + sid + '"><span>بستهٔ عکس همراه <small>اختیاری</small></span><select id="' + sid + '">' + pack_opts + '</select></label>'
             + v2_buy('خرید', x['name'], x['amount'], kind='sub', sub=x['key'], pack_select=sid)
             + '</article>')

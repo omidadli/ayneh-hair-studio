@@ -647,3 +647,20 @@ test('studio exports: a known kind on her own result only; templates and the cle
  assert.match(customerHTML,/قالب ریلز اینستاگرام/);assert.match(customerHTML,/قالب تیک‌تاک/);assert.match(customerHTML,/تصویر پروفایل/);assert.match(customerHTML,/حذف واترمارک آینه/);
  const {EXPORT_COINS,CONSULT_COINS}=await import('../worker/customerprices.js');assert.equal(EXPORT_COINS,10);assert.equal(CONSULT_COINS,10);
 });
+
+test('story reward: a checked story screenshot gives 100 coins once; a plain photo is refused',async()=>{
+ const e=fixture();await app.fetch(new Request(origin+'/'),e);
+ const s={slug:'try'},g=await guest(e,s);
+ assert.equal((await call(e,'/api/s/try/story-reward',{media_id:'x'},g)).status,401,'signed in only');
+ e.DB.sql.prepare("UPDATE sessions SET verified_phone='+989121110000'").run();
+ const shot=await upload(e,s,g,'reference');
+ e.KIE_API_KEY='mock';
+ let kv=mockVision(JSON.stringify({instagram_story:false,link_sticker:false,link_text:'',beauty_photo:true,ayneh_mark:true,edited_or_fake:false,confidence:0.9}));
+ try{const r=await call(e,'/api/s/try/story-reward',{media_id:shot},g);assert.equal(r.data.ok,false);assert.equal(r.data.reason,'rejected')}finally{kv.restore()}
+ kv=mockVision(JSON.stringify({instagram_story:true,link_sticker:true,link_text:'ayneh-salon.site',beauty_photo:true,ayneh_mark:true,edited_or_fake:false,confidence:0.9}));
+ try{
+  const ok=await call(e,'/api/s/try/story-reward',{media_id:shot},g);assert.equal(ok.data.ok,true,JSON.stringify(ok));assert.equal(ok.data.coins,100);
+  const again=await call(e,'/api/s/try/story-reward',{media_id:shot},g);assert.equal(again.data.reason,'done','once per account');
+  assert.equal(e.DB.sql.prepare("SELECT SUM(delta) n FROM customer_ledger WHERE reason='story-reward'").get().n,100);
+ }finally{kv.restore()}
+});

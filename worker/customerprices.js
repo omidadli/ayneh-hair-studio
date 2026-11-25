@@ -21,6 +21,9 @@ export const CONSULT_FREE = 1;
 // Templates (story, reels, TikTok, profile) and the download without the Ayneh mark: 10 coins
 // each (20,000 toman), charged once per result and format; the marked download stays free.
 export const EXPORT_COINS = 10;
+// Story reward (owner, Nov 2026): once per account, 100 coins for a story that shows her Ayneh
+// result with a link to the site; a vision model checks the screenshot (worker/server.js).
+export const STORY_REWARD_COINS = 100;
 export const EXPORT_KINDS = ['story', 'reels', 'tiktok', 'profile', 'clean'];                          // free images in the studio, per person
 export const TOPUP_STEP = CUSTOMER_IMAGE_PRICE;                 // top-ups move in whole images
 export const TOPUP_MIN = 100000;                                // toman (2 images)

@@ -26,7 +26,7 @@ import {payForImage,quotaView,isDirect,ownImage,accountFor,customerBalance} from
 import {spendDemoImage} from './demo.js';
 import {recordTiming} from './timing.js';
 import {attachReferral,refOf} from './rewards.js';
-import {IMAGE_COINS,EXPORT_COINS,EXPORT_KINDS} from './customerprices.js';
+import {IMAGE_COINS,EXPORT_COINS,EXPORT_KINDS,STORY_REWARD_COINS} from './customerprices.js';
 /* Every model call (image jobs and the consultant's vision chat) lives in worker/ai.js:
    one provider door, one rate limiter, one result cache. */
 import {createImageTask,uploadProvider,IMAGE_MODELS,recordInfo} from './ai.js';
@@ -214,6 +214,14 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   return J(made);
  }
  // The member behind a credit link: her name, the salon's name and lines (nothing private).
+ /* Salons on a top tier, for Ayneh's customers («سالن‌های پیشنهادی آینه»): public page data only. */
+ if(path==='/api/featured'&&req.method==='GET'){
+  const rows=(await db.prepare("SELECT slug,name,settings,profile FROM salons WHERE settings LIKE '%promoted_until%'").all()).results||[];
+  const now=Date.now(),out=[];
+  for(const r of rows){const st=parse(r.settings),pr=parse(r.profile);if(!(Number(st.promoted_until)>now))continue;out.push({slug:r.slug,name:r.name,logo:pr.logo||'',address:String(pr.address||'').slice(0,80),lines:Array.isArray(st.lines)?st.lines:[]})}
+  out.sort(()=>Math.random()-.5);
+  return J({salons:out.slice(0,12)},200,{'Cache-Control':'public,max-age=300'});
+ }
  const staffGet=path.match(/^\/api\/staff-credit\/([a-f0-9-]{36})$/);
  if(staffGet&&req.method==='GET'){const i=await staffInfo(db,staffGet[1]);return J({member:i.member,salon:i.salon,lines:i.lines,subscribed:i.subscribed,sub:i.sub})}
  // The same purchase from a signed-in salon panel: no form; same salon, same panel key.
@@ -529,6 +537,26 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   if(!acc||(await customerBalance(db,acc.id)).coins<EXPORT_COINS){const e=new Problem(402,acc?'برای این قالب '+EXPORT_COINS.toLocaleString('fa-IR')+' سکه لازم است؛ کیف سکه‌ات را شارژ کن.':'برای این قالب وارد حسابت شو و کیف سکه را شارژ کن.');e.code='export_coins';throw e}
   await run(db,"INSERT OR IGNORE INTO customer_ledger(id,account_id,delta,reason,order_id,created_at) VALUES(?,?,?,'export',?,?)",uid(),acc.id,-EXPORT_COINS,key,Date.now());
   return J({ok:true,paid:true,coins:EXPORT_COINS});
+ }
+ /* Story reward: her screenshot of an Instagram story with her Ayneh result and a link sticker to
+    the site. A vision model reads it; approved once per account → STORY_REWARD_COINS. */
+ if(route==='story-reward'&&req.method==='POST'){
+  must(isDirect(salon),'پیدا نشد',404);
+  must(s.verified_phone,'اول وارد حسابت شو',401);
+  const b=await req.json().catch(()=>({}));
+  const acc=await accountFor(db,env,s,visitorOf(b),{create:true});must(acc,'حساب پیدا نشد',400);
+  if(await one(db,"SELECT 1 FROM customer_ledger WHERE account_id=? AND reason='story-reward'",acc.id))return J({ok:false,reason:'done',message:'هدیهٔ استوری را قبلاً گرفته‌ای.'});
+  await limited(db,'story-reward:'+s.verified_phone,5,'امروز چند بار فرستادی؛ فردا دوباره امتحان کن.');
+  const m=await ownMedia(db,s,b.media_id);
+  const {visionJSON}=await import('./ai.js');
+  const exp=Date.now()+600000,url=(u.origin)+'/api/ai-img/'+m.id+'.'+exp+'.'+await hash('ai-img:'+(env.SESSION_SECRET||env.KIE_API_KEY||'')+':'+m.id+':'+exp)+'.jpg';
+  const r=await visionJSON(env,db,{system:'You verify screenshots for a reward. Reply with ONE JSON object only: {"instagram_story":true|false (the screenshot shows an Instagram story being viewed or posted: story progress bar / profile name at top / story UI),"link_sticker":true|false,"link_text":"the text on the link sticker or empty","beauty_photo":true|false (a woman\'s hairstyle, hair colour, nails or lashes photo),"ayneh_mark":true|false (the word آینه or the Ayneh mirror logo is visible),"edited_or_fake":true|false,"confidence":0.0-1.0}. Be strict: a plain photo, a draft editor without being posted, or another app is false.',user:'Check this screenshot.',image:{url,mime:m.mime},tryLimit:null,okLimit:null,netLimit:null});
+  if(!r.ok)return J({ok:false,reason:'unavailable',message:'بررسی عکس الان ممکن نشد؛ چند دقیقه بعد دوباره بفرست.'});
+  const v=r.value||{},link=String(v.link_text||'').toLowerCase();
+  const pass=v.instagram_story===true&&v.beauty_photo===true&&v.edited_or_fake!==true&&Number(v.confidence)>=0.6&&(v.link_sticker===true&&/ayneh|آینه/.test(link)||v.ayneh_mark===true&&v.link_sticker===true);
+  if(!pass)return J({ok:false,reason:'rejected',message:!v.instagram_story?'این اسکرین‌شات استوری اینستاگرام نیست؛ از استوری منتشرشده‌ات اسکرین‌شات بگیر.':!v.link_sticker?'لینک سایت آینه در استوری دیده نمی‌شود؛ استیکر Link با آدرس ayneh-salon.site بگذار.':'عکس آینه‌ات در استوری پیدا نشد؛ عکس نتیجه‌ات را در استوری بگذار.'});
+  const ins=await run(db,"INSERT OR IGNORE INTO customer_ledger(id,account_id,delta,reason,order_id,created_at) VALUES(?,?,?,'story-reward','once',?)",uid(),acc.id,STORY_REWARD_COINS,Date.now());
+  return J({ok:true,coins:STORY_REWARD_COINS});
  }
  if(route==='looks'){if(!s.verified_phone)return J({looks:[],signed_in:false});const rows=await all(db,"SELECT id,result_id,line,style,transfer,color,created_at FROM generations WHERE salon_id=? AND state='success' AND result_id IS NOT NULL AND kind<>'views' AND (session_id=? OR (? IS NOT NULL AND session_id IN (SELECT id FROM sessions WHERE salon_id=? AND verified_phone=?))) ORDER BY created_at DESC LIMIT 60",salon.id,s.id,s.verified_phone||null,salon.id,s.verified_phone||null);return J({looks:rows.map(r=>({id:r.id,image:r.result_id,line:r.line,style:r.style,mode:r.transfer,text:r.transfer==='text'||r.transfer==='salon'?String(r.color||'').slice(0,40):'',at:r.created_at}))})}
  /* «پروفایل من»: her account page — name, city, mobile, coins history, saved and liked looks. */

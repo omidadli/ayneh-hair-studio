@@ -10,8 +10,12 @@ export const IMAGE_MODELS={pro:'nano-banana-pro',fast:'nano-banana-2-1'};
 const FALLBACK_MODEL='nano-banana-2';
 /* Vision chat (OpenAI-compatible, model chosen by the URL path; docs.kie.ai → Chat Models).
    Gemini 3.5 Flash (openai) is obsolete on KIE — 3.6 / 3.8 Flash stay. */
-const VISION_MODEL='gemini-3-6-flash-openai';
-const VISION_URL='https://api.kie.ai/'+VISION_MODEL+'/v1/chat/completions';
+/* KIE's chat models (docs.kie.ai/market/gemini): tried in order until one answers; the one that
+   worked is remembered for this worker instance. Images go by a provider-hosted URL (KIE's file
+   upload), since the chat endpoints document URL input only. */
+const VISION_MODELS=['gemini-3-flash','gemini-2.5-flash','gemini-3.1-pro'];
+const visionUrls=m=>['https://api.kie.ai/'+m+'/v1/chat/completions','https://api.kie.ai/api/v1/'+m+'/v1/chat/completions'];
+let visionPick=null;
 
 async function provider(env,path,body){must(env.KIE_API_KEY,'تولید واقعی هنوز متصل نشده است',503);const res=await fetch('https://api.kie.ai'+path,{method:body?'POST':'GET',headers:{Authorization:'Bearer '+env.KIE_API_KEY,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})});const d=await res.json();must(res.ok&&d.code===200,'سرویس تصویر درخواست را نپذیرفت',502);return d.data;}
 
@@ -59,25 +63,27 @@ export async function visionJSON(env,db,{cacheKey,system,user,image,tryLimit,okL
  /* Refund helpers — the rules are in the header comment above. */
  const refundOk=async()=>{if(okLimit)await refund(okLimit.key)};
  const refundNet=async()=>{if(netLimit)await refund(netLimit.key)};
- const url='data:'+(image.mime||'image/jpeg')+';base64,'+toBase64(image.bytes);
- let res;
+ let url=image.url||'data:'+(image.mime||'image/jpeg')+';base64,'+toBase64(image.bytes);
+ const body=m=>JSON.stringify({model:m,stream:false,include_thoughts:false,reasoning_effort:'low',messages:[{role:'system',content:system},{role:'user',content:[{type:'text',text:user},{type:'image_url',image_url:{url}}]}]});
+ const order=visionPick?[visionPick]:VISION_MODELS.flatMap(m=>visionUrls(m).map(u=>({m,u})));
+ let d=null,detail='';
  try{
-  res=await fetch(VISION_URL,{method:'POST',headers:{Authorization:'Bearer '+env.KIE_API_KEY,'Content-Type':'application/json'},signal:AbortSignal.timeout(25000),body:JSON.stringify({model:VISION_MODEL,stream:false,reasoning_effort:'low',messages:[{role:'system',content:system},{role:'user',content:[{type:'text',text:user},{type:'image_url',image_url:{url}}]}]})});
+  for(const c of order){
+   const res=await fetch(c.u,{method:'POST',headers:{Authorization:'Bearer '+env.KIE_API_KEY,'Content-Type':'application/json'},signal:AbortSignal.timeout(40000),body:body(c.m)});
+   const j=await res.json().catch(()=>null);
+   const ok=res.ok&&j&&(!j.code||j.code===200)&&j.choices&&j.choices[0];
+   if(ok){d=j;visionPick=c;break}
+   detail=(c.m+' '+res.status+' '+String(j&&(j.msg||j.message||(j.error&&j.error.message))||'')).slice(0,160);
+   console.error('vision',detail);
+  }
  }catch(e){
-  /* The request never came back: a timeout may have been billed in flight — keep the network
-     slot; a connection-level failure was not — give it back. The success slot always returns;
-     the attempt always counts. */
   if(e instanceof Problem)throw e;
   await refundOk();
   if(!(e&&e.name==='TimeoutError'))await refundNet();
   return {ok:false,reason:e&&e.name==='TimeoutError'?'timeout':'invalid'};
  }
  try{
-  const d=await res.json().catch(()=>null);
-  /* HTTP non-2xx was not billed: network slot back. A 2xx error body (KIE reports errors as
-     HTTP 200 {code,msg}) is an answered request: success slot back, network slot stays. */
-  if(!res.ok){await refundOk();await refundNet();return {ok:false,reason:'provider'}}
-  if(d&&d.code&&d.code!==200){await refundOk();return {ok:false,reason:'provider'}}
+  if(!d){await refundOk();await refundNet();return {ok:false,reason:'provider',detail}}
   const content=d&&d.choices&&d.choices[0]&&d.choices[0].message&&d.choices[0].message.content;
   if(typeof content!=='string'||!content.trim()){await refundOk();return {ok:false,reason:'empty'}}
   const first=content.indexOf('{'),last=content.lastIndexOf('}');

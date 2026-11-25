@@ -8,7 +8,7 @@
 import {must,Problem,uid,token,hash,limited} from './domain.js';
 import {LINE_KEYS,LINE_LABEL,COLOR_STYLES,NAIL_STYLES,LASH_STYLES} from './lines.js';
 import {styles} from './legacy.js';
-import {visionJSON} from './ai.js';
+import {visionJSON,uploadProvider} from './ai.js';
 import {isDirect} from './customers.js';
 import {bucketFor} from './storage.js';
 import {baseCSS} from './design.js';
@@ -250,11 +250,11 @@ export async function consultApi(req,env,{u,route,salon,s,clientIp}){
   const object=await bucketFor(env).get(m.object_key);
   must(object,'عکس در دسترس نیست',410);
   const bytes=new Uint8Array(await object.arrayBuffer());
-  const r=await visionJSON(env,db,{cacheKey:'consult:'+PROMPT_V+':'+await hashBytes(bytes),system:SYSTEM,user:USER,image:{mime:m.mime,bytes},
+  const r=await visionJSON(env,db,{cacheKey:'consult:'+PROMPT_V+':'+await hashBytes(bytes),system:SYSTEM,user:USER,image:{mime:m.mime,bytes,url:await uploadProvider(env,m).catch(()=>'')},
    tryLimit:{key:who+':try',max:phone?60:3,message:'چند بار تلاش کردی؛ کمی بعد دوباره امتحان کن'},
    okLimit:{key:who+':ok',max:phone?30:1,message:'تحلیل عکس امروز تمام شد؛ فردا دوباره امتحان کن یا وارد حساب شو.'},
    netLimit:phone?null:{key:'consult-net:'+(clientIp||'unknown'),max:NET_DAILY,message:'از این شبکه امروز چندین تحلیل زده شد؛ فردا دوباره امتحان کن.'}});
-  if(!r.ok)return J({ok:false,fallback:'questionnaire',reason:r.reason});
+  if(!r.ok)return J({ok:false,fallback:'questionnaire',reason:r.reason,detail:r.detail||''});
   const a=cleanAnalysis(r.value,line);
   if(!Object.keys(a.fields).length)return J({ok:false,fallback:'questionnaire',reason:'invalid'});
   return J({ok:true,fields:a.fields,confidence:a.confidence,low:a.low,cached:!!r.cached});

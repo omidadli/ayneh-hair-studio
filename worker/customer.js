@@ -1321,11 +1321,11 @@ function renderStudioHead(){
  var body=el('div',{class:'studio'},[
   el('h1',{class:'studio__title',text:'روی عکس خودت ببین چی بهت میاد'}),
   el('p',{class:'studio__tag',text:'مدل مو، رنگ مو، ناخن و مژه؛ قبل از اینکه بری آرایشگاه. بدون نصب، فقط با یه عکس.'}),
+  el('button',{class:'studio__ai',type:'button',onclick:startConsult},[el('span',{class:'studio__ai-ico',html:ICO.spark}),el('span',{},[el('b',{text:'نمی‌دونی چی بهت میاد؟ هوش مصنوعی تحلیلت می‌کنه'}),el('small',{text:'فرم صورت، رنگ پوست و موهات رو مثل یک استایلیست بررسی می‌کنیم و بهترین مدل‌ها رو با عکس نشونت می‌دیم · اولین تحلیل رایگان'})]),el('span',{class:'studio__ai-go',html:ICO.arrow})]),
   studioProof(),
   el('div',{class:'wallet',id:'wallet','aria-live':'polite'},[el('div',{class:'skel',style:'height:56px;border-radius:16px'})]),
   /* One tap to the photo picker (the gesture opens it on iOS too); with a photo already in, straight to the choices. */
   el('button',{class:'btn btn--primary btn--lg studio__cta',type:'button',onclick:function(){track('cta','studio');if(state.original){go(2);return}go(1);var p=$('#pick');if(p)p.click()},html:ICO.camera+'<span>'+(state.original?'ادامه با همین عکس':'شروع با عکس خودم')+'</span>'}),
-  el('button',{class:'studio__ai',type:'button',onclick:startConsult},[el('span',{class:'studio__ai-ico',html:ICO.spark}),el('span',{},[el('b',{text:'نمی‌دونی چی بهت میاد؟ هوش مصنوعی تحلیلت می‌کنه'}),el('small',{text:'فرم صورت، رنگ پوست و موهات رو مثل یک استایلیست بررسی می‌کنیم و بهترین مدل‌ها رو با عکس نشونت می‌دیم · اولین تحلیل رایگان'})]),el('span',{class:'studio__ai-go',html:ICO.arrow})]),
   el('section',{class:'trend',id:'trend','aria-label':'ترندهای این هفته'}),
   el('section',{class:'album',id:'album','aria-label':'آلبوم من',hidden:true})
  ]);

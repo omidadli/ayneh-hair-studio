@@ -253,6 +253,9 @@ async function ownResult(db,s,id,photo,line){
  return m;
 }
 
+/* The photo as a 10-minute signed link on our own domain (served by server.js /ai-img/). */
+async function aiImageUrl(env,u,id){const exp=Date.now()+600000;return (env.APP_ORIGIN||u.origin).replace(/\/$/,'')+'/api/ai-img/'+id+'.'+exp+'.'+await hash('ai-img:'+(env.SESSION_SECRET||env.KIE_API_KEY||'')+':'+id+':'+exp)+'.jpg'}
+
 /* ---------- routes (called from server.js api() after the session is resolved) ---------- */
 export async function consultApi(req,env,{u,route,salon,s,clientIp}){
  const db=env.DB,phone=s.verified_phone;
@@ -287,7 +290,7 @@ export async function consultApi(req,env,{u,route,salon,s,clientIp}){
     payer=acc.id;
    }
   }
-  const r=await visionJSON(env,db,{cacheKey:ck,system:systemFor(line),user:USER,image:{mime:m.mime,bytes,url:await uploadProvider(env,m).catch(()=>'')},
+  const r=await visionJSON(env,db,{cacheKey:ck,system:systemFor(line),user:USER,image:{mime:m.mime,bytes,url:await aiImageUrl(env,u,m.id)},
    tryLimit:{key:who+':try',max:phone?60:3,message:'چند بار تلاش کردی؛ کمی بعد دوباره امتحان کن'},
    okLimit:payer?null:{key:who+':ok',max:phone?30:1,message:'تحلیل عکس امروز تمام شد؛ فردا دوباره امتحان کن یا وارد حساب شو.'},
    netLimit:phone?null:{key:'consult-net:'+(clientIp||'unknown'),max:NET_DAILY,message:'از این شبکه امروز چندین تحلیل زده شد؛ فردا دوباره امتحان کن.'}});

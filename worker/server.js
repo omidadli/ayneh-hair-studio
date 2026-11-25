@@ -394,6 +394,15 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
   b.slug=String(b.slug||'').trim().toLowerCase().replace(/[\s_]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
   must(/^[a-z][a-z0-9-]{2,45}$/.test(b.slug),'نشانی صفحه فقط حروف انگلیسی، عدد و خط تیره (-) دارد، با حرف شروع می‌شود و حداقل ۳ حرف است؛ مثل aliadli-salon');
   must(!await one(db,'SELECT 1 FROM salons WHERE slug=?',b.slug),'این نشانی را سالن دیگری گرفته؛ یک نشانی دیگر بنویسید');must(text(b.name||'',100).length>=2,'نام سالن را بنویسید');await run(db,'INSERT INTO salons(id,slug,owner_id,name,created_at,settings) VALUES(?,?,?,?,?,?)',id,b.slug,who.user||'owner',text(b.name,100),Date.now(),JSON.stringify({generation_enabled:true,reference_verified:true}));return J({id,slug:b.slug});}
+ /* A photo for the analysis model to read: a short-lived signed link (worker/consult.js aiImageUrl),
+    so the provider fetches it from here — no public bucket, nothing listed, 10 minutes only. */
+ const aiImg=path.match(/^\/api\/ai-img\/([a-f0-9-]{36})\.(\d{10,13})\.([a-f0-9]{64})\.jpg$/);
+ if(aiImg&&req.method==='GET'){
+  must(Number(aiImg[2])>Date.now()&&aiImg[3]===await hash('ai-img:'+(env.SESSION_SECRET||env.KIE_API_KEY||'')+':'+aiImg[1]+':'+aiImg[2]),'پیدا نشد',404);
+  const m=await one(db,'SELECT object_key,mime FROM media WHERE id=?',aiImg[1]);must(m,'پیدا نشد',404);
+  const o=await bucketFor(env).get(m.object_key);must(o,'پیدا نشد',404);
+  return new Response(o.body,{headers:{'Content-Type':m.mime||'image/jpeg','Cache-Control':'private,no-store','X-Robots-Tag':'noindex'}});
+ }
  const match=path.match(/^\/api\/s\/([a-z0-9-]+)(?:\/(.*))?$/);must(match,'مسیر پیدا نشد',404);let salon=await one(db,'SELECT * FROM salons WHERE slug=?',match[1]);
  // The public demo salon behind the landing page is created on first visit; owner_id 'system' marks it.
  if(!salon&&match[1]==='demo'){await run(db,'INSERT OR IGNORE INTO salons(id,slug,owner_id,name,profile,settings,created_at) VALUES(?,?,?,?,?,?,?)',uid(),'demo','system','آینه (نسخهٔ نمونه)','{}',JSON.stringify({generation_enabled:true,reference_verified:false,demo:true}),Date.now());salon=await one(db,'SELECT * FROM salons WHERE slug=?','demo')}

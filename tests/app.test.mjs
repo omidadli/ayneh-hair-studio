@@ -2952,7 +2952,7 @@ test('hero choreography, scroll cinema backdrop, and UI/UX alignment fixes',()=>
  // Post-loader hero typing uses single Text nodes so Persian cursive glyphs join cleanly
  assert.ok(landingHTML.includes("dispatchEvent(new Event('ayneh:ready'))"),'loader dispatches ayneh:ready');
  assert.ok(landingHTML.includes('const mainNode=document.createTextNode(\'\'),accNode=document.createTextNode(\'\'),leadNode=document.createTextNode(\'\')'),'single Text nodes preserve Persian ligatures while typing');
- assert.ok(landingHTML.includes('await w(1000)')&&landingHTML.includes("box.classList.remove('is-stage')"),'headline pauses 1s then glides up');
+ assert.ok(landingHTML.includes('await w(400)')&&landingHTML.includes("box.classList.remove('is-stage')"),'headline pauses briefly then glides up; buttons arrive with the lead');
  assert.ok(landingHTML.includes('.hero::before')&&landingHTML.includes('.hero::after'),'minimal hero backdrop frames hero typography');
  // Mobile + desktop scroll-scrubbed cinema progress and per-page scenes
  assert.ok(landingHTML.includes("bar.className='story__bar'")&&landingHTML.includes("rail.className='story__rail'"),'mobile and desktop cinema progress indicators ship');

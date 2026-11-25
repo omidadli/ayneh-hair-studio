@@ -34,12 +34,16 @@ export const PLATFORMS={
  telegram:{name:'telegram',label:'تلگرام',api:'https://api.telegram.org',col:'telegram_chat_id',html:true,token:e=>e?.TELEGRAM_BOT_TOKEN,user:e=>(e?.TELEGRAM_BOT_USERNAME||'').replace(/^@/,''),link:(u,c)=>'https://t.me/'+u+'?start='+c},
  bale:{name:'bale',label:'بله',api:'https://tapi.bale.ai',col:'bale_chat_id',html:false,token:e=>e?.BALE_BOT_TOKEN,user:e=>(e?.BALE_BOT_USERNAME||'').replace(/^@/,''),link:(u,c)=>'https://ble.ir/'+u+'?start='+c}
 };
+/* Salons, their members and customers use Telegram only (owner's order, Nov 2026: Bale removed
+   from everything salon-facing; WhatsApp works through ready-made wa.me messages in the panel).
+   Bale stays defined for the owner's own alert channel (worker/alerts.js). */
+const SALON_PLATFORMS=()=>Object.values(PLATFORMS).filter(P=>P.name!=='bale');
 export const platformReady=(env,p)=>!!PLATFORMS[p].token(env);
-export const botReady=env=>platformReady(env,'telegram')||platformReady(env,'bale');
+export const botReady=env=>platformReady(env,'telegram');
 export const baleSecret=env=>env?.BALE_WEBHOOK_SECRET||env?.TELEGRAM_WEBHOOK_SECRET||'';
 // Platforms on which this salon can actually receive messages right now.
-export const inboxes=(env,salon)=>Object.values(PLATFORMS).filter(P=>salon?.[P.col]&&P.token(env)).map(P=>P.name);
-export function followLinks(env,token){const out={};for(const P of Object.values(PLATFORMS)){const u=P.user(env);if(P.token(env)&&u)out[P.name]=P.link(u,'f_'+token)}return out}
+export const inboxes=(env,salon)=>SALON_PLATFORMS().filter(P=>salon?.[P.col]&&P.token(env)).map(P=>P.name);
+export function followLinks(env,token){const out={};for(const P of SALON_PLATFORMS()){const u=P.user(env);if(P.token(env)&&u)out[P.name]=P.link(u,'f_'+token)}return out}
 
 const esc=s=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 const plain=s=>String(s??'').replace(/<\/?b>/g,'').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&');
@@ -73,7 +77,7 @@ async function fileBytes(env,p,file_id){
 export async function newLinkCode(db,salon,env){
  const raw=Array.from(crypto.getRandomValues(new Uint8Array(12)),x=>x.toString(16).padStart(2,'0')).join('');
  await run(db,'UPDATE salons SET telegram_code_hash=?,telegram_code_expires=? WHERE id=?',await hash(raw),Date.now()+7*86400000,salon.id);
- const links={};for(const P of Object.values(PLATFORMS)){const u=P.user(env);if(P.token(env)&&u)links[P.name]=P.link(u,raw)}
+ const links={};for(const P of SALON_PLATFORMS()){const u=P.user(env);if(P.token(env)&&u)links[P.name]=P.link(u,raw)}
  return {code:raw,link:links.telegram||null,links};
 }
 
@@ -82,7 +86,7 @@ const help=(name,sms,P)=>'<b>راهنمای مدیر سالن'+(name?' — '+esc
  'زیر درخواست‌ها دکمهٔ «👤 بده به …» هم هست: با آن درخواست را به یکی از آرایشگرها می‌دهید و از آن به بعد آن مشتری (و هر کس که او بیاورد) مال همان آرایشگر است.\n'+
  'مشتری‌هایی که با لینک یک آرایشگر آمده‌اند فقط به خود او می‌رسند. اگر مشتری یک آرایشگر با لینک آرایشگر دیگری بیاید، یک پیام کوتاه می‌گیرید که اگر خواستید جابه‌جایش کنید.\n\n'+
  '<b>🖼 نمونه‌کار</b>\nعکس را همین‌جا بفرستید و زیرش (کپشن) اسم کار را بنویسید، مثلاً «بالیاژ عسلی»، «فرنچ بادامی» یا «مژه والیوم». ربات از کپشن می‌فهمد کار مو، ناخن یا مژه است و زیر هر عکس سه دکمه برای اصلاحش هست. چند عکس با هم هم می‌شود؛ همه کپشن همان آلبوم را می‌گیرند. عکس بلافاصله روی صفحهٔ سالن می‌نشیند. با فرستادن عکس تأیید می‌کنید اجازهٔ انتشارش را دارید.\n\n'+
- '<b>📲 لینک برای مشتری</b>\nشمارهٔ موبایل مشتری را بنویسید (مثلاً ۰۹۱۲۱۲۳۴۵۶۷، تا ۵ شماره با فاصله)'+(sms?' تا لینک سالن برایش پیامک شود.':'. دکمه‌هایی می‌آید که لینک را با واتساپ، تلگرام، پیامک از گوشی خودتان، بله یا دایرکت اینستاگرام برایش بفرستید. /share همین دکمه‌ها را بدون شماره می‌دهد.')+'\n\n'+
+ '<b>📲 لینک برای مشتری</b>\nشمارهٔ موبایل مشتری را بنویسید (مثلاً ۰۹۱۲۱۲۳۴۵۶۷، تا ۵ شماره با فاصله)'+(sms?' تا لینک سالن برایش پیامک شود.':'. دکمه‌هایی می‌آید که لینک را با واتساپ، تلگرام، پیامک از گوشی خودتان یا دایرکت اینستاگرام برایش بفرستید. /share همین دکمه‌ها را بدون شماره می‌دهد.')+'\n\n'+
  '<b>دستورها</b>\n/share فرستادن لینک برای مشتری با پیام‌رسان\n/team تیم سالن: افزودن و حذف آرایشگر، لینک دعوت و لینک اختصاصی هر نفر\n/link لینک اختصاصی خودتان (اگر خودتان هم کار می‌کنید)\n/setup تکمیل یا تغییر اطلاعات صفحهٔ سالن (هر سؤال «رد شو» دارد)\n/list نمونه‌کارها و حذف\n/help همین راهنما';
 const ownerHelp='<b>گزارش‌های آینه</b>\n\nاز این به بعد هشدارها همین‌جا می‌آید: سالن یا آرایشگری که ربات را وصل کرد یا نکرد، صفحه‌ای که کامل یا نیمه‌کاره ماند، درخواستی که ۲۴ ساعت بی‌جواب ماند یا گیر کرد، و خطاهای ربات. هر شب ساعت ۲۱ هم خلاصهٔ روز می‌آید.\n\n/report خلاصهٔ همین الان';
 async function salonByChat(db,p,chat){return one(db,'SELECT * FROM salons WHERE '+PLATFORMS[p].col+'=?',String(chat))}
@@ -99,13 +103,13 @@ const staffHelp=(t,salon,origin,sms)=>'<b>'+esc(t.name)+' — تیم «'+esc(sal
  'این لینک را برای مشتری‌ها و دوستانت بفرست (تلگرام، واتساپ، استوری…). هر کس با این لینک بیاید، و هر کس که او لینک را برایش بفرستد، برای همیشه مشتری تو حساب می‌شود و درخواستش فقط به خودت می‌رسد.\n\n'+
  '<b>📥 درخواست مشتری‌هایت</b>\nهمین‌جا با عکس قبل و بعد، اسم و شماره می‌آید. بعد از تماس یکی از دکمه‌ها را بزن («📞 تماس گرفتم»، «✅ نوبت دادم»، «🚫 قابل اجرا نیست») تا مشتری خبردار شود.\n\n'+
  '<b>🖼 نمونه‌کار</b>\nعکس کارت را بفرست و زیرش اسم کار را بنویس (مثلاً «کوتاهی پروانه‌ای»). با اسم تو روی صفحهٔ سالن می‌نشیند و مشتری‌هایت اول کارهای تو را می‌بینند. برای حذف، /list را بزن.\n\n'+
- '<b>📲 فرستادن لینک برای مشتری</b>\nشمارهٔ موبایل مشتری را بنویس (تا ۵ شماره با فاصله)'+(sms?' تا لینک اختصاصی تو برایش پیامک شود.':'. دکمه‌هایی می‌آید که لینک اختصاصی‌ات را با واتساپ، تلگرام، پیامک از گوشی خودت، بله یا دایرکت اینستاگرام برایش بفرستی.')+'\n\n'+
+ '<b>📲 فرستادن لینک برای مشتری</b>\nشمارهٔ موبایل مشتری را بنویس (تا ۵ شماره با فاصله)'+(sms?' تا لینک اختصاصی تو برایش پیامک شود.':'. دکمه‌هایی می‌آید که لینک اختصاصی‌ات را با واتساپ، تلگرام، پیامک از گوشی خودت یا دایرکت اینستاگرام برایش بفرستی.')+'\n\n'+
  '/share فرستادن لینک با پیام‌رسان\n/link لینک اختصاصی من\n/list نمونه‌کارهای من و حذف\n/help همین راهنما';
 // One-time invite for a member (same code format as the salon link, kept on the member's row).
 export async function staffInvite(db,env,t){
  const raw=Array.from(crypto.getRandomValues(new Uint8Array(12)),x=>x.toString(16).padStart(2,'0')).join('');
  await run(db,'UPDATE team SET invite_hash=?,invite_expires=? WHERE id=?',await hash(raw),Date.now()+7*86400000,t.id);
- const links={};for(const P of Object.values(PLATFORMS)){const u=P.user(env);if(P.token(env)&&u)links[P.name]=P.link(u,raw)}
+ const links={};for(const P of SALON_PLATFORMS()){const u=P.user(env);if(P.token(env)&&u)links[P.name]=P.link(u,raw)}
  return links;
 }
 
@@ -312,7 +316,6 @@ async function showStaffLinks(ctx,t,fresh){
  const lines=[(fresh?'✅ «'+t.name+'» به تیم اضافه شد.':'🔗 لینک‌های «'+t.name+'»'),'',
   '۱) لینک دعوت (یک‌بار مصرف، ۷ روز) — برای خود '+t.name+' بفرستید تا ربات را وصل کند:'];
  if(links.telegram)lines.push('تلگرام: '+links.telegram);
- if(links.bale)lines.push('بله: '+links.bale);
  lines.push('','۲) لینک اختصاصی '+t.name+' برای مشتری‌ها (همیشگی):',refUrl(ctx.origin,ctx.salon,t));
  await ctx.say(lines.join('\n'));
 }

@@ -992,7 +992,7 @@ function trialUpgrade(line){
   el('div',{class:'upgrade-ways'},[
    el('div',{class:'upgrade-way'},[h('b','بستهٔ عکس'),h('span',img.single?'هر عکس '+fa(img.single)+' تومان؛ بسته‌های ۵، ۱۰ و ۲۰ تایی تا ۱۵٪ ارزان‌تر':'بسته‌های ۵، ۱۰ و ۲۰ تایی'),h('small','بدون اشتراک؛ فقط ساخت تصویر')]),
    el('div',{class:'upgrade-way is-best'},[h('b','اشتراک ماهانه'),h('span',(sub?'ماهی '+fa(sub)+' تومان؛ ':'')+(isFinite(minSub)?'هر عکس تا '+fa(minSub)+' تومان':'عکس‌ها ارزان‌تر')),
-    el('ul',{class:'upgrade-perks'},['صفحهٔ اختصاصی و نمونه‌کارها','درخواست مشتری‌ها در تلگرام و بله','نوبت‌دهی و گزارش'].map(function(x){return el('li',{text:x})}))])
+    el('ul',{class:'upgrade-perks'},['اعتبار تصویر به اندازهٔ نصف مبلغ اشتراک','صفحهٔ اختصاصی و نمونه‌کارها','درخواست مشتری‌ها در پنل و تلگرام، پیام آماده در واتس‌اپ','نوبت‌دهی و گزارش'].map(function(x){return el('li',{text:x})}))])
   ]),
   el('a',{class:'btn btn--primary btn--block',href:pricingUrl(line),text:'دیدن بسته‌ها و اشتراک‌ها'}),
   h('p','خرید روی همین شماره و همین صفحه فعال می‌شود.','upgrade-note')
@@ -2815,7 +2815,7 @@ function openShare(){
   opt('sms','پیامک',SHARE_IC.sms,'#6a7a75','sms:?&body='+encodeURIComponent(both)),
   opt('instagram','اینستاگرام',SHARE_IC.cam,'linear-gradient(45deg,#f2a93b,#d6286f 55%,#7b3bc4)',null,function(){copyText(url).then(function(){done('instagram','لینک کپی شد؛ در دایرکت یا استوری اینستاگرام بگذار')},function(){toast(url)})}),
   opt('copy','کپی لینک',SHARE_IC.link,'var(--accent)',null,function(){copyText(both).then(function(){done('copy','متن و لینک کپی شد')},function(){toast(url)})}),
-  navigator.share?opt('native','بله، ایتا و…',SHARE_IC.more,'#2f3b38',null,function(){navigator.share({title:s.name,text:text,url:url}).then(function(){done('native')},function(){})}):null
+  navigator.share?opt('native','برنامه‌های دیگر',SHARE_IC.more,'#2f3b38',null,function(){navigator.share({title:s.name,text:text,url:url}).then(function(){done('native')},function(){})}):null
  ]);
  panel.append(grid,h('p','دوستت لینک را باز می‌کند و '+offerText()+' را روی عکس خودش امتحان می‌کند. فقط لینک صفحه فرستاده می‌شود، نه عکس تو.','share__note'));
  openSheet(panel);

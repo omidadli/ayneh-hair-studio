@@ -32,7 +32,7 @@ export function shareLinks(origin,salon,member,number=null){
 export function shareKeyboard(links,number=null){
  return {inline_keyboard:[
   [{text:'💬 واتساپ'+(number?' به همین شماره':''),url:links.whatsapp},{text:'✈️ تلگرام',url:links.telegram}],
-  [{text:'✉️ پیامک، بله، اینستاگرام و بقیه',url:links.page}]
+  [{text:'✉️ پیامک، اینستاگرام و بقیه',url:links.page}]
  ]};
 }
 
@@ -72,12 +72,11 @@ export async function sharePage(u,env){
   opt('o-sms','پیامک',SVG.sms,'#6a7a75',sms)+
   opt('o-wa','واتساپ',SVG.wa,'#25a85a',L.whatsapp)+
   opt('o-tg','تلگرام',SVG.tg,'#2a9fd8',L.telegram)+
-  opt('o-bale','بله',SVG.bale,'#1fa37a','#')+
   opt('o-ig','اینستاگرام',SVG.ig,'#c13584','#')+
   opt('o-copy','کپی متن',SVG.copy,'#4b3d33','#')+
  '</div>'+
  '<button class="btn btn--soft" id="o-more" type="button" hidden>'+SVG.more.replace('<svg','<svg width="18" height="18"')+'<span>بقیهٔ برنامه‌ها</span></button>'+
- '<p class="note">برای بله و اینستاگرام متن کپی می‌شود؛ در گفتگوی مشتری نگه دار و «چسباندن» را بزن.</p>'+
+ '<p class="note">برای اینستاگرام متن کپی می‌شود؛ در گفتگوی مشتری نگه دار و «چسباندن» را بزن.</p>'+
  '</main><div class="toast" id="toast" role="status"></div><script>'+
  'var T='+JSON.stringify(L.both).replace(/</g,'\\u003c')+';'+
  'function toast(m){var t=document.getElementById("toast");t.textContent=m;t.className="toast on";clearTimeout(window.__t);window.__t=setTimeout(function(){t.className="toast"},3500)}'+
@@ -85,7 +84,6 @@ export async function sharePage(u,env){
  'function old(){var a=document.createElement("textarea");a.value=T;a.style.position="fixed";a.style.opacity="0";document.body.appendChild(a);a.select();var ok=false;try{ok=document.execCommand("copy")}catch(e){}a.remove();return ok}'+
  'function share(){if(navigator.share){navigator.share({text:T}).catch(function(){});return true}return false}'+
  'document.getElementById("o-copy").onclick=function(e){e.preventDefault();copy().then(function(ok){toast(ok?"متن کپی شد":"کپی نشد؛ متن بالا را نگه دار و کپی کن")})};'+
- 'document.getElementById("o-bale").onclick=function(e){e.preventDefault();if(share())return;copy().then(function(){toast("متن کپی شد؛ در بله گفتگوی مشتری را باز کن و بچسبان");setTimeout(function(){location.href="https://web.bale.ai/"},900)})};'+
  'document.getElementById("o-ig").onclick=function(e){e.preventDefault();copy().then(function(){toast("متن کپی شد؛ در دایرکت مشتری بچسبان");setTimeout(function(){location.href="https://www.instagram.com/direct/inbox/"},900)})};'+
  'if(navigator.share){var m=document.getElementById("o-more");m.hidden=false;m.onclick=share}'+
  '</script></body></html>';

@@ -226,7 +226,7 @@ export async function publicOrder(db, env, row, {key = '', password = '', origin
   };
 }
 const maskTel = tel => { const d = String(tel || '').replace(/^\+98/, '0'); return d.length === 11 ? d.slice(0, 4) + '***' + d.slice(7) : ''; };
-const SUB_FEATURES = ['صفحهٔ اختصاصی و نمونه‌کارها', 'درخواست مشتری‌ها در ربات تلگرام و بله', 'نوبت‌دهی و پیگیری مشتری', 'گزارش عملکرد', 'قیمت ارزان‌تر هر عکس با بسته‌های ۵۰ تا ۲۰۰ تایی'];
+const SUB_FEATURES = ['صفحهٔ اختصاصی و نمونه‌کارها', 'اعتبار تصویر به اندازهٔ نصف مبلغ اشتراک', 'درخواست مشتری‌ها در پنل و ربات تلگرام، پیام آماده در واتس‌اپ', 'نوبت‌دهی و پیگیری مشتری', 'گزارش عملکرد', 'قیمت ارزان‌تر هر عکس با بسته‌های ۵۰ تا ۲۰۰ تایی'];
 async function activatedView(db, row) {
   const salon = await one(db, 'SELECT id,settings FROM salons WHERE id=?', row.salon_id);
   const b = salon ? await balance(db, salon) : null;
@@ -888,7 +888,7 @@ export async function rekeyOrder(db, id) {
    the plan, never from the browser. */
 export const CHECKLIST = [
   {key: 'portfolio', label: 'نمونه‌های کارتان را اضافه کنید'},
-  {key: 'bot', label: 'ربات تلگرام یا بله را وصل کنید'},
+  {key: 'bot', label: 'ربات تلگرام را وصل کنید'},
   {key: 'try', label: 'نمونه‌ای بسازید و نتیجه را ببینید'},
   {key: 'share', label: 'لینک خودتان را به مشتریان بدهید'},
 ];
@@ -942,7 +942,7 @@ export async function panelDashboard(db, env, {order, salon}) {
       {key: 'share', label: 'لینک صفحه را در بیو اینستاگرام بگذارید تا اولین درخواست برسد', done: leads.length > 0},
     ] : [{key: 'try', label: 'با لینک خودتان یک نمونه بسازید', done: !!tried}]),
     ...(hasBot ? [
-      {key: 'telegram', label: 'ربات تلگرام یا بله را وصل کنید', done: !!(salon.telegram_chat_id || salon.bale_chat_id)},
+      {key: 'telegram', label: 'ربات تلگرام را وصل کنید', done: !!salon.telegram_chat_id},
       {key: 'team', label: 'اگر همکار دارید، از ربات اضافه‌شان کنید (اختیاری)', done: team.length > 0},
     ] : []),
   ];

@@ -299,6 +299,10 @@ function dayChips(onPick,start){
   btns.push(b);box.append(b)})(k);
  return {box:box,day:function(){return chosen}};
 }
+/* WhatsApp has no bot for Iranian numbers (the official API needs Meta business approval), so
+   the panel opens WhatsApp with a ready message to the customer's mobile; the salon taps send. */
+function waLink(phone,text){var n=String(phone||'').replace(/[۰-۹]/g,function(c){return '۰۱۲۳۴۵۶۷۸۹'.indexOf(c)}).replace(/\D/g,'');if(/^0/.test(n))n='98'+n.slice(1);else if(/^9\d{9}$/.test(n))n='98'+n;return 'https://wa.me/'+n+'?text='+encodeURIComponent(text)}
+function waBtn(phone,text,label){return phone?el('a',{class:'btn btn--ghost btn--sm pn-wa',href:waLink(phone,text),target:'_blank',rel:'noopener',text:label||'پیام در واتس‌اپ'}):null}
 function bookingForm(d,lead,done){
  var nx=new Date(Date.now()+TEH+3600000),nh=nx.getUTCHours(),nm=nx.getUTCMinutes()<30?30:0;if(nm===0)nh=(nh+1)%24;var late=nh>21||nh<nx.getUTCHours();if(late){nh=10;nm=0}else if(nh<9){nh=9;nm=0}
  /* After 21:00 the form opens on tomorrow at 10:00, never on a time that has passed. */
@@ -310,7 +314,10 @@ function bookingForm(d,lead,done){
   var hm=(time.value||'16:00').split(':');var at=tehranMidnight(days.day())+Number(hm[0])*3600000+Number(hm[1]||0)*60000;
   save.disabled=true;err.hidden=true;
   api('/api/panel/bookings',{lead_id:lead?lead.id:undefined,name:name?name.value:undefined,phone:tel?tel.value:undefined,starts_at:at,duration_min:Number(dur.value),note:note.value}).then(function(r){
-   alert('نوبت برای '+r.when+' ثبت شد.'+(r.told?' پیام تأیید برای مشتری در تلگرام یا بله رفت.':' این مشتری ربات آینه را دنبال نمی‌کند؛ خودتان به او خبر بدهید.')+(r.overlap?' توجه: این زمان با نوبت دیگری هم‌پوشانی دارد.':''));
+   var ph=lead?lead.phone:(tel?tel.value:''),who=lead?lead.name:(name?name.value:'');
+   var msg='نوبت برای '+r.when+' ثبت شد.'+(r.overlap?' توجه: این زمان با نوبت دیگری هم‌پوشانی دارد.':'');
+   if(ph&&confirm(msg+'\n\nپیام تأیید نوبت در واتس‌اپ برای مشتری فرستاده شود؟'))window.open(waLink(ph,'سلام '+(who||'')+' عزیز، نوبتت در «'+d.salon.name+'» برای '+r.when+' ثبت شد. منتظرت هستیم.'),'_blank','noopener');
+   else if(!ph)alert(msg+' شمارهٔ مشتری را ندارید؛ خودتان به او خبر بدهید.');
    done&&done(r);
   }).catch(function(x){err.textContent=x.message;err.hidden=false;save.disabled=false});
  }});
@@ -334,6 +341,7 @@ function requestsTab(d,box){
      api('/api/panel/requests/'+l.id+'/status',{status:st}).then(function(x){l.salon_status=st;load()}).catch(function(x){alert(x.message)});
     }}))});
     var slot=el('div');
+    acts.append(waBtn(String(l.phone||'').replace(/^\+98/,'0'),'سلام '+l.name+' عزیز، درخواستت برای «'+[LINE[l.line]||'',l.look].filter(Boolean).join(' · ')+'» در «'+d.salon.name+'» رسید. کی برای نوبت مناسبته؟'));
     if(has(d,'booking'))acts.append(el('button',{class:'btn btn--primary btn--sm',type:'button',text:l.booking_at?'📅 '+fmt(l.booking_at):'📅 ثبت نوبت',onclick:function(){slot.replaceChildren(bookingForm(d,l,function(){load()}))}}));
     list.append(el('div',{class:'pn-item'},[
      img?el('img',{src:'/api/panel/media/'+img,alt:'عکس درخواست '+l.name,loading:'lazy',onerror:function(e){e.target.replaceWith(el('span',{class:'pn-noimg','aria-label':'عکس در دسترس نیست'}))}}):el('span'),
@@ -353,7 +361,7 @@ function requestsTab(d,box){
  load();
 }
 function bookingsTab(d,box){
- if(!has(d,'booking'))return box.replaceChildren(locked(d,'booking','نوبت‌دهی و پیگیری','روز و ساعت نوبت هر مشتری را ثبت کنید؛ مشتری در تلگرام یا بله تأیید و یک روز قبل یادآوری می‌گیرد.'));
+ if(!has(d,'booking'))return box.replaceChildren(locked(d,'booking','نوبت‌دهی و پیگیری','روز و ساعت نوبت هر مشتری را ثبت کنید و با یک لمس پیام تأیید و یادآوری را در واتس‌اپ برایش بفرستید.'));
  function load(){
   api('/api/panel/bookings').then(function(r){
    var list=el('div',{class:'pn-list'});
@@ -361,6 +369,7 @@ function bookingsTab(d,box){
    r.bookings.forEach(function(b){
     var acts=el('div',{class:'pn-acts'});
     if(b.status==='scheduled'){
+     acts.append(waBtn(b.phone?String(b.phone).replace(/^\+98/,'0'):'','سلام '+b.customer_name+' عزیز، یادآوری نوبتت در «'+d.salon.name+'»: '+b.when+'. منتظرت هستیم.','یادآوری در واتس‌اپ'));
      acts.append(el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'انجام شد',onclick:function(){act(b,'done')}}));
      acts.append(el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'نیامد',onclick:function(){act(b,'no_show')}}));
      acts.append(el('button',{class:'btn btn--ghost btn--sm',type:'button',text:'لغو',onclick:function(){if(confirm('نوبت لغو شود؟'))act(b,'cancel')}}));
@@ -423,10 +432,10 @@ function supportTab(d,box){
  box.replaceChildren(h('p','پشتیبانی ویژهٔ پلن کامل: پیام شما در اولویت به تیم آینه می‌رسد. برای کار فوری تماس بگیرید: '+SUPPORT_FA),el('div',{class:'pn-form'},[el('label',{},['موضوع',topic]),el('label',{},['پیام',msg]),send,out]));
 }
 function botCard(d){
- if(!has(d,'bot')){var lk=locked(d,'bot','اتصال ربات تلگرام یا بله','درخواست‌ها و نمونه‌کارها را مستقیم در پیام‌رسان بگیرید و بفرستید.');lk.id='pnBot';return lk}
+ if(!has(d,'bot')){var lk=locked(d,'bot','اتصال ربات تلگرام','درخواست‌ها و نمونه‌کارها را مستقیم در پیام‌رسان بگیرید و بفرستید.');lk.id='pnBot';return lk}
  var out=el('div',{class:'pn-acts'});
- return el('div',{class:'pn-card',id:'pnBot'},[h('h2','اتصال ربات'),h('p',d.bot_linked?'ربات وصل است؛ درخواست‌ها در پیام‌رسان هم می‌رسند.':'با یکی از لینک‌های زیر، ربات آینه را در تلگرام یا بله باز کنید و «شروع» را بزنید.'),
-  el('button',{class:'btn btn--primary btn--sm',type:'button',text:d.bot_linked?'لینک تازه برای دستگاه دیگر':'ساخت لینک اتصال',onclick:function(e){e.target.disabled=true;api('/api/panel/bot-link',{}).then(function(r){out.replaceChildren.apply(out,Object.keys(r.links).map(function(k){return el('a',{class:'btn btn--ghost btn--sm',href:r.links[k],target:'_blank',rel:'noopener',text:k==='bale'?'باز کردن در بله':'باز کردن در تلگرام'})}))}).catch(function(x){out.replaceChildren(h('p',x.message,'pn-note'))}).then(function(){e.target.disabled=false})}}),out]);
+ return el('div',{class:'pn-card',id:'pnBot'},[h('h2','اتصال ربات'),h('p',d.bot_linked?'ربات وصل است؛ درخواست‌ها در پیام‌رسان هم می‌رسند.':'با لینک زیر، ربات آینه را در تلگرام باز کنید و «شروع» را بزنید.'),
+  el('button',{class:'btn btn--primary btn--sm',type:'button',text:d.bot_linked?'لینک تازه برای دستگاه دیگر':'ساخت لینک اتصال',onclick:function(e){e.target.disabled=true;api('/api/panel/bot-link',{}).then(function(r){out.replaceChildren.apply(out,Object.keys(r.links).map(function(k){return el('a',{class:'btn btn--ghost btn--sm',href:r.links[k],target:'_blank',rel:'noopener',text:'باز کردن در تلگرام'})}))}).catch(function(x){out.replaceChildren(h('p',x.message,'pn-note'))}).then(function(){e.target.disabled=false})}}),out]);
 }
 var SERVICE_TEXT={hair:'مشتری مدل مو را روی عکس خودش می‌بیند و انتخابش را با عکس برای شما می‌فرستد.',color:'مشتری رنگ مو را روی عکس خودش می‌بیند و انتخابش را با عکس برای شما می‌فرستد.',all:'مشتری مدل مو، رنگ مو، ناخن و مژه را روی عکس خودش می‌بیند و انتخابش را با عکس برای شما می‌فرستد.',nails:'مشتری طرح و رنگ ناخن را روی عکس دست خودش می‌بیند و انتخابش را برای شما می‌فرستد.',lashes:'مشتری مدل مژه را روی عکس چشم خودش می‌بیند و انتخابش را برای شما می‌فرستد.'};
 function shareLink(d,btn){
@@ -484,12 +493,12 @@ function shrink(file){
  });
 }
 /* «پلن و ارتقا»: renew the same plan or move up, through the same checkout; same salon, same key. */
-var PLAN_ADDS={essential:['صفحهٔ اختصاصی و گالری نمونه‌کار','امتحان مدل با عکس دلخواه مشتری','درخواست‌ها در پنل و در تلگرام یا بله'],pro:['همهٔ امکانات پلن پایه','ثبت نوبت با یادآوری به مشتری','گزارش عملکرد ساده'],signature:['همهٔ امکانات پلن حرفه‌ای','گزارش عملکرد کامل','آرشیو مشتریان با خروجی اکسل','پشتیبانی ویژه']};
+var PLAN_ADDS={essential:['صفحهٔ اختصاصی و گالری نمونه‌کار','امتحان مدل با عکس دلخواه مشتری','درخواست‌ها در پنل و در تلگرام'],pro:['همهٔ امکانات پلن پایه','ثبت نوبت با یادآوری به مشتری','گزارش عملکرد ساده'],signature:['همهٔ امکانات پلن حرفه‌ای','گزارش عملکرد کامل','آرشیو مشتریان با خروجی اکسل','پشتیبانی ویژه']};
 PLAN_ADDS.salon1=['همهٔ خدمت‌ها: مدل مو، رنگ مو، ناخن و مژه','امکانات پلن پایه برای کل سالن'];
 PLAN_ADDS.salon3=['همهٔ خدمت‌ها: مدل مو، رنگ مو، ناخن و مژه','امکانات پلن حرفه‌ای برای کل سالن'];
 PLAN_ADDS.salon6=['همهٔ خدمت‌ها: مدل مو، رنگ مو، ناخن و مژه','امکانات پلن کامل برای کل سالن'];
 function plansTabV2(d,box){
- var p=d.pricing,feats=[['page','صفحهٔ اختصاصی با نمونه‌کارهای شما'],['inbox','درخواست مشتری در پنل و ربات تلگرام یا بله'],['booking','ثبت نوبت با یادآوری و پیگیری'],['report_simple','گزارش عملکرد و آرشیو مشتریان'],['priority_support','پشتیبانی ویژه از داخل پنل']];
+ var p=d.pricing,feats=[['page','صفحهٔ اختصاصی با نمونه‌کارهای شما'],['inbox','درخواست مشتری در پنل و ربات تلگرام'],['booking','ثبت نوبت با پیام آمادهٔ تأیید و یادآوری در واتس‌اپ'],['report_simple','گزارش عملکرد و آرشیو مشتریان'],['priority_support','پشتیبانی ویژه از داخل پنل']];
  box.replaceChildren(h('h2','اشتراک و اعتبار'),
   h('p',p.sub&&p.active?'«'+p.sub.name+'» تا '+fmt(p.until)+' فعال است. تمدید یک‌ماهه است و خودکار نیست.':p.sub?'اشتراک «'+p.sub.name+'» تمام شده؛ اعتبار عکس‌ها سر جایش است.':'حساب شما «فقط ساخت تصویر» است. با «اشتراک ماهانه» این‌ها هم باز می‌شود:'),
   el('ul',{class:'pn-steps'},feats.map(function(f){var on=has(d,f[0]);return el('li',{'class':on?'is-done':''},[h('span',on?'✓':'—','pn-tick'),h('span',f[1])])})),

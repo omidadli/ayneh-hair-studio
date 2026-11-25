@@ -1512,7 +1512,7 @@ test('step 24 budget: payload and markup stay inside the review envelope',()=>{
  // Step 26 gave every button the glass material (blur, sheen, four states and a solid
  // fallback) and every icon the clay material: ~8k of design-system CSS on top of the
  // page (255.3k shipped). Still far below the Worker script limit.
- assert.ok(landingHTML.length<272000,'landing under 272k (live capacity strip added), «پکیج تست» card included ('+landingHTML.length+')');
+ assert.ok(landingHTML.length<280000,'landing under 280k (live capacity strip added), «پکیج تست» card included ('+landingHTML.length+')');
  assert.ok(landingHTML.length>60000,'the page still carries its content');
  assert.match(landingHTML,/og:image" content="__ORIGIN__\/landing\/og\.jpg"/,'the share image is origin-relative in source');
  assert.equal((landingHTML.match(/__ORIGIN__/g)||[]).length,10,'signup links, the share image, the canonical and the organisation data carry the origin token');

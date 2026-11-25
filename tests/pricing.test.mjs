@@ -282,3 +282,13 @@ test('monthly capacity is real: each new subscribing salon takes a place, a full
  assert.equal((await call(e,'/api/buy',buyer({phone:'09121110004',kind:'images',line:'color',count:5}))).status,200,'image credits stay open');
  assert.equal((await call(e,'/api/panel/buy',{kind:'sub',sub:'sub_hair',pack:100},{cookie:a.cookie})).status,200,'a running subscriber renews');
 });
+
+test('a full month: «درخواست رزرو جایگاه» is stored once per mobile and listed for the owner',async()=>{
+ const e=fixture();
+ assert.equal((await call(e,'/api/reserve',{first_name:'سارا',last_name:'رضایی',phone:'09121112299',role:'salon',line:'salon'})).status,200);
+ assert.equal((await call(e,'/api/reserve',{first_name:'سارا',last_name:'رضایی',phone:'09121112299',role:'stylist'})).status,200,'a repeat updates');
+ assert.equal((await call(e,'/api/reserve',{first_name:'س',last_name:'',phone:'0912'})).status,400);
+ const list=await call(e,'/api/owner/reservations',undefined,OWNER);assert.equal(list.data.reservations.length,1);assert.equal(list.data.reservations[0].role,'stylist');
+ assert.equal((await call(e,'/api/owner/reservations')).status,401,'owner only');
+ assert.ok(pricingHTML.includes('درخواست رزرو جایگاه'));
+});

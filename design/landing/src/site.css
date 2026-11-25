@@ -1496,31 +1496,54 @@ body{background:transparent}
 .pay-figure--timer{grid-template-columns:1fr auto;align-items:center;column-gap:12px}
 .pay-figure--timer .pay-timer{grid-column:1/-1;margin-top:6px}
 
-/* Live capacity strip on top of the business header (src/capacity.js; real numbers). */
-.capbar{display:flex;align-items:center;justify-content:center;gap:10px;padding:7px 14px;min-height:40px;text-decoration:none;color:#FCF3EB;
-  background:linear-gradient(100deg,#0B4A3D 0%,#0F6B55 45%,#0B4A3D 100%);background-size:220% 100%;animation:capFlow 9s linear infinite;
-  font-size:13px;font-weight:700;position:relative;overflow:hidden}
+/* Live capacity strip on top of the business header (src/capacity.js; real numbers). Motion:
+   a flowing emerald field with a light sweep, a live pulse, a gold arc that drains as places go,
+   an orbiting spark, and a flip-roll on the number when it changes. */
+.capbar{display:flex;align-items:center;justify-content:center;gap:10px;padding:6px 14px;min-height:46px;text-decoration:none;color:#FCF3EB;
+  background:linear-gradient(100deg,#082F27 0%,#0E6550 30%,#0A4A3C 55%,#13775E 80%,#082F27 100%);background-size:260% 100%;animation:capFlow 10s linear infinite;
+  font-size:13.5px;font-weight:800;position:relative;overflow:hidden;isolation:isolate}
 .capbar[hidden]{display:none!important}
-.capbar::after{content:'';position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.16) 50%,transparent 70%);transform:translateX(-120%);animation:capShine 4.5s ease-in-out infinite}
+.capbar::before{content:'';position:absolute;inset:-40% -10%;z-index:-1;background:radial-gradient(closest-side,rgba(244,213,138,.22),transparent 70%) 20% 50%/30% 100% no-repeat,radial-gradient(closest-side,rgba(124,240,196,.18),transparent 70%) 80% 50%/30% 100% no-repeat;animation:capGlow 6s ease-in-out infinite alternate}
+.capbar::after{content:'';position:absolute;inset:0;background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.22) 50%,transparent 65%);transform:translateX(-130%);animation:capShine 4s ease-in-out infinite;pointer-events:none}
 .capbar__live{position:relative;width:10px;height:10px;flex:none}
-.capbar__live i,.capbar__live::before{content:'';position:absolute;inset:0;border-radius:50%;background:#7CF0C4}
-.capbar__live::before{animation:capPulse 1.6s ease-out infinite}
-.capbar__num{display:inline-flex;align-items:baseline;gap:5px;padding:2px 10px;border-radius:999px;background:rgba(252,243,235,.14);border:1px solid rgba(233,185,73,.55)}
-.capbar__num b{font-family:var(--display,inherit);font-size:17px;font-weight:900;color:#F4D58A;font-variant-numeric:tabular-nums;display:inline-block;min-width:1.6em;text-align:center}
-.capbar__num b.is-tick{animation:capTick .32s cubic-bezier(.2,1.4,.4,1)}
-.capbar__num small{font-size:11.5px;font-weight:600;opacity:.82}
-.capbar__meter{width:96px;height:6px;border-radius:999px;background:rgba(255,255,255,.18);overflow:hidden;flex:none}
-.capbar__meter i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#E9B949,#F4D58A);transition:width .9s cubic-bezier(.2,.8,.2,1);margin-inline-start:auto}
-.capbar__go{display:inline-flex;gap:4px;align-items:center;font-size:12.5px;color:#F4D58A}
-.capbar.is-low{background:linear-gradient(100deg,#6B2A1F 0%,#9B3B2B 45%,#6B2A1F 100%);background-size:220% 100%}
-.capbar.is-low .capbar__live i,.capbar.is-low .capbar__live::before{background:#FFB199}
-.capbar.is-drop{animation:capFlow 9s linear infinite,capShake .6s cubic-bezier(.36,.07,.19,.97)}
-.capbar.is-full .capbar__go{display:none}
+.capbar__live i,.capbar__live::before,.capbar__live::after{content:'';position:absolute;inset:0;border-radius:50%;background:#7CF0C4}
+.capbar__live::before{animation:capPulse 1.6s ease-out infinite}.capbar__live::after{animation:capPulse 1.6s .8s ease-out infinite}
+.capbar__ring{position:relative;width:34px;height:34px;flex:none}
+.capbar__ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.capbar__track{fill:none;stroke:rgba(255,255,255,.16);stroke-width:4}
+.capbar__arc{fill:none;stroke:#F4D58A;stroke-width:4;stroke-linecap:round;stroke-dasharray:119.4;stroke-dashoffset:0;transition:stroke-dashoffset 1.1s cubic-bezier(.2,.8,.2,1);filter:drop-shadow(0 0 4px rgba(244,213,138,.7))}
+.capbar__orbit{position:absolute;inset:0;animation:capSpin 3.2s linear infinite}
+.capbar__orbit::before{content:'';position:absolute;top:1px;inset-inline:0;margin-inline:auto;width:6px;height:6px;border-radius:50%;background:#fff;box-shadow:0 0 8px 2px rgba(244,213,138,.9)}
+.capbar__num{display:inline-flex;align-items:center;justify-content:center;min-width:2.4em;height:30px;padding:0 10px;border-radius:999px;background:rgba(252,243,235,.12);border:1px solid rgba(233,185,73,.6);perspective:200px}
+.capbar__num b{font-family:var(--display,inherit);font-size:19px;font-weight:900;color:#F4D58A;font-variant-numeric:tabular-nums;display:inline-block;text-shadow:0 0 12px rgba(244,213,138,.45)}
+.capbar__num b.is-tick{animation:capFlip .42s cubic-bezier(.2,1.3,.4,1)}
+.capbar__go{display:inline-flex;gap:4px;align-items:center;font-size:12.5px;color:#0B3B30;background:linear-gradient(135deg,#F4D58A,#E9B949);padding:5px 12px;border-radius:999px;box-shadow:0 4px 14px rgba(233,185,73,.35);animation:capNudge 2.8s ease-in-out infinite}
+.capbar.is-low{background-image:linear-gradient(100deg,#3B1510 0%,#8E3426 35%,#6B2A1F 60%,#A8432F 85%,#3B1510 100%)}
+.capbar.is-low .capbar__live i,.capbar.is-low .capbar__live::before,.capbar.is-low .capbar__live::after{background:#FFB199}
+.capbar.is-drop .capbar__num{animation:capPop .7s cubic-bezier(.36,.07,.19,.97)}
+.capbar.is-drop::after{animation:capShine .9s ease-out 1}
 .capbar:focus-visible{outline:3px solid #F4D58A;outline-offset:-3px}
-@keyframes capFlow{to{background-position:-220% 0}}
-@keyframes capShine{0%,55%{transform:translateX(-120%)}100%{transform:translateX(120%)}}
-@keyframes capPulse{from{transform:scale(1);opacity:.75}to{transform:scale(2.8);opacity:0}}
-@keyframes capTick{0%{transform:translateY(-55%) scale(1.25);opacity:.2;color:#fff}100%{transform:none;opacity:1}}
-@keyframes capShake{10%,90%{transform:translateX(-1px)}20%,80%{transform:translateX(2px)}30%,50%,70%{transform:translateX(-3px)}40%,60%{transform:translateX(3px)}}
-@media(max-width:600px){.capbar{gap:8px;font-size:12px;padding:6px 10px}.capbar__meter{width:56px}.capbar__go{display:none}.capbar__num b{font-size:16px}}
-@media(prefers-reduced-motion:reduce){.capbar,.capbar::after,.capbar__live::before{animation:none}}
+@keyframes capFlow{to{background-position:-260% 0}}
+@keyframes capGlow{to{background-position:60% 50%,40% 50%}}
+@keyframes capShine{0%,50%{transform:translateX(-130%)}100%{transform:translateX(130%)}}
+@keyframes capPulse{from{transform:scale(1);opacity:.8}to{transform:scale(3);opacity:0}}
+@keyframes capSpin{to{transform:rotate(360deg)}}
+@keyframes capFlip{0%{transform:rotateX(90deg) translateY(-30%);opacity:0}100%{transform:none;opacity:1}}
+@keyframes capPop{0%{transform:scale(1)}30%{transform:scale(1.35);box-shadow:0 0 0 6px rgba(244,213,138,.25)}100%{transform:scale(1)}}
+@keyframes capNudge{0%,80%,100%{transform:translateX(0)}88%{transform:translateX(-4px)}94%{transform:translateX(2px)}}
+@media(max-width:600px){.capbar.is-full .capbar__ring,.capbar.is-full .capbar__num{display:none}.capbar{gap:8px;font-size:12.5px;padding:5px 10px;min-height:44px}.capbar__ring{width:28px;height:28px}.capbar__num b{font-size:17px}.capbar__go{padding:4px 9px;font-size:11.5px}}
+@media(prefers-reduced-motion:reduce){.capbar,.capbar::before,.capbar::after,.capbar__live::before,.capbar__live::after,.capbar__orbit,.capbar__go{animation:none}}
+/* «درخواست رزرو جایگاه» dialog */
+.rsv{position:fixed;inset:0;z-index:90;display:grid;place-items:center;padding:16px;background:rgba(8,30,25,.55);backdrop-filter:blur(4px)}
+.rsv[hidden]{display:none!important}
+.rsv__card{box-sizing:border-box;width:min(440px,100%);max-width:100%;background:#FCF7F0;border-radius:24px;padding:22px 20px;display:grid;gap:12px;box-shadow:0 30px 80px rgba(0,0,0,.3);position:relative}
+.rsv__card h2{margin:0;font-size:20px}.rsv__card p{margin:0;font-size:13.5px;line-height:1.9;color:var(--ink-soft)}
+.rsv__card label{display:grid;gap:4px;font-size:13px;font-weight:700;min-width:0}
+.rsv__card input{box-sizing:border-box;width:100%;min-width:0;min-height:46px;border:1px solid var(--line-2);border-radius:12px;padding:0 12px;font:inherit;background:#fff}
+.rsv__pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.rsv__roles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.rsv__roles button{min-height:46px;border-radius:12px;border:1px solid var(--line-2);background:#fff;font:inherit;font-weight:800;cursor:pointer}
+.rsv__roles button[aria-pressed="true"]{background:#0B4A3D;color:#fff;border-color:#0B4A3D}
+.rsv__x{position:absolute;top:12px;inset-inline-end:12px;width:40px;height:40px;border-radius:50%;border:0;background:rgba(0,0,0,.06);font-size:20px;cursor:pointer}
+.rsv__err{color:#A3342B;font-size:13px;font-weight:700;margin:0}.rsv__err:empty{display:none}
+.rsv__ok{display:grid;gap:8px;text-align:center;padding:8px 0}.rsv__ok b{font-size:18px}

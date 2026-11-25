@@ -216,6 +216,8 @@
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || 'ثبت‌نام انجام نشد؛ دوباره امتحان کنید.');
       if (d.code_sent) { codeBox.hidden = false; go.textContent = 'تأیید کد و گرفتن ۳ تصویر رایگان'; document.getElementById('prSuCode').focus(); return; }
+      /* Signed up to reserve a place (src/capacity.js): stay here and open the form. */
+      if (window.__AYN_AFTER_SIGNUP) { const next = window.__AYN_AFTER_SIGNUP; window.__AYN_AFTER_SIGNUP = null; window.__AYN_TRIAL = {name, phone: tel}; shutSu(); next(); return; }
       go.textContent = 'صفحهٔ شما آماده شد…';
       const line = d.line || (current === 'salon' ? 'hair' : current);
       location.href = d.url + (d.url.includes('?') ? '&' : '?') + 'l=' + line;

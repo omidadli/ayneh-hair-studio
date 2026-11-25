@@ -224,6 +224,17 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  }
  /* The live capacity counter in the business header (src/capacity.js): real places left this month. */
  if(path==='/api/capacity'&&req.method==='GET'){const c=await capacity(db);return J({total:c.total,left:c.left},200,{'Cache-Control':'no-store'})}
+ /* A place request when the month is full (src/capacity.js form). One per mobile (a repeat updates it). */
+ if(path==='/api/reserve'&&req.method==='POST'){
+  await limited(db,'reserve:'+clientIp(req),10,'درخواست‌های زیادی از این شبکه رسیده؛ کمی بعد دوباره امتحان کنید');
+  const b=await req.json().catch(()=>({}));
+  const first=text(String(b.first_name||''),40),last=text(String(b.last_name||''),40),tel=phone(b.phone);
+  must(first.length>=2&&last.length>=2,'نام و نام خانوادگی را بنویسید.');
+  const role=b.role==='salon'?'salon':'stylist',line=['hair','color','nails','lashes','salon'].includes(b.line)?b.line:'';
+  await run(db,"INSERT INTO reservations(id,first_name,last_name,phone,role,line,status,created_at) VALUES(?,?,?,?,?,?,'new',?) ON CONFLICT(phone) DO UPDATE SET first_name=excluded.first_name,last_name=excluded.last_name,role=excluded.role,line=excluded.line,created_at=excluded.created_at",uid(),first,last,tel,role,line,Date.now());
+  return J({ok:true});
+ }
+ if(path==='/api/owner/reservations'&&req.method==='GET'){await owner(req,env);return J({reservations:await all(db,'SELECT first_name,last_name,phone,role,line,created_at FROM reservations ORDER BY created_at DESC LIMIT 300')})}
  const staffGet=path.match(/^\/api\/staff-credit\/([a-f0-9-]{36})$/);
  if(staffGet&&req.method==='GET'){const i=await staffInfo(db,staffGet[1]);return J({member:i.member,salon:i.salon,lines:i.lines,subscribed:i.subscribed,sub:i.sub})}
  // The same purchase from a signed-in salon panel: no form; same salon, same panel key.

@@ -454,6 +454,12 @@ function payCard(){
    );
    orders.replaceChildren.apply(orders,o.orders.map(orderRow));
    if(!o.orders.length)body.append(h('p','هنوز سفارشی نیامده.','empty-note'));
+   /* «درخواست رزرو جایگاه»: professionals who asked for a place while the month was full. */
+   api('/api/owner/reservations').then(function(r){
+    var rs=r.reservations||[];body.append(h('h3','درخواست‌های رزرو جایگاه ('+fa(rs.length)+')','sub'));
+    if(!rs.length){body.append(h('p','هنوز درخواستی نیامده.','empty-note'));return}
+    body.append(el('div',{class:'stack',style:'display:grid;gap:8px'},rs.map(function(x){return el('div',{class:'order-row'},[el('div',{class:'order-row__top'},[h('b',x.first_name+' '+x.last_name),el('span',{class:'badge',text:x.role==='salon'?'سالن‌دار':'آرایشگر'})]),h('small',x.phone.replace(/^\+98/,'0')+(x.line?' · '+({hair:'مدل مو',color:'رنگ مو',nails:'ناخن',lashes:'مژه',salon:'آرایشگاه'}[x.line]||''):'')+' · '+new Date(x.created_at).toLocaleString('fa-IR',{timeZone:'Asia/Tehran'}))])})));
+   }).catch(function(){});
   });
  }
  load().catch(function(e){body.append(el('p',{class:'notice notice--warn',text:e.message}))});

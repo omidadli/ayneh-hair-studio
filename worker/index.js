@@ -104,11 +104,15 @@ export default {
   const biz=isBiz(u),M=mainOrigin(u,env),B=bizOrigin(u,env);
   /* Business pages only: Microsoft Clarity and Google Analytics 4 when the owner set their ids in
      /admin «تبلیغات» (app_settings 'analytics'). Clarity masks every form field (mobile, name). */
-  const an=biz?await analyticsIds(env):{};
+  const an0=await analyticsIds(env),an=biz?{clarity:an0.clarity,ga4:an0.ga4}:{clarity:an0.main_clarity,ga4:an0.main_ga4};
   const tags=(an.clarity?'<script>(function(c,l,a,r,i,t,y){c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y)})(window,document,"clarity","script","'+an.clarity+'");</script>':'')
    +(an.ga4?'<script async src="https://www.googletagmanager.com/gtag/js?id='+an.ga4+'"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date());gtag("config","'+an.ga4+'");</script>':'');
   const csp=tags?htmlHeaders['Content-Security-Policy'].replace("script-src 'self' 'unsafe-inline'","script-src 'self' 'unsafe-inline' https://www.clarity.ms https://*.clarity.ms https://www.googletagmanager.com").replace("img-src 'self' data: blob:","img-src 'self' data: blob: https://*.clarity.ms https://c.bing.com https://www.google-analytics.com https://*.google-analytics.com https://www.googletagmanager.com").replace("connect-src 'self'","connect-src 'self' https://*.clarity.ms https://c.bing.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com"):htmlHeaders['Content-Security-Policy'];
-  const page=(html,canon,extra={})=>new Response((tags?html.replace('</head>',tags+'</head>'):html).replaceAll('__ORIGIN__',B).replaceAll('__MAIN__',M).replaceAll('__CANON__',canon),{headers:{...htmlHeaders,'Content-Security-Policy':csp,...(tags?{'Referrer-Policy':'strict-origin-when-cross-origin'}:{}),'Cache-Control':'no-cache',...refCookie(u,request),...extra}});
+  /* Main site = customers' studio with their photos: Clarity sees the page fully masked (clicks,
+     scroll and heatmaps only, never a face or a photo). */
+  const withTags=html=>tags?html.replace('</head>',tags+'</head>').replace(/<body(?![^>]*data-clarity-mask)/,biz?'<body':'<body data-clarity-mask="True"'):html;
+  const tagHdr=tags?{'Content-Security-Policy':csp,'Referrer-Policy':'strict-origin-when-cross-origin'}:{};
+  const page=(html,canon,extra={})=>new Response(withTags(html).replaceAll('__ORIGIN__',B).replaceAll('__MAIN__',M).replaceAll('__CANON__',canon),{headers:{...htmlHeaders,'Content-Security-Policy':csp,...(tags?{'Referrer-Policy':'strict-origin-when-cross-origin'}:{}),'Cache-Control':'no-cache',...refCookie(u,request),...extra}});
   /* Search engines: each side lists its own public pages; panels, the console, the API and salon pages stay out. */
   if(u.pathname==='/robots.txt')return new Response('User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /admin\nDisallow: /panel\nDisallow: /pay\nDisallow: /new\nDisallow: /s/\nDisallow: /share/\nDisallow: /app\n\nSitemap: '+(biz?B:M)+'/sitemap.xml\n',{headers:{'Content-Type':'text/plain; charset=utf-8','Cache-Control':'public,max-age=3600'}});
   if(u.pathname==='/sitemap.xml'){const o=biz?B:M,list=biz?['/','/hair','/color','/nails','/lashes','/salon-panel','/sample','/pricing']:['/'];return new Response('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'+list.map(p=>'<url><loc>'+o+p+'</loc></url>').join('\n')+'\n</urlset>\n',{headers:{'Content-Type':'application/xml; charset=utf-8','Cache-Control':'public,max-age=3600'}});}
@@ -130,11 +134,11 @@ export default {
       where plans are bought and where the referral cookie must be set. */
    if(u.pathname==='/'&&CODE_RE.test(String(u.searchParams.get('ref')||'').toUpperCase()))return moved(B+'/'+u.search);
    /* The main domain is the customers' site: «/» is their studio. */
-   if(u.pathname==='/'){must(env.DB,'پایگاه داده هنوز آماده نیست',503);const d=await directSalon(env.DB);const html=await studioPage(u,env,d.slug);return new Response(html,{headers:{...htmlHeaders,'Cache-Control':'no-cache',...refCookie(u,request)}});}
+   if(u.pathname==='/'){must(env.DB,'پایگاه داده هنوز آماده نیست',503);const d=await directSalon(env.DB);const html=await studioPage(u,env,d.slug);return new Response(withTags(html),{headers:{...htmlHeaders,...tagHdr,'Cache-Control':'no-cache',...refCookie(u,request)}});}
    if(/^\/(?:studio|try)\/?$/.test(u.pathname))return moved('/'+u.search);
    /* «ورود یا ثبت‌نام»: the studio page in its sign-in screen (customer.js accountMode). */
    const acct=u.pathname.match(/^\/(login|signup|profile)\/?$/);
-   if(acct){must(env.DB,'پایگاه داده هنوز آماده نیست',503);const d=await directSalon(env.DB);const title={login:'ورود',signup:'ثبت‌نام',profile:'پروفایل من'}[acct[1]];return new Response((await studioPage(u,env,d.slug)).replace(/<title>[^<]*<\/title>/,'<title>'+title+' | آینه</title>').replace('<link rel="canonical" href="'+M+'/">','<link rel="canonical" href="'+M+'/'+acct[1]+'"><meta name="robots" content="noindex">'),{headers:{...htmlHeaders,'Cache-Control':'no-cache'}});}
+   if(acct){must(env.DB,'پایگاه داده هنوز آماده نیست',503);const d=await directSalon(env.DB);const title={login:'ورود',signup:'ثبت‌نام',profile:'پروفایل من'}[acct[1]];return new Response(withTags(await studioPage(u,env,d.slug)).replace(/<title>[^<]*<\/title>/,'<title>'+title+' | آینه</title>').replace('<link rel="canonical" href="'+M+'/">','<link rel="canonical" href="'+M+'/'+acct[1]+'"><meta name="robots" content="noindex">'),{headers:{...htmlHeaders,...tagHdr,'Cache-Control':'no-cache'}});}
    /* Salon pages moved to business.; old links, ads and ?ref= links keep working. */
    if(/^\/salons\/?$/.test(u.pathname))return moved(B+'/'+u.search);
    if(svc||u.pathname==='/new'||/^\/pay\/?$/.test(u.pathname))return moved(B+u.pathname+u.search);

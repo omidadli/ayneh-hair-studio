@@ -247,8 +247,8 @@ export async function api(req,env){const u=new URL(req.url),path=u.pathname;must
  if(path==='/api/owner/campaigns'&&req.method==='GET'){await owner(req,env);const {campaignReport}=await import('./campaigns.js');return J(await campaignReport(db,Number(u.searchParams.get('days'))||0))}
  /* Clarity and Google Analytics ids (business pages only; worker/index.js injects them). */
  if(path==='/api/owner/analytics'){await owner(req,env);
-  if(req.method==='POST'){const b=await req.json().catch(()=>({}));const v={clarity:String(b.clarity||'').trim(),ga4:String(b.ga4||'').trim().toUpperCase()};
-   must(!v.clarity||/^[a-z0-9]{6,20}$/i.test(v.clarity),'شناسهٔ Clarity معتبر نیست (مثل ab12cd34ef).');must(!v.ga4||/^G-[A-Z0-9]{6,14}$/.test(v.ga4),'شناسهٔ Google Analytics باید مثل G-XXXXXXXXXX باشد.');
+  if(req.method==='POST'){const b=await req.json().catch(()=>({}));const v={clarity:String(b.clarity||'').trim(),ga4:String(b.ga4||'').trim().toUpperCase(),main_clarity:String(b.main_clarity||'').trim(),main_ga4:String(b.main_ga4||'').trim().toUpperCase()};
+   must(!v.clarity||/^[a-z0-9]{6,20}$/i.test(v.clarity),'شناسهٔ Clarity معتبر نیست (مثل ab12cd34ef).');must(!v.ga4||/^G-[A-Z0-9]{6,14}$/.test(v.ga4),'شناسهٔ Google Analytics باید مثل G-XXXXXXXXXX باشد.');must(!v.main_clarity||/^[a-z0-9]{6,20}$/i.test(v.main_clarity),'شناسهٔ Clarity سایت اصلی معتبر نیست.');must(!v.main_ga4||/^G-[A-Z0-9]{6,14}$/.test(v.main_ga4),'شناسهٔ Google Analytics سایت اصلی معتبر نیست.');
    await run(db,"INSERT INTO app_settings(key,value,updated_at) VALUES('analytics',?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value,updated_at=excluded.updated_at",JSON.stringify(v),Date.now());return J(v)}
   return J(JSON.parse((await one(db,"SELECT value FROM app_settings WHERE key='analytics'"))?.value||'{}'))}
  const staffGet=path.match(/^\/api\/staff-credit\/([a-f0-9-]{36})$/);
